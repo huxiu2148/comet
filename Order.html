@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; padding: 16px; }
+    .group-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 16px; border: 2.5px solid #e2e8f0; }
+    .is-closed { opacity: 0.5; filter: grayscale(1); pointer-events: none; background: #f1f5f9; }
+    .border-GG { border-color: #FF84C3; } .border-NCT { border-color: #E1E668; } .border-RZ { border-color: #FF9E23; } .border-SM { border-color: #FCE0E4; } .border-OTH { border-color: #E2E8F0; }
+    .btn-qty { width: 34px; height: 34px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+    .spec-select, .spec-input { width: 100%; height: 40px; background: #f8fafc; border: 2px solid #edf2f7; border-radius: 12px; font-size: 14px; padding: 0 10px; margin-top: 10px; outline: none; }
+    .input-field { width: 100%; height: 50px; background: #f1f5f9; border-radius: 14px; font-size: 15px; outline: none; border: 2px solid transparent; padding: 0 16px; }
+    #bankModal { 
+      display: none; 
+      position: fixed; 
+      inset: 0; 
+      background: rgba(0,0,0,0.6); 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 60; /* 這裡調高 */
+      padding: 20px; 
+    }
+    #historyModal { 
+      display: none; 
+      position: fixed; 
+      inset: 0; 
+      background: rgba(0,0,0,0.6); 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 50; 
+      padding: 20px; 
+    }
+    .modal-content { background: white; border-radius: 32px; padding: 28px; width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; position: relative; }
+    .close-x { position: absolute; top: 20px; right: 20px; width: 32px; height: 32px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: #94a3b8; cursor: pointer; }
+    /* 讓回報輸入框的層級高於資訊視窗 */
+    #remitInputModal {
+      z-index: 9999 !important; /* 數字越大代表越前面 */
+    }
+
+    /* 確保資訊視窗的層級稍微低一點 */
+    #historyDetailModal {
+      z-index: 9990 !important;
+    }
+
+    /* 遮罩背景也要調整，確保不會疊在一起變太黑 */
+    .modal-overlay {
+      z-index: 9980;
+    }
+  </style>
+</head>
+<body onload="initOrderPage()">
+
+  <div id="bankModal">
+    <div class="modal-content shadow-2xl text-center">
+      <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div id="modalContentBody"></div>
+      <button onclick="resetAndGoHome()" class="w-full h-14 bg-slate-900 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-transform mt-6">關閉並返回主頁</button>
+    </div>
+  </div>
+
+  <div id="historyModal">
+    <div class="modal-content">
+      <div class="close-x" onclick="document.getElementById('historyModal').style.display='none'">✕</div>
+      <h2 class="text-xl font-black text-slate-800 mb-6 text-center">我的訂單紀錄</h2>
+      
+      <div id="historySearchArea" class="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+        <p class="text-[10px] font-black text-slate-400 mb-2 uppercase ml-1">切換 Email 查詢</p>
+        <div class="flex gap-2">
+          <input type="email" id="historyEmailSearch" class="input-field !h-11 !text-sm" placeholder="輸入其他 Email">
+          <button onclick="manualSearchHistory()" class="bg-indigo-500 text-white px-4 rounded-xl font-bold text-xs whitespace-nowrap">查詢</button>
+        </div>
+      </div>
+
+      <div id="historyList" class="space-y-4 text-left"></div>
+    </div>
+  </div>
+
+  <div class="max-w-[500px] mx-auto pb-24">
+    <div id="homePage">
+      <div class="text-center my-10">
+        <h1 class="text-4xl font-black text-slate-900 tracking-tighter">COMET小小代購💫💟</h1>
+        <button onclick="showHistory()" class="mt-6 px-5 py-2.5 bg-white border-2 border-slate-100 rounded-full text-xs font-black text-indigo-500 shadow-sm">查詢我的下單紀錄</button>
+      </div>
+      <div id="groupList" class="space-y-4">載入中...</div>
+    </div>
+
+    <div id="calculatorView" class="hidden">
+      <div class="flex justify-between items-center mb-6">
+        <div class="text-slate-400 font-bold cursor-pointer text-sm" onclick="goBackToList()">← 返回列表</div>
+        <button id="detailBankBtn" onclick="showBankModal()" class="hidden px-3 py-1.5 bg-indigo-50 text-indigo-500 rounded-full text-[11px] font-black border border-indigo-100">查看資訊</button>
+      </div>
+      <div id="calcContainer"></div>
+    </div>
+  </div>
+  <div id="remitInputModal" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] items-center justify-center p-5">
+    <div class="modal-content !max-w-[350px]">
+      <h3 id="remitModalTitle" class="text-lg font-black text-slate-800 mb-4 text-center">填寫資訊</h3>
+      
+      <div class="space-y-4">
+        <div id="bankSelectGroup">
+          <p class="text-[10px] font-black text-slate-400 mb-1 ml-1 uppercase">匯入銀行</p>
+          <select id="bankSelect" class="spec-select !m-0">
+            <option value="國泰">國泰 (013)</option>
+            <option value="永豐">永豐 (807)</option>
+            <option value="中信">中信 (822)</option>
+          </select>
+        </div>
+        
+        <div>
+          <p id="inputLabel" class="text-[10px] font-black text-slate-400 mb-1 ml-1 uppercase">帳戶末五碼</p>
+          <input type="text" id="lastFiveInput" class="input-field !h-12" placeholder="請輸入 5 碼數字">
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+          <button onclick="closeRemitModal()" class="flex-1 h-12 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">取消</button>
+          <button id="submitRemitBtn" class="flex-1 h-12 bg-indigo-500 text-white rounded-xl font-bold text-sm">確認提交</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  var themeColors = { 'SNSD': '#FF84C3','GG': '#FF84C3', 'NCT': '#B0CF00', 'RZ': '#FF9E23', 'SM': '#FCE0E4', 'OTH': '#6366f1' };
+  var runningTotal = 0, savedInfo = {lineName: "", contact: "", userEmail: ""}, currentMode = "3";
+  var lastPassportName = "";
+
+  function initOrderPage() {
+    google.script.run.withSuccessHandler(function(info) { 
+      if (info) {
+        savedInfo = {
+          lineName: (info.lineName && info.lineName !== "undefined") ? info.lineName : "",
+          contact: (info.contact && info.contact !== "undefined") ? info.contact : "",
+          userEmail: (info.userEmail && info.userEmail !== "undefined") ? info.userEmail : "" 
+        };
+      }
+      loadGroups(); 
+    }).getUserInfo();
+  }
+
+  function loadGroups() {
+    google.script.run.withSuccessHandler(function(groups) {
+      var container = document.getElementById('groupList');
+      if (!groups || groups.length === 0) { container.innerHTML = "目前暫無開團中"; return; }
+      
+      var html = "";
+      for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var type = g.id ? g.id.split('-')[0] : 'OTH';
+        var statusColors = {
+          '團務進行中': 'bg-green-400', '已收單': 'bg-red-300', '官方出貨中': 'bg-blue-200',
+          '到集運': 'bg-purple-200', '運回中': 'bg-sky-200', '抵台寄出中': 'bg-orange-200', '團務結束': 'bg-gray-300'
+        };
+        var barColor = statusColors[g.status] || 'bg-slate-200';
+        
+        // ✨ 簡化後的點擊邏輯判斷
+        var clickAction = "";
+        if (g.mode === "4" && g.link) {
+          // 改為呼叫專門的函數，傳入連結即可
+          clickAction = "handleMode4('" + g.link + "')";
+        } else if (g.canOrder) {
+          clickAction = "selectGroup('" + g.id + "', '" + g.name + "', '" + type + "', '" + g.mode + "', '" + g.deadlineStr + "', '" + g.shippingTime + "')";
+        } else {
+          clickAction = "alert('此團務目前狀態為【" + g.status + "】，已不開放下單。')";
+        }
+
+        html += '<div onclick="' + clickAction + '" class="group-card border-' + type + ' ' + (!g.canOrder ? 'opacity-90' : 'cursor-pointer active:scale-95') + '">' +
+                '<div class="flex justify-between items-start mb-2">' +
+                '<div><h3 class="text-xl font-black text-slate-800">' + g.name + '</h3>' +
+                '<p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">截止：' + g.deadlineStr + '</p></div>' +
+                '<span class="text-[10px] font-black px-2 py-1 rounded-full ' + (g.canOrder ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500') + '">' + g.status + '</span></div>' +
+                '<div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">' +
+                '<div class="' + barColor + ' h-full transition-all duration-500" style="width: ' + getProgressWidth(g.status) + '%"></div></div></div>';
+      }
+      container.innerHTML = html;
+    }).getActiveGroups();
+  }
+  // 🚀 模式 4 專用跳轉助手
+  function handleMode4(url) {
+    // 這裡寫妳想要的完整提醒文字，不用擔心斜線問題
+    var msg = "下單成功！💫\n\n已為您開啟賣貨便連結！💟";
+    
+    alert(msg);
+    window.open(url, '_blank');
+  }
+
+  function getProgressWidth(status) {
+    var steps = ['團務進行中', '已收單', '官方出貨中', '到集運', '運回中', '抵台寄出中', '團務結束'];
+    var idx = steps.indexOf(status);
+    return idx === -1 ? 10 : ((idx + 1) / steps.length) * 100;
+  }
+
+  function selectGroup(id, name, type, mode, deadlineStr, shippingTime) {
+    currentMode = mode;
+    document.getElementById('detailBankBtn').classList.add('hidden');
+    document.getElementById('calcContainer').innerHTML = "<div class='py-20 text-center text-slate-400 font-bold'>讀取中...</div>";
+    window.currentGroupId = id; 
+    window.currentGroupName = name; 
+    runningTotal = 0;
+    
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('calculatorView').classList.remove('hidden');
+    
+    // 修改這個成功回呼函數
+    google.script.run.withSuccessHandler(function(res) { 
+      if(res && res.hasOrder) {
+        document.getElementById('detailBankBtn').classList.remove('hidden');
+        // 【關鍵】存入全域變數，這樣點擊「查看資訊」時才抓得到行號
+        window.lastOrderRowIndex = res.rowIndex; 
+      }
+    }).checkOrderAuth(id);
+
+    google.script.run.withSuccessHandler(function(products) {
+      window.currentProducts = products;
+      var color = themeColors[type] || '#6366f1';
+      var productHtml = "";
+      for (var i = 0; i < products.length; i++) {
+        var p = products[i];
+        var cleanName = p.name.split('(')[0].trim();
+        productHtml += '<div class="pb-4 border-b border-slate-50 last:border-0">' +
+                       '<div class="flex justify-between items-start"><div class="flex-1 pr-4">' +
+                       '<p class="font-bold text-slate-700 text-sm">' + cleanName + '</p>' +
+                       '<p class="font-black text-xs" style="color:' + color + '">NT$ ' + p.price + '</p></div>' +
+                       '<div class="flex items-center gap-3"><button onclick="updateQty(' + i + ', -1, ' + p.price + ')" class="btn-qty">-</button>' +
+                       '<span id="qty-' + i + '" class="font-black w-6 text-center">0</span>' +
+                       '<button onclick="updateQty(' + i + ', 1, ' + p.price + ')" class="btn-qty">+</button></div></div>' +
+                       parseProductUI(p.name, i) + '</div>';
+      }
+
+      var containerHtml = '<div class="group-card border-' + type + '">' +
+        '<h2 class="text-2xl font-black mb-4 text-slate-800">' + name + '</h2>' +
+        '<div class="bg-slate-50 rounded-2xl p-4 mb-6 text-[13px] font-bold text-slate-500 space-y-2 border border-slate-100">' +
+        '<p class="flex justify-between"><span>⏳ 收單截止</span> <span class="text-slate-800">' + deadlineStr + '</span></p>' +
+        '<p class="flex justify-between"><span>📦 官方出貨</span> <span class="text-slate-800">' + shippingTime + '</span></p></div>' +
+        '<div class="space-y-4 mb-8 text-left">' +
+        '<div><p class="text-[10px] font-black text-slate-400 mb-1 ml-1 uppercase">常用電子郵件</p><input type="email" id="uEmail" class="input-field" value="' + (savedInfo.userEmail || '') + '"></div>' +
+        '<div><p class="text-[10px] font-black text-slate-400 mb-1 ml-1 uppercase">聯絡帳號 (FB/IG)</p><input type="text" id="cID" class="input-field" value="' + (savedInfo.contact || '') + '"></div>' +
+        '<div><p class="text-[10px] font-black text-slate-400 mb-1 ml-1 uppercase">LINE社群暱稱</p><input type="text" id="lName" class="input-field" value="' + (savedInfo.lineName || '') + '"></div>' +
+        (currentMode === "2" ? '<div id="passportBox"><p class="text-[10px] font-black text-rose-500 mb-1 ml-1 uppercase">護照英文姓名</p><input type="text" id="passportName" class="input-field border-rose-100" placeholder="WANG XIAO MING"></div>' : '') +
+        '</div><div class="space-y-6 mb-8 pt-6 border-t border-slate-100 text-left">' + productHtml + '</div>' +
+        '<div class="mt-8 p-6 rounded-[2rem] text-center" style="background:' + color + '10"><p id="totalDisplay" class="text-4xl font-black" style="color:' + color + '">NT$ 0</p></div>' +
+        '<button onclick="submitOrder(\'' + color + '\')" id="sBtn" class="w-full h-14 rounded-2xl text-white font-black mt-6 shadow-lg" style="background:' + color + '">確認下單 🚀</button></div>';
+      
+      document.getElementById('calcContainer').innerHTML = containerHtml;
+    }).getGroupProducts(id);
+  }
+
+  function parseProductUI(fullName, index) {
+    // 1. 使用正則抓取括號內容
+    var match = fullName.match(/\(([^)]+)\)/);
+    if (!match) return ""; 
+    
+    var content = match[1]; // 這是括號內的文字
+    var html = '<p class="text-[10px] text-indigo-500 mt-1 font-bold">說明：' + content + '</p>';
+    
+    // 2. 判斷是否包含關鍵字：分、挑、選、填 或 斜線 /
+    // 使用正則表達式 /[分挑選填\/]/ 進行檢查
+    var needInput = /[分挑選填\/]/.test(content);
+    
+    if (needInput) {
+      html += '<input type="text" id="spec-input-' + index + '" class="spec-input" placeholder="請依照說明填寫內容">';
+    }
+    
+    return html;
+  }
+
+  function updateQty(i, d, p) {
+    var qEl = document.getElementById('qty-' + i);
+    var q = parseInt(qEl.innerText) + d; if (q < 0) return;
+    qEl.innerText = q; runningTotal += (d * p);
+    document.getElementById('totalDisplay').innerText = 'NT$ ' + runningTotal.toLocaleString();
+  }
+
+  function submitOrder(color) {
+    var ue = document.getElementById('uEmail').value.trim(), 
+        ln = document.getElementById('lName').value.trim(), 
+        ct = document.getElementById('cID').value.trim();
+        
+    if (!ue || !ln || !ct || runningTotal === 0) return alert("請完整填寫資訊並選擇商品！");
+    if (ue.indexOf('@gmail.com') === -1) return alert("請填寫正確的 Gmail！");
+
+    var passportName = "";
+    if (currentMode === "2") {
+        passportName = document.getElementById('passportName').value.trim();
+        if (!passportName) return alert("請務必填寫護照英文姓名！");
+        lastPassportName = passportName;
+    }
+
+    var det = [], validationError = "";
+    for (var i = 0; i < window.currentProducts.length; i++) {
+        var p = window.currentProducts[i];
+        var qty = parseInt(document.getElementById('qty-' + i).innerText) || 0;
+        if (qty > 0) {
+            var cleanName = p.name.split('(')[0].trim();
+            var inpEl = document.getElementById('spec-input-' + i);
+            if (inpEl) {
+                var specValue = inpEl.value.trim();
+                if (specValue === "") { 
+                    validationError = "請填寫商品「" + cleanName + "」的規格內容！"; 
+                    break; 
+                }
+                det.push(cleanName + " [" + specValue + "] x" + qty);
+            } else {
+                det.push(cleanName + " x" + qty);
+            }
+        }
+    }
+    if (validationError !== "") return alert(validationError);
+    if (passportName) det.unshift("【護照姓名：" + passportName + "】");
+
+    var btn = document.getElementById('sBtn'); 
+    if (btn.disabled) return; 
+    btn.disabled = true; 
+    btn.style.opacity = "0.5"; 
+    btn.innerText = "傳送中...";
+    
+    // ✨ 這裡是正確的 google.script.run 寫法
+    google.script.run.withSuccessHandler(function(res) { 
+        if (res.success) {
+            window.lastOrderRowIndex = res.rowIndex;
+
+            // 1. 儲存並記住使用者資料
+            savedInfo = {lineName: ln, contact: ct, userEmail: ue};
+            localStorage.setItem('comet_user_info', JSON.stringify(savedInfo));
+
+            // 2. 判斷模式
+            if (currentMode === "4") {
+                // 模式 4：跳出賣貨便專屬提示並跳轉
+                alert("下單成功！💫\n\n已為您開啟賣貨便連結！💟");
+                window.open(currentLink, '_blank');
+                closeOrderModal();
+            } else {
+                // 模式 1, 2, 3：顯示銀行/集運資訊彈窗
+                showBankModal();
+                var detailBtn = document.getElementById('detailBankBtn');
+                if (detailBtn) detailBtn.classList.remove('hidden'); 
+                
+                alert("下單成功！副本已寄送至信箱 💫");
+                closeOrderModal();
+            }
+            
+            // 3. 恢復按鈕狀態
+            btn.disabled = false; 
+            btn.style.opacity = "1";
+            btn.innerText = "確認下單 🚀";
+            if (typeof loadGroups === "function") loadGroups();
+        } else {
+            alert("下單失敗，請稍後再試。");
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            btn.innerText = "確認下單 🚀";
+        }
+    }).submitOrderToSheet({
+        groupId: window.currentGroupId, 
+        groupName: window.currentGroupName, 
+        lineName: ln, 
+        contact: ct, 
+        userEmail: ue, 
+        detail: det.join('\n'), 
+        total: runningTotal,
+        mode: currentMode // ✨ 記得傳入 mode 給後端，這樣後端才能分流 Telegram 和寄信
+    });
+}
+// 全域變數
+window.isFromHistory = false;
+window.currentGroupLink = "";
+
+/**
+ * 修正後的歷史紀錄詳情顯示函數
+ * 確保參數列包含 rowIndex，並正確處理彈窗顯示
+ */
+function showHistory() {
+  // 1. 先從 localStorage 抓出整包字串，並轉回物件
+  var rawData = localStorage.getItem('comet_user_info');
+  var memory = rawData ? JSON.parse(rawData) : null;
+  
+  // 2. 取得 Email (優先用記憶的，沒有就用變數裡的)
+  var emailToSearch = (memory && memory.userEmail) ? memory.userEmail : savedInfo.userEmail;
+  
+  document.getElementById('historyModal').style.display = 'flex';
+  
+  var searchInput = document.getElementById('historyEmailSearch');
+  if (searchInput) {
+    // 填入 Email 但保留輸入框
+    searchInput.value = emailToSearch || ""; 
+    
+    // 如果有 Email，就直接自動幫他查詢
+    if (emailToSearch) {
+      fetchHistory(emailToSearch);
+    }
+  }
+}
+function showHistoryDetail(mode, passport, link, rowIndex) {
+  window.isFromHistory = true;
+  currentMode = mode.toString();
+  lastPassportName = passport;
+  window.currentGroupLink = link || "";
+  window.lastOrderRowIndex = rowIndex;
+
+  var bankModal = document.getElementById('bankModal');
+  if (bankModal) {
+    bankModal.style.zIndex = "200";
+    showBankModal();
+  }
+}
+
+// ✅ 需求 3：手動查詢功能
+function manualSearchHistory() {
+  const email = document.getElementById('historyEmailSearch').value.trim();
+  if (!email || !email.includes('@gmail.com')) return alert("請輸入正確的 Gmail");
+  
+  // 更新記憶物件中的 Email
+  savedInfo.userEmail = email;
+  localStorage.setItem('comet_user_info', JSON.stringify(savedInfo));
+  
+  fetchHistory(email);
+}
+
+// 修改後的 showBankModal 加入模式 4 判斷
+  function showBankModal() {
+    var body = document.getElementById('modalContentBody');
+    var communityLink = '<div class="bg-indigo-50 rounded-2xl p-4 mt-6 border border-indigo-100 text-left"><p class="text-[10px] font-black text-indigo-400 mb-2 uppercase tracking-widest">社群連結：</p><a href="https://reurl.cc/EQ1rLk" target="_blank" class="flex items-center justify-between text-indigo-600 no-underline"><span class="text-xs font-black">加入 LINE 社群對帳/追蹤</span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a></div>';
+    
+    if (currentMode === "1") {
+      // 💡 關鍵：從頁面或記憶中判斷是否有已填寫的紀錄
+      // 我們可以從 history 渲染時傳遞狀態，或者簡單檢查頁面上是否已有顯示已填末五碼
+      var hasCode = (window.lastRemitCode && window.lastRemitCode !== "");
+      var btnText = hasCode ? "修改末五碼 ✍️" : "立即回填末五碼 ✍️";
+
+      body.innerHTML = 
+        '<h2 class="text-xl font-black text-slate-800 mb-1">訂單資訊</h2>' +
+        '<p class="text-sm font-bold text-slate-500 mb-6">請於收單期限內進行匯款</p>' +
+        '<div class="bg-slate-50 rounded-2xl p-5 text-left mb-4 border border-slate-100 font-mono text-sm space-y-3">' +
+          '<p class="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">匯款帳號：</p>' +
+          '<p class="select-all font-bold text-slate-700">國泰 013 - 699507161336</p>' +
+          '<p class="select-all font-bold text-slate-700">永豐 807 - 20401800319484</p>' +
+          '<p class="select-all font-bold text-slate-700">中信 822 - 901567858153</p>' +
+        '</div>' +
+        '<button onclick="openRemitFromBankModal()" class="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-sm mb-4 shadow-md">' + btnText + '</button>' +
+        (hasCode ? '<p class="text-[11px] font-bold text-indigo-500 text-left px-2">※ 您之前已填寫過末五碼，如需更改請點擊上方按鈕</p>' : '<p class="text-[11px] font-bold text-red-500 text-left px-2">※ 匯款完成後請點擊上方按鈕回填資訊</p>') + 
+        communityLink;
+    }else if (currentMode === "2") {
+      var hasTracking = (window.lastRemitCode && window.lastRemitCode !== ""); // 這裡暫用同一個變數存單號
+      var btnText = hasTracking ? "修改託運單號 🚚" : "回報託運單號 🚚";
+
+      body.innerHTML = `
+        <h2 class="text-xl font-black text-slate-800 mb-4">已收到！</h2>
+        <div class="bg-slate-50 rounded-2xl p-4 text-left border border-slate-100 text-[13px] leading-relaxed space-y-2">
+          <p class="font-black text-indigo-500 underline mb-2">集運地址填寫如下⬇️</p>
+          <p><b>收件人：</b> <span class="text-rose-500 font-black">${lastPassportName || '(請填護照名)'}</span></p>
+          <p><b>收件電話：</b> 01058182588</p>
+          <p><b>地址搜尋：</b> (03779) 서울특별시 서대문구 신촌로 109</p>
+          <p><b>詳細地址：</b> 신촌르메이에르타운5 지하1층 B110호 HCH</p>
+          <p class="text-red-500 font-black mt-2 text-center text-[11px]">🚫 請勿外流 🚫</p>
+        </div>
+        <button onclick="openTrackingModal(${window.lastOrderRowIndex})" class="w-full py-3 bg-rose-500 text-white rounded-xl font-black text-sm mb-2 shadow-md mt-4">${btnText}</button>
+        <p class="text-[11px] text-slate-500 text-left font-bold px-1">
+          官方出貨後，請記得回報 12 碼託運單號。
+        </p>
+        ${communityLink}
+      `;
+    } else if (currentMode === "4") {
+      // 模式 4：如果沒被 window.open 攔截到，這裡補一個按鈕
+      body.innerHTML = '<h2 class="text-xl font-black text-slate-800 mb-2">賣貨便下單</h2>' +
+                      '<p class="text-sm text-slate-500 mb-6 font-bold px-4">請點擊下方連結完成賣場下單。</p>' +
+                      '<a href="' + (window.currentGroupLink || '#') + '" target="_blank" class="bg-[#f44336] text-white px-8 py-3 rounded-2xl font-black no-underline inline-block shadow-lg shadow-red-100">前往賣貨便賣場</a>' + 
+                      communityLink;
+    } else {
+      body.innerHTML = '<h2 class="text-xl font-black text-slate-800 py-10">登記成功！🚀</h2>' + communityLink;
+    }
+    document.getElementById('bankModal').style.display = 'flex';
+  }
+  function openRemitFromBankModal() {
+    document.getElementById('bankModal').style.display = 'none';
+    if (window.lastOrderRowIndex) {
+      openRemitPrompt(window.lastOrderRowIndex);
+    }
+  }
+// 讓使用者從「查看資訊」彈窗切換到「填寫末五碼」彈窗
+ function closeBankModalAndOpenRemit() {
+  document.getElementById('bankModal').style.display = 'none';
+  
+  if (window.lastOrderRowIndex) {
+    openRemitPrompt(window.lastOrderRowIndex); 
+  } else {
+    // 如果全域變數掉了，嘗試從畫面的 Email 欄位現場撈一次
+    var email = document.getElementById('uEmail').value;
+    var gid = window.currentGroupId;
+    
+    if(!email) {
+      alert("無法取得訂單資訊，請從「訂單紀錄」回填");
+      return;
+    }
+
+    // 現場去後台查這一團的行號
+    google.script.run.withSuccessHandler(function(res) {
+      if(res && res.rowIndex) {
+        window.lastOrderRowIndex = res.rowIndex;
+        openRemitPrompt(res.rowIndex);
+      } else {
+        alert("找不到您的訂單紀錄，請先完成下單。");
+      }
+    }).checkOrderAuth(gid);
+  }
+}
+  function resetAndGoHome() {
+    document.getElementById('bankModal').style.display = 'none';
+    document.getElementById('calculatorView').classList.add('hidden');
+    document.getElementById('homePage').classList.remove('hidden');
+    document.getElementById('calcContainer').innerHTML = "";
+    runningTotal = 0;
+    loadGroups();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // --- 歷史紀錄功能升級區 ---
+
+  function showHistory() {
+    // 1. 嘗試從目前畫面上的輸入框抓取，或從之前儲存過的 savedInfo 抓取
+    var savedEmail = localStorage.getItem('comet_history_email') || savedInfo.userEmail || "";
+    
+    document.getElementById('historyModal').style.display = 'flex';
+    
+    // 2. 取得歷史紀錄的搜尋框
+    var searchInput = document.getElementById('historyEmailSearch');
+    if (searchInput && savedEmail) {
+      searchInput.value = savedEmail; // 自動填入存過的 Email
+      fetchHistory(savedEmail); // 自動執行查詢
+    }
+  }
+
+  function queryHistoryByInput() {
+  var email = document.getElementById('queryEmailInput').value.trim();
+  if (!email || email.indexOf('@') === -1) {
+    alert("請填寫正確的 Email");
+    return;
+  }
+  
+  // 存入記憶變數中，這樣這一次瀏覽期間都不用再輸入
+  savedInfo.userEmail = email;
+  
+  // 執行查詢
+  fetchHistory(email);
+  
+  // 查詢成功後可以選擇把輸入框藏起來
+  document.getElementById('historyQueryArea').classList.add('hidden');
+}
+
+  // 新增：從明細字串提取護照姓名的工具
+function extractPassportName(detailText) {
+  if (!detailText) return "";
+  // 假設你的明細格式包含 "護照姓名: 王小明" 或 "護照姓名：WANG XIAO MING"
+  // 這個正則會抓取「護照姓名」後面的文字直到換行或結尾
+  var match = detailText.match(/護照姓名[:：]\s*([^】\n\r]+)/);
+  return match ? match[1].trim() : "";
+}
+
+function fetchHistory(email) {
+  google.script.run.withSuccessHandler(function(orders) {
+    var historyList = document.getElementById('historyList');
+    if(!orders || orders.length === 0) {
+      historyList.innerHTML = "<div class='py-10 text-center text-slate-400 font-bold text-sm'>查無訂單紀錄</div>";
+      return;
+    }
+
+    // ✨ 記住查詢的 Email
+    var info = JSON.parse(localStorage.getItem('comet_user_info') || '{}');
+    info.userEmail = email;
+    localStorage.setItem('comet_user_info', JSON.stringify(info));
+
+    orders.reverse();
+    var historyHtml = "";
+
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      var isVerified = (o.status === '已核對');
+      var isGroupFinished = (o.groupStatus === '團務結束');
+      var themeColor = getThemeColorByName(o.groupName);
+      
+      // 提取並清理護照姓名
+      var pName = extractPassportName(o.detail) || "";
+      
+      // ✨ 關鍵修正：將參數字串化，避免單引號或換行搞斷 HTML
+      var safeMode = String(o.mode);
+      var safePName = encodeURIComponent(pName);
+      var safeLink = encodeURIComponent(o.link || "");
+      var safeRemit = encodeURIComponent(o.remitCode || "");
+      var rowIndex = o.rowIndex;
+
+      // ✨ 關鍵修正：重新建構按鈕行為
+      var btnAction = "";
+      var btnText = "查看資訊";
+      var btnClass = "border-indigo-100 text-indigo-500";
+
+      if (o.mode === "4" && o.link) {
+        // 模式 4 維持單一跳轉按鈕
+        btnAction = "handleMode4(decodeURIComponent('" + safeLink + "'))";
+        btnText = "查看賣場";
+        btnClass = "border-rose-100 text-rose-500 bg-rose-50";
+      } else {
+        // 🚀 模式 1 & 2：查看資訊時也要預載資料，確保 Modal 裡面的回報按鈕也能修改
+        btnAction = "setTempRemitInfo(decodeURIComponent('" + safeRemit + "')); " + 
+                    "showHistoryDetail('" + safeMode + "', decodeURIComponent('" + safePName + "'), decodeURIComponent('" + safeLink + "'), " + rowIndex + ");";
+        
+        // 這裡不需要額外改 btnText，預設就是「查看資訊」
+      }
+
+      var statusColors = {
+        '團務進行中': 'bg-green-400 text-white', 
+        '已收單': 'bg-red-400 text-white', 
+        '官方出貨中': 'bg-blue-400 text-white',
+        '到集運': 'bg-purple-400 text-white', 
+        '運回中': 'bg-sky-400 text-white', 
+        '抵台寄出中': 'bg-orange-400 text-white', 
+        '團務結束': 'bg-gray-400 text-white'
+      };
+      var groupStatusClass = statusColors[o.groupStatus] || 'bg-slate-200 text-slate-600';
+      var cardStyle = isVerified ? 'filter: grayscale(0.5); opacity: 0.9; background: #f8fafc; border-color: #e2e8f0;' : 'border-color: ' + themeColor + '; background: white;';
+
+      // 回報狀態文字顯示
+      var remitInfoHtml = "";
+      if (o.mode == "1") {
+        remitInfoHtml = (o.remitCode) ? 
+          '<div class="mt-2 py-1 px-3 bg-indigo-50 rounded-lg border border-indigo-100 flex items-center gap-1.5"><p class="text-[10px] font-bold text-indigo-500">已填末五碼：' + o.remitCode + '</p></div>' :
+          (!isVerified ? '<p class="text-[10px] mt-2 font-bold text-rose-500 px-1">⚠️ 匯款完成後請回填末五碼</p>' : "");
+      } else if (o.mode == "2") {
+        remitInfoHtml = (o.remitCode) ? 
+          '<div class="mt-2 py-1 px-3 bg-rose-50 rounded-lg border border-rose-100 flex items-center gap-1.5"><p class="text-[10px] font-bold text-rose-500">已填單號：' + o.remitCode + '</p></div>' :
+          (!isVerified ? '<p class="text-[10px] mt-2 font-bold text-rose-500 px-1">⚠️ 官方出貨後請回報單號</p>' : "");
+      }
+
+      // ✨ 修改按鈕生成的 HTML
+      var infoBtnHtml = isGroupFinished ? "" : 
+          '<button onclick="' + btnAction + '" class="text-[10px] px-3 py-1.5 rounded-lg font-black border ' + btnClass + ' bg-white active:bg-slate-50 transition-colors">' + btnText + '</button>';
+      
+      // ✨ 先產出按鈕 HTML 存進變數
+      var modeActionBtnHtml = getModeActionBtn(o.mode, o.status, o.rowIndex, o.remitCode);
+      // 組裝 HTML
+      historyHtml += '<div class="p-4 rounded-2xl border-2 mb-3 text-sm shadow-sm transition-all" style="' + cardStyle + '">' +
+                     '<div class="flex justify-between items-center mb-2">' +
+                     '<div class="flex gap-1.5">' +
+                       '<span class="text-[9px] font-black px-2 py-0.5 rounded-full ' + (isVerified ? 'bg-slate-500 text-white' : 'bg-green-100 text-green-600') + '">' + o.status + '</span>' +
+                       '<span class="text-[9px] font-black px-2 py-0.5 rounded-full ' + groupStatusClass + '">' + o.groupStatus + '</span>' +
+                     '</div>' +
+                     '<span class="text-[10px] font-bold text-slate-400">' + (o.time || "") + '</span></div>' +
+                     '<p class="font-black text-slate-800">' + o.groupName + '</p>' +
+                     '<p class="text-xs text-slate-500 mt-2 whitespace-pre-line leading-relaxed">' + o.detail + '</p>' +
+                     remitInfoHtml + 
+                     '<div class="flex justify-between items-end mt-4 pt-3 border-t border-dashed border-slate-200">' +
+                     '<div class="flex gap-2">' + 
+                       infoBtnHtml + modeActionBtnHtml + 
+                     '</div>' +
+                     '<p class="font-black text-right ' + (isVerified ? 'text-slate-400' : '') + '" style="' + (!isVerified ? 'color:' + themeColor : '') + '">NT$ ' + (o.total || 0).toLocaleString() + '</p></div></div>';
+    }
+    historyList.innerHTML = historyHtml;
+  }).getMyHistoryOrders(email);
+}
+
+/**
+ * 💡 搭配使用的暫存函數 (請放在 script 標籤內任意處)
+ */
+function setTempRemitInfo(code) {
+  window.lastRemitCode = code; // 將該筆訂單已填寫的末五碼存入全域變數
+}
+  
+
+  // 根據團務名稱判定應援色
+  function getThemeColorByName(name) {
+    var n = name.toUpperCase();
+    if (n.includes("NCT")) return "#B0CF00";
+    if (n.includes("少女時代") || n.includes("GG") || n.includes("SNSD")) return "#FF84C3";
+    if (n.includes("RIIZE") || n.includes("RZ")) return "#FF9E23";
+    if (n.includes("SM")) return "#FFB3BA";
+    return "#6366f1";
+  }
+
+  // 根據模式產生不同的動作按鈕
+  function getModeActionBtn(mode, status, rowIndex, currentRemitCode) {
+    if (status === '已核對') return '';
+    
+    var hasData = (currentRemitCode && currentRemitCode !== "");
+    var setupData = "setTempRemitInfo('" + (currentRemitCode || "") + "'); ";
+
+    if (mode == "1" || mode == 1) {
+      var btnText = hasData ? "修改末五碼" : "填寫末五碼";
+      return '<button onclick="' + setupData + 'openRemitPrompt(' + rowIndex + ')" class="text-[10px] bg-indigo-50 text-indigo-500 px-3 py-1.5 rounded-lg font-black border border-indigo-100 active:scale-95 transition-transform">' + btnText + '</button>';
+    } 
+    
+    // ✨ 修正點：數字 2 也能通過
+    if (mode == "2" || mode == 2) {
+      var btnText = hasData ? "修改單號" : "回報單號";
+      return '<button onclick="' + setupData + 'openTrackingModal(' + rowIndex + ')" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-black border border-rose-100 active:scale-95 transition-transform">' + btnText + '</button>';
+    }
+    
+    return '';
+  }
+  // 模式 1 的回填功能
+  // 開啟回報視窗
+  // 模式 1：回報匯款末五碼
+ function openRemitPrompt(rowIndex) {
+    if (!rowIndex) return alert("系統找不到訂單編號");
+    window.lastOrderRowIndex = rowIndex;
+    
+    var inputField = document.getElementById('lastFiveInput');
+    
+    document.getElementById('remitInputModal').style.display = 'flex';
+    document.getElementById('remitModalTitle').innerText = "填寫匯款資訊";
+    document.getElementById('bankSelectGroup').style.display = "block"; 
+    document.getElementById('inputLabel').innerText = "帳戶末五碼";
+    
+    inputField.value = ""; // 清空上次輸入
+    inputField.placeholder = "請輸入 5 碼數字";
+    inputField.maxLength = 5; 
+    inputField.type = "tel"; // 手機跳數字盤
+
+    // 如果歷史紀錄有舊資料，自動填入
+    if (window.lastRemitCode && !window.lastRemitCode.includes("單號")) {
+        // 假設格式是 "銀行 - 12345"，切出後面 5 碼
+        var parts = window.lastRemitCode.split(" - ");
+        inputField.value = parts.length > 1 ? parts[1] : "";
+    }
+    
+    var submitBtn = document.getElementById('submitRemitBtn');
+    submitBtn.onclick = function() {
+      var bank = document.getElementById('bankSelect').value;
+      var code = inputField.value.trim();
+      if (code.length !== 5) return alert("❌ 請輸入正確的 5 碼數字！");
+      sendUpdate(rowIndex, bank + " - " + code);
+    };
+  }
+
+  // 模式 2：回報韓國託運單號
+  function openTrackingModal(rowIndex) {
+    if (!rowIndex) return alert("系統找不到訂單編號，請重新整理頁面。");
+    window.lastOrderRowIndex = rowIndex; 
+    
+    var inputField = document.getElementById('lastFiveInput');
+    document.getElementById('remitInputModal').style.display = 'flex';
+    
+    var hasData = (window.lastRemitCode && window.lastRemitCode !== "");
+    document.getElementById('remitModalTitle').innerText = hasData ? "修改託運單號" : "回報託運單號";
+    
+    document.getElementById('bankSelectGroup').style.display = "none"; 
+    document.getElementById('inputLabel').innerText = "韓國快遞單號 (12碼)";
+    
+    inputField.value = ""; // 清空
+    inputField.placeholder = "請輸入 12 碼數字";
+    inputField.maxLength = 12; 
+    inputField.type = "tel"; 
+
+    if(hasData) {
+      inputField.value = window.lastRemitCode;
+    }
+
+    document.getElementById('submitRemitBtn').onclick = function() {
+      var code = inputField.value.trim();
+      var cleanCode = code.replace(/\D/g, ''); // 只保留數字
+      
+      if (cleanCode.length !== 12) {
+        alert("❌ 格式錯誤！單號應為「12 碼純數字」。\n目前長度：" + cleanCode.length + " 碼");
+        return;
+      }
+      // 💡 這裡直接傳送 cleanCode，不加「單號：」字樣
+      sendUpdate(rowIndex, cleanCode);
+    };
+  }
+
+  // 統一的傳送函數
+  function sendUpdate(rowIndex, finalData) {
+    var btn = document.getElementById('submitRemitBtn');
+    btn.disabled = true;
+    btn.innerText = "傳送中...";
+    
+    google.script.run.withSuccessHandler(function(res) {
+      if(res) {
+        alert("✅ 資訊已更新！");
+        closeRemitModal();
+        if (savedInfo.userEmail) fetchHistory(savedInfo.userEmail);
+      }
+      btn.disabled = false;
+      btn.innerText = "確認提交";
+    }).updateOrderRemitCode(rowIndex, finalData);
+  }
+
+  // 關閉回報視窗
+  function closeRemitModal() {
+    const modal = document.getElementById('remitInputModal');
+    const input = document.getElementById('lastFiveInput');
+    const btn = document.getElementById('submitRemitBtn');
+
+    // 1. 隱藏視窗
+    modal.style.display = 'none';
+    
+    // 2. 清空輸入內容
+    input.value = "";
+    
+    // 3. 恢復按鈕狀態 (避免使用者在傳送中強行關閉後，按鈕一直卡在「傳送中」)
+    btn.disabled = false;
+    btn.innerText = "確認提交";
+    
+    // 4. (選填) 恢復預設 UI，避免下次打開模式 1 時看到模式 2 的標題
+    document.getElementById('bankSelectGroup').style.display = "block";
+    document.getElementById('remitModalTitle').innerText = "填寫資訊";
+  }
+  
+  function goBackToList() { resetAndGoHome(); }
+</script>
+</body>
+</html>

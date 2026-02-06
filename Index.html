@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans TC', sans-serif; background-color: #f4f7fe; color: #2d3748; padding: 16px; }
+    .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+    .section-title { font-size: 14px; font-weight: 900; color: #6366f1; letter-spacing: 1px; margin-bottom: 16px; }
+    input, select, textarea { font-size: 16px !important; height: 48px; width: 100%; padding: 0 16px; border: 2px solid #edf2f7; border-radius: 12px; background: #f8fafc; outline: none; }
+    .table-input { height: 40px !important; background: #f1f5f9; text-align: center; border: none; border-radius: 10px; font-size: 14px !important; }
+    .btn-primary { background: #4f46e5; color: white; font-weight: 700; height: 48px; border-radius: 12px; width: 100%; cursor: pointer; border: none; }
+    .checkbox-pill { display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .checkbox-pill:has(input:checked) { background: #e0e7ff; color: #4338ca; }
+    .input-label { font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 4px; display: block; }
+    .tab-btn { padding: 12px; border-radius: 15px; font-weight: 900; font-size: 14px; transition: all 0.2s; border: none; }
+    .tab-active { background: #4f46e5; color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+    .tab-inactive { background: #e2e8f0; color: #64748b; }
+    .order-card { background: white; border-radius: 18px; padding: 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+    .drag-over { border-bottom: 2px solid #6366f1 !important; }
+    .admin-order-item {
+      transition: all 0.4s ease; /* 讓顯示/隱藏/變色都有平滑動畫 */
+    }
+    /* 讓管理進度的下拉選單縮小且美化 */
+    .status-select-mini {
+      font-size: 11px !important; /* 強制縮小字體 */
+      height: 28px !important;    /* 降低高度 */
+      width: 95px !important;    /* 固定寬度，避免文字跳動 */
+      padding: 0 4px !important;
+      appearance: none;           /* 去除部分瀏覽器預設樣式 */
+      text-align: center;
+    }
+
+    /* 團務結束的容器樣式 */
+    .group-finished {
+      background-color: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      pointer-events: auto; /* 依然允許管理者改回來 */
+    }
+  </style>
+</head>
+<body onload="initApp()">
+
+<div class="max-w-[500px] mx-auto pb-10">
+  <div class="flex gap-2 mb-6">
+    <button id="tab1Btn" onclick="switchTab(1)" class="tab-btn tab-active flex-1">公告文案與設定 ⚙️</button>
+    <button id="tab2Btn" onclick="switchTab(2)" class="tab-btn tab-inactive flex-1">訂單分組核對 👑</button>
+  </div>
+  
+  <div id="tab1Content">
+    <div class="card" id="formCard" style="border-width: 2px;">
+      <div class="section-title">01 團務設定</div>
+      <div class="mb-4">
+        <span class="input-label">應援色主題</span>
+        <select id="themeSelector" onchange="updateThemeDisplay()">
+          <option value="SM" data-color="#FCE0E4">SM (#FCE0E4)</option>
+          <option value="GG" data-color="#FF84C3">少女時代 (#FF84C3)</option>
+          <option value="NCT" data-color="#E1E668">NCT (#E1E668)</option>
+          <option value="RZ" data-color="#FF9E23">RIIZE (#FF9E23)</option>
+        </select>
+      </div>
+      <div class="mb-4"><span class="input-label">團務名稱</span><input type="text" id="groupName" oninput="handleNameInput()" placeholder="例如：NCT 官方周邊"></div>
+      <div class="mb-4"><span class="input-label">收單截止時間</span><input type="datetime-local" id="deadline" oninput="updateNoteText()"></div>
+      <div class="mb-4"><span class="input-label">官方出貨時間</span><input type="text" id="shippingTime" oninput="updateNoteText()" placeholder="預設為：待更新"></div>
+      
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <span class="input-label">下單模式</span>
+          <select id="modeSelector" onchange="toggleLinkInput()">
+            <option value="1" selected>模式 1 (匯款)</option>
+            <option value="2">模式 2 (集運)</option>
+            <option value="3" >模式 3 (僅下單)</option>
+            <option value="4">模式 4 (賣貨便/外部)</option>
+          </select>
+        </div>
+        <div id="linkInputBox" style="display:none;">
+          <span class="input-label">外部連結 (模式 4 專用)</span>
+          <input type="text" id="externalLink" placeholder="https://myship...">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="generateId()">生成團務 ID 🚀</button>
+      <div id="id-display" class="text-center mt-3 font-black text-indigo-600 text-sm"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">02 匯率與比例</div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <select id="currencySelector" onchange="onCurrencyChange()">
+          <option value="KRW" data-name="韓幣" data-symbol="₩" data-extra="20" data-threshold="30000">韓幣 (KRW)</option>
+          <option value="CNY" data-name="人民幣" data-symbol="¥" data-extra="8" data-threshold="150">人民幣 (CNY)</option>
+          <option value="JPY" data-name="日幣" data-symbol="¥" data-extra="12.5" data-threshold="3500">日幣 (JPY)</option>
+          <option value="USD" data-name="美金" data-symbol="$" data-extra="20" data-threshold="25">美金 (USD)</option>
+        </select>
+        <input type="number" id="extraPercent" value="20" oninput="recalculateAll()">
+      </div>
+      <div class="flex gap-2">
+        <input type="number" id="exchangeRate" step="0.00001" oninput="recalculateAll()" placeholder="正在同步匯率...">
+        <button class="bg-slate-100 px-4 rounded-xl text-xs font-bold" onclick="syncRate()">刷新</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">03 商品明細</div>
+      <div class="overflow-x-auto">
+        <table id="itemTable" class="w-full border-collapse">
+          <thead><tr>
+            <th width="30"></th>
+            <th class="text-[10px] text-left">名稱</th>
+            <th width="60" class="text-[10px]">外幣</th>
+            <th width="65" class="text-[10px]">售價</th>
+            <th width="40"></th>
+          </tr></thead>
+          <tbody id="itemBody">
+            <tr draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event)" class="drag-row border-b border-transparent">
+              <td class="text-slate-300 text-center cursor-move">☰</td>
+              <td><input type="text" class="table-input p-name w-full" oninput="updateNoteText()"></td>
+              <td><input type="number" class="table-input p-foreign w-full" oninput="calcPrice(this); updateNoteText();"></td>
+              <td class="hidden"><input type="number" class="p-cost"></td>
+              <td><input type="number" class="table-input p-twd w-full font-black text-indigo-600" oninput="manualPriceChange(this); updateNoteText();"></td>
+              <td class="hidden"><input type="number" class="p-profit"></td>
+              <td class="pl-2"><button class="btn-del" onclick="removeRow(this)">✕</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="mt-4 text-xs font-black text-indigo-500" onclick="addRow()">+ 新增商品欄位</button>
+    </div>
+
+    <div class="card">
+      <div class="section-title">04 公告文案</div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <label class="checkbox-pill"><input type="checkbox" id="checkPromo" onclick="updateNoteText()"> 滿額</label>
+        <label class="checkbox-pill"><input type="checkbox" id="checkRegister" onclick="updateNoteText()"> 登記</label>
+        <label class="checkbox-pill"><input type="checkbox" id="checkFragile" onclick="updateNoteText()"> 易碎品</label>
+      </div>
+      <div id="promoBox" class="mb-4 hidden"><input type="number" id="promoInput" oninput="updateNoteText()" placeholder="滿額門檻"></div>
+      <div class="relative w-full aspect-square mb-4">
+        <textarea id="customNoteText" class="w-full h-full text-[15px] leading-relaxed p-4 border-2 border-indigo-100 rounded-3xl bg-slate-50 resize-none"></textarea>
+      </div>
+      <div class="flex flex-col gap-3">
+        <button class="btn-primary bg-slate-800" onclick="copyResult('notebook')">複製「記事本版」📖</button>
+        <div class="grid grid-cols-2 gap-3">
+          <button class="btn-primary bg-rose-500 text-sm" onclick="copyResult('memo')">複製「備忘錄版」📝</button>
+          <button class="btn-primary bg-slate-200 text-slate-700 text-sm" onclick="copyResult('post')">複製「發文版」📱</button>
+        </div>
+      </div>
+      <button class="btn-primary mt-6 bg-green-600" onclick="saveToSheet()">同步至試算表 ✅</button>
+    </div>
+    <div class="card" id="formGeneratorCard">
+      <div class="section-title">05 Google 表單生成</div>    
+        <div class="mb-4">
+          <span class="input-label">額外注意事項 (選填)</span>
+          <textarea id="extraNote" class="h-24 p-3" placeholder="若有特殊規則可填寫於此..."></textarea>
+        </div>
+    
+        <button class="btn-primary bg-gradient-to-r from-pink-400 to-rose-400" id="btnGenerateForm" onclick="generateGoogleForm()">建立 Google 表單 ✨</button>
+
+        <div id="formResult" class="result-box">
+          <div class="font-bold text-slate-700 mb-2">🎉 表單建立成功！</div>
+            <div class="bg-slate-100 p-2 rounded-lg mb-3 flex items-center justify-center gap-2">
+              <span class="text-xs text-gray-500">應援色碼：</span>
+              <strong id="hex-display" class="text-sm font-mono">-</strong> 
+              <button class="bg-black text-white text-[10px] px-2 py-1 rounded" onclick="copyHex()">複製</button>
+            </div>
+            <div class="flex flex-col gap-2">
+              <a id="edit-link" target="_blank" class="text-pink-600 font-bold underline text-sm">進入編輯模式 (設定顏色)</a>
+              <a id="view-link" target="_blank" class="text-gray-400 text-xs">預覽填單畫面</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="tab2Content" class="hidden">
+    <div class="card !p-5 mb-4 bg-white border-2 border-indigo-50 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-black text-slate-700 flex items-center gap-2 text-sm">
+          <span class="w-2 h-5 bg-indigo-500 rounded-full"></span>
+          團務進度控制台
+        </h3>
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="hideFinishedGroups" checked onchange="renderGroupControl(lastGroupsData)" class="w-3.5 h-3.5 accent-slate-500">
+            <span class="text-[11px] font-bold text-slate-500">隱藏已結束</span>
+          </label>
+          <button onclick="loadAdminOrders()" class="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-bold text-slate-500 hover:bg-slate-200 transition-colors ml-2">🔄 刷新</button>
+        </div>
+      </div>
+      <div id="groupStatusControlContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="text-center py-4 text-slate-300 text-xs italic">載入進度中...</div>
+      </div>
+    </div>
+
+    <div class="card !p-4 mb-4">
+      <div class="flex flex-col gap-3">
+        <input type="text" id="orderSearchInput" oninput="filterOrders()" placeholder="🔍 搜尋團務、暱稱或聯絡方式..." class="!h-10 text-sm">
+        <div class="flex justify-between items-center">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="hideCheckedVerify" checked onchange="filterOrders()" class="w-4 h-4 accent-indigo-600">
+            <span class="text-xs font-bold text-slate-600">隱藏已核對訂單</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminOrderList" class="space-y-4">
+      <div class="text-center py-20 text-slate-400 font-bold italic">載入訂單資料中...</div>
+    </div>
+  </div>
+
+<script>
+  // 定義全域變數
+  let currentSymbol = "₩", currentName = "韓幣", currentGroupId = "", dragSrcEl = null, allAdminOrders = [];
+
+  const themeMap = {
+    'GG': { id: 'GG', keywords: ['少時', '少女時代', 'SNSD', 'GIRLS', '帕尼', '太妍', '潤娥', '孝淵', '俞利', '秀英', '徐玄', '珊妮', '蒂芬妮', 'TAEYEON', 'YOONA', 'HYOYEON', 'YURI', 'SOOYOUNG', 'SEOHYUN', 'SUNNY', 'TIFFANY'] },
+    'NCT': { id: 'NCT', keywords: ['NCT', '127', 'DREAM', 'WISH', 'WAYV', 'DJJ', 'DOJAEJUNG', '泰容', 'TAEYONG', '煐淏', 'JOHNNY', '悠太', 'YUTA', '道英', 'DOYOUNG', '在玹', 'JAEHYUN', '廷祐', 'JUNGWOO', '馬克', 'MARK', '楷燦', 'HAECHAN', '仁俊', 'RENJUN', 'JENO', '帝努', '渽民', 'JAEMIN', '辰樂', 'CHENLE', '志晟', 'JISUNG', 'TEN', '李永欽', '錕', 'KUN', '昀昀', 'WINWIN', '肖俊', 'XIAOJUN', '冠亨', 'HENDERY', '揚揚', 'YANGYANG', 'SION', '是溫', 'RIKU', '陸', 'YUSHI', '勇志', 'JAEHEE', '栽禧', 'RYO', '遼', 'SAKUYA', '咲哉'] },
+    'RZ': { id: 'RZ', keywords: ['RIIZE', '將太郎', '成燦', '恩奭', '元彬', '炤熙', '燦榮', 'SHOTARO', 'SUNGCHAN', 'EUNSEOK', 'WONBIN', 'SOHEE', 'CHANYOUNG', 'ANTON'] },
+    'SM': { id: 'SM', keywords: ['SM'] }
+  };
+
+  // 初始化
+  function initApp() {
+    const now = new Date();
+    const deadlineInput = document.getElementById('deadline');
+    if(deadlineInput) {
+      deadlineInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T22:00`;
+    }
+    onCurrencyChange();
+    updateThemeDisplay();
+    const firstRow = document.querySelector('#itemBody tr');
+    if(firstRow) bindRowEvents(firstRow);
+    console.log("App Initialized");
+  }
+
+  function switchTab(num) {
+    document.getElementById('tab1Content').classList.toggle('hidden', num !== 1);
+    document.getElementById('tab2Content').classList.toggle('hidden', num !== 2);
+    document.getElementById('tab1Btn').className = `tab-btn flex-1 ${num === 1 ? 'tab-active' : 'tab-inactive'}`;
+    document.getElementById('tab2Btn').className = `tab-btn flex-1 ${num === 2 ? 'tab-active' : 'tab-inactive'}`;
+    if(num === 2) loadAdminOrders();
+  }
+
+  function addRow() {
+    const tr = document.createElement('tr');
+    tr.draggable = true;
+    tr.className = "drag-row border-b border-transparent";
+    tr.innerHTML = `<td class="text-slate-300 text-center cursor-move">☰</td>
+      <td><input type="text" class="table-input p-name w-full" oninput="updateNoteText()"></td>
+      <td><input type="number" class="table-input p-foreign w-full" oninput="calcPrice(this); updateNoteText();"></td>
+      <td class="hidden"><input type="number" class="p-cost"></td>
+      <td><input type="number" class="table-input p-twd w-full font-black text-indigo-600" oninput="manualPriceChange(this); updateNoteText();"></td>
+      <td class="hidden"><input type="number" class="p-profit"></td>
+      <td class="pl-2"><button class="btn-del" onclick="removeRow(this)">✕</button></td>`;
+    bindRowEvents(tr);
+    document.getElementById('itemBody').appendChild(tr);
+  }
+
+  function bindRowEvents(tr) {
+    tr.addEventListener('dragstart', dragStart);
+    tr.addEventListener('dragover', dragOver);
+    tr.addEventListener('dragleave', dragLeave);
+    tr.addEventListener('drop', drop);
+  }
+
+  function removeRow(btn) {
+    if (document.querySelectorAll('#itemBody tr').length > 1) {
+      btn.closest('tr').remove();
+      updateNoteText();
+    }
+  }
+
+  function dragStart(e) { dragSrcEl = e.currentTarget; e.dataTransfer.effectAllowed = 'move'; }
+  function dragOver(e) { if (e.preventDefault) e.preventDefault(); e.currentTarget.classList.add('drag-over'); return false; }
+  function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+  function drop(e) {
+    if (e.stopPropagation) e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+    if (dragSrcEl !== e.currentTarget) {
+      const allRows = Array.from(document.getElementById('itemBody').children);
+      const targetIdx = allRows.indexOf(e.currentTarget);
+      const srcIdx = allRows.indexOf(dragSrcEl);
+      if (srcIdx < targetIdx) e.currentTarget.after(dragSrcEl);
+      else e.currentTarget.before(dragSrcEl);
+      updateNoteText();
+    }
+    return false;
+  }
+
+  function onCurrencyChange() {
+    const opt = document.getElementById('currencySelector').selectedOptions[0];
+    currentSymbol = opt.getAttribute('data-symbol'); 
+    currentName = opt.getAttribute('data-name');
+    document.getElementById('extraPercent').value = opt.getAttribute('data-extra');
+    syncRate();
+  }
+
+  function syncRate() {
+    if(typeof google !== 'undefined') {
+      google.script.run.withSuccessHandler(rate => { 
+        document.getElementById('exchangeRate').value = rate; 
+        recalculateAll(); 
+      }).getExchangeRate(document.getElementById('currencySelector').value);
+    }
+  }
+
+  function calcPrice(el) {
+    const row = el.closest('tr');
+    const fv = parseFloat(el.value) || 0; // 外幣金額
+    const rate = parseFloat(document.getElementById('exchangeRate').value) || 0; // 匯率
+    const ex = parseFloat(document.getElementById('extraPercent').value) || 0; // 額外利潤%
+    
+    // 取得當前選中幣別的設定
+    const opt = document.getElementById('currencySelector').selectedOptions[0];
+    const threshold = parseFloat(opt.getAttribute('data-threshold')) || 0;
+
+    // A. 計算成本 (含基本的 2.515% 交易手續費)
+    const masterCost = Math.ceil(fv * rate * 1.02515);
+    row.querySelector('.p-cost').value = masterCost;
+
+    // B. 計算初步台幣售價 (金額 * 匯率 * (1 + 趴數))
+    let twd = fv * (rate * (1 + ex / 100));
+
+    // C. 套用通用扣除邏輯
+    // 如果外幣金額達到門檻，進行動態扣除
+    if (fv >= threshold && threshold > 0) {
+        // 這裡的邏輯是將原本韓幣的公式轉換為「比例」
+        // 原公式: (fv / 1000) - 10 
+        // 韓幣 30,000 時扣 20 元，之後每增加 1,000 扣 1 元
+        
+        // 我們將其通用化：超過門檻的部分給予減免
+        if (currentName === "韓幣") {
+            twd -= ((fv / 1000) - 10);
+        } else if (currentName === "人民幣") {
+            // 例如：人民幣每超過 10 塊扣 1 元
+            twd -= ((fv / 10) - 5); 
+        } else if (currentName === "日幣") {
+            // 例如：日幣每超過 100 塊扣 1 元
+            twd -= ((fv / 100) - 15);
+        } else if (currentName === "美金") {
+            // 例如：美金每增加 1 塊扣 1 元
+            twd -= (fv - 20);
+        }
+    }
+
+    // D. 無條件進位至 5 的倍數 (例如 192 -> 195)
+    const finalPrice = Math.ceil(twd / 5) * 5;
+    
+    row.querySelector('.p-twd').value = finalPrice;
+    row.querySelector('.p-profit').value = finalPrice - masterCost;
+}
+
+  function manualPriceChange(el) {
+    const row = el.closest('tr');
+    const cost = parseFloat(row.querySelector('.p-cost').value) || 0;
+    row.querySelector('.p-profit').value = (parseFloat(el.value)||0) - cost;
+  }
+
+  function recalculateAll() {
+    document.querySelectorAll('#itemBody tr').forEach(row => { 
+      const input = row.querySelector('.p-foreign'); 
+      if(input && input.value) calcPrice(input); 
+    });
+    updateNoteText();
+  }
+
+  function handleNameInput() {
+    const name = document.getElementById('groupName').value.toUpperCase();
+    const selector = document.getElementById('themeSelector');
+    for (let key in themeMap) {
+      if (themeMap[key].keywords.some(k => name.includes(k.toUpperCase()))) {
+        selector.value = themeMap[key].id;
+        updateThemeDisplay(); 
+        break;
+      }
+    }
+    updateNoteText();
+  }
+
+  function updateNoteText() {
+    const isPromo = document.getElementById('checkPromo').checked;
+    const isRegister = document.getElementById('checkRegister').checked;
+    const isFragile = document.getElementById('checkFragile').checked;
+    const promoVal = document.getElementById('promoInput').value || "xxx";
+    const groupName = document.getElementById('groupName').value || "團務名稱";
+    const deadlineVal = document.getElementById('deadline').value;
+    const deadlineStr = deadlineVal ? deadlineVal.replace('T', ' ').replace(/-/g, '/') : "";
+    const shippingStr = document.getElementById('shippingTime').value || "待更新";
+    const currencyCode = document.getElementById('currencySelector').value;
+    
+    document.getElementById('promoBox').style.display = isPromo ? "block" : "none";
+    
+    let items = [];
+    document.querySelectorAll('#itemBody tr').forEach((row, idx) => {
+      const n = row.querySelector('.p-name').value;
+      const t = row.querySelector('.p-twd').value;
+      const f = row.querySelector('.p-foreign').value || 0;
+      if(n && t) items.push((idx+1) + ". " + n + " NT$" + t + "｜" + currencyCode + f);
+    });
+
+    const label = isRegister ? "登記截止時間" : "收單時間";
+    let textParts = [];
+    
+    // ✅ 這裡改用 + "\n" 拼接，徹底避免解析錯誤
+    if (isPromo) textParts.push("*滿" + promoVal + currentName + " ⇨ 滿額卡*1（隨機）\n之後會在社群投票排卡時間！有多的也會隨機給跟團者～");
+    if (isRegister) textParts.push("記事本留言登記\n留言視同購買 不能擅自刪除留言 購買成功再填單匯款\n每項商品都有限購 會按照登記順序給予\n隨時有可能會缺貨 對帳成功會直接下單");
+    if (isFragile) textParts.push("易碎品都會加強包裝 但還是會有破碎的風險");
+    if (isRegister || isFragile) textParts.push("以上都可以接受再跟團～");
+    
+    const tailMsg = isRegister ? "謝謝" : "匯款完成後請在此記事本留下匯款帳戶末五碼\n謝謝";
+
+    const finalResult = groupName + "\n\n💰商品金額\n" + items.join('\n') + 
+                        "\n\n" + label + "：" + (deadlineStr ? '～'+deadlineStr : '') + 
+                        "\n官方出貨時間：" + shippingStr + "\n\n" + 
+                        textParts.join('\n\n') + 
+                        "\n\n✓以上皆需二補\n𖦹跟團前請先詳閱記事本重要貼文裡的注意事項\n𖦹填單即視同已閱讀並同意所有內容\n\n" + tailMsg;
+
+    document.getElementById('customNoteText').value = finalResult;
+  }
+
+  function updateThemeDisplay() {
+  const selector = document.getElementById('themeSelector');
+  if (!selector || !selector.selectedOptions[0]) return;
+  
+  // 1. 取得選擇的色碼
+  const color = selector.selectedOptions[0].getAttribute('data-color');
+  
+  // 2. 更新 01 區的卡片邊框顏色
+  const formCard = document.getElementById('formCard');
+  if (formCard) formCard.style.borderColor = color;
+  
+  // 3. 更新 05 區的文字顯示 (同步抓取 01 區的主題色)
+  const hexDisplay = document.getElementById('hex-display');
+  if (hexDisplay) {
+    hexDisplay.innerText = color.toUpperCase();
+  }
+}
+
+// 確保點擊複製時，抓到的是當前顯示的那個文字
+function copyHex() {
+  const hex = document.getElementById('hex-display').innerText;
+  if (!hex || hex === '-') {
+    alert("請先選擇主題顏色");
+    return;
+  }
+  navigator.clipboard.writeText(hex).then(() => {
+    alert('色碼 ' + hex + ' 已複製！\n請手動至 Google 表單「自訂主題」貼上顏色。');
+  });
+}
+
+  function copyResult(type) {
+    const content = (type === 'post') ? generatePostText() : document.getElementById('customNoteText').value;
+    navigator.clipboard.writeText(content).then(() => alert("已複製成功！"));
+  }
+
+  function generatePostText() {
+    const groupName = document.getElementById('groupName').value || "團務名稱";
+    const deadlineVal = document.getElementById('deadline').value;
+    const deadlineStr = deadlineVal ? deadlineVal.replace('T', ' ').replace(/-/g, '/') : "";
+    const currencyCode = document.getElementById('currencySelector').value;
+    let items = [];
+    document.querySelectorAll('#itemBody tr').forEach((row, idx) => {
+      const n = row.querySelector('.p-name').value;
+      const t = row.querySelector('.p-twd').value;
+      const f = row.querySelector('.p-foreign').value || 0;
+      if(n && t) items.push((idx+1) + ". " + n + " NT$" + t + "｜" + currencyCode + f);
+    });
+    
+    // ✅ 使用拼接方式避開反引號 Bug
+    return "#代購 " + groupName + "\n\n💰商品金額\n" + items.join('\n') + 
+           "\n\n✓以上皆需二補 收單時間：" + (deadlineStr ? '～'+deadlineStr : '') + 
+           "\n\n𖦹欲跟團者請加入社群填單匯款\n🔗：https://reurl.cc/EQ1rLk\n\n有任何問題都歡迎詢問 謝謝～";
+  }
+
+  function generateId() {
+    const theme = document.getElementById('themeSelector').value;
+    if(typeof google !== 'undefined') {
+      google.script.run.withSuccessHandler(res => { 
+        currentGroupId = res.newId; 
+        document.getElementById('id-display').innerText = "ID: " + res.newId; 
+      }).addAdminGroup(
+        document.getElementById('groupName').value, 
+        document.getElementById('deadline').value, 
+        document.getElementById('shippingTime').value, 
+        theme, 
+        document.getElementById('modeSelector').value, 
+        document.getElementById('externalLink').value
+      );
+    }
+  }
+
+  function formatDeadline(val) {
+    if (!val) return "";
+    return val.replace(/-/g, '/').replace('T', ' ');
+  }
+
+  function generateGoogleForm() {
+    const groupName = document.getElementById('groupName').value;
+    if (!groupName) return alert("請先輸入團務名稱 (01)");
+    let productList = [];
+    document.querySelectorAll('#itemBody tr').forEach(row => {
+      const n = row.querySelector('.p-name').value, t = row.querySelector('.p-twd').value;
+      if(n && t) productList.push({ name: n, price: t });
+    });
+    if (productList.length === 0) return alert("請至少新增一個商品 (03)");
+
+    const data = {
+      title: groupName,
+      productList: productList,
+      deadline: formatDeadline(document.getElementById('deadline').value),
+      shippingTime: document.getElementById('shippingTime').value || "待更新",
+      extraNote: document.getElementById('extraNote').value,
+      theme: document.getElementById('themeSelector').value
+    };
+
+    const btn = document.getElementById('btnGenerateForm');
+    btn.innerText = "⏳ 正在建立表單...";
+    btn.disabled = true;
+    
+    google.script.run.withSuccessHandler(res => {
+      btn.innerText = "建立 Google 表單 ✨";
+      btn.disabled = false;
+      if (res.success) {
+        document.getElementById('formResult').style.display = 'block';
+        document.getElementById('edit-link').href = res.url;
+        document.getElementById('view-link').href = res.viewUrl;
+      } else { alert("建立失敗：" + res.error); }
+    }).createForm(data);
+  }
+
+
+  function toggleLinkInput() {
+    document.getElementById('linkInputBox').style.display = (document.getElementById('modeSelector').value === "4") ? "block" : "none";
+  }
+
+  
+  /**
+   * 1. 啟動器：同時載入團務狀態與訂單
+   */
+  function loadAdminOrders() {
+    const listDiv = document.getElementById('adminOrderList');
+    const controlDiv = document.getElementById('groupStatusControlContainer');
+    
+    listDiv.innerHTML = "<div class='text-center py-20 text-slate-400 font-bold italic animate-pulse'>資料傳輸中...</div>";
+    
+    if(typeof google !== 'undefined') {
+      // 同步更新頂部控制台
+      google.script.run.withSuccessHandler(renderGroupControl).getActiveGroups();
+      
+      // 同步更新下方訂單清單
+      google.script.run.withSuccessHandler(orders => {
+        allAdminOrders = orders || [];
+        renderOrderList();
+      }).getAllOrdersForAdmin();
+    }
+  }
+  /**
+   * 2. 渲染頂部控制台 (優化版：隱藏已結束、下拉選單美化)
+   */
+  // 定義全域變數來存儲最後一次抓取的團務資料
+  let lastGroupsData = [];
+
+  function renderGroupControl(groups) {
+    if (groups) lastGroupsData = groups; 
+    const container = document.getElementById('groupStatusControlContainer');
+    const hideFinished = document.getElementById('hideFinishedGroups').checked;
+    const statusOptions = ["團務進行中", "已收單", "官方出貨中", "到集運", "運回中", "抵台寄出中", "團務結束"];
+    
+    if (!lastGroupsData || lastGroupsData.length === 0) {
+      container.innerHTML = "<div class='text-slate-300 text-xs text-center col-span-2 py-4'>尚無團務資料</div>";
+      return;
+    }
+
+    let htmlContent = "";
+    lastGroupsData.forEach(g => {
+      const isFinished = (g.status === "團務結束");
+      
+      // 隱藏結束團務邏輯
+      if (hideFinished && isFinished) return;
+
+      const groupColor = getThemeColor(g.name);
+      const grayscaleStyle = isFinished ? 'filter: grayscale(1); opacity: 0.5; background: #f8fafc;' : 'background: white;';
+
+      // --- 💡 核心邏輯：判斷底下要顯示什麼文字 ---
+      let subText = "";
+      if (g.status === "團務進行中") {
+        // 顯示收單時間，只截取月/日 時:分 讓介面更精簡
+        const d = g.deadlineStr ? g.deadlineStr.toString().replace('T', ' ') : "未設定";
+        subText = `⏰ 收單：${d}`;
+      } 
+      else if (["已收單", "官方出貨中", "到集運", "運回中", "抵台寄出中"].includes(g.status)) {
+        // 顯示官方出貨時間
+        subText = `📦 出貨：${g.shippingTime || "待更新"}`;
+      } 
+      else if (isFinished) {
+        // 團務結束：不顯示
+        subText = "&nbsp;"; 
+      }
+
+      htmlContent += `
+        <div class="flex items-center justify-between p-3 rounded-2xl border border-slate-100 shadow-sm transition-all" 
+            style="${grayscaleStyle}">
+          <div class="flex flex-col overflow-hidden mr-2">
+            <span class="font-black text-slate-700 text-[11px] truncate ${isFinished ? 'line-through' : ''}">${g.name}</span>
+            <span class="text-[9px] font-bold text-slate-400 truncate">${subText}</span>
+          </div>
+          <select onchange="changeGroupStatusByName('${g.name}', this.value)" 
+                  class="status-select-mini font-bold border-2 rounded-lg px-1 py-1 bg-white outline-none cursor-pointer"
+                  style="border-color: ${isFinished ? '#cbd5e1' : groupColor}; color: ${isFinished ? '#64748b' : groupColor};">
+            ${statusOptions.map(opt => `<option value="${opt}" ${g.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+          </select>
+        </div>
+      `;
+    });
+
+    container.innerHTML = htmlContent || "<div class='text-slate-300 text-xs text-center col-span-2 py-4 italic'>目前沒有進行中的團務</div>";
+  }
+  
+  function getThemeColor(groupName) {
+    const name = (groupName || "").toUpperCase();
+    if (themeMap['GG'].keywords.some(k => name.includes(k.toUpperCase()))) return '#FF84C3'; // 少女時代粉
+    if (themeMap['NCT'].keywords.some(k => name.includes(k.toUpperCase()))) return '#B0CF00'; // NCT 草綠
+    if (themeMap['RZ'].keywords.some(k => name.includes(k.toUpperCase()))) return '#FF9E23'; // RIIZE 橘
+    if (themeMap['SM'].keywords.some(k => name.includes(k.toUpperCase()))) return '#FCE0E4'; // SM 粉白
+    return '#6366f1'; // 預設靛藍色
+  }
+
+  function renderOrderList() {
+    const listDiv = document.getElementById('adminOrderList');
+    if (!allAdminOrders || allAdminOrders.length === 0) {
+      listDiv.innerHTML = "<div class='text-center py-10 text-slate-400 font-bold'>目前尚無訂單資料</div>";
+      return;
+    }
+
+    const sortedOrders = [...allAdminOrders].sort((a, b) => 
+      (a.groupName || "").localeCompare(b.groupName || "")
+    );
+
+    let htmlContent = "";
+    let lastGroup = "";
+
+    sortedOrders.forEach(o => {
+      // 當發現是新的一組團務時，才插入一次標題與選單
+      if (o.groupName !== lastGroup) {
+        lastGroup = o.groupName;
+        const groupColor = getThemeColor(o.groupName);
+        
+        htmlContent += `
+          <div class="group-header mt-8 mb-3 flex items-center">
+            <div class="h-[2px] flex-1" style="background-color: ${groupColor}44"></div>
+            <span class="mx-3 px-5 py-1.5 text-white text-xs font-black rounded-full shadow-sm" style="background-color: ${groupColor}">
+              ${o.groupName || '未分類團務'}
+            </span>
+            <div class="h-[2px] flex-1" style="background-color: ${groupColor}44"></div>
+          </div>`;
+      }
+
+      // --- 以下是單筆訂單卡片，維持原樣 ---
+      const isVerified = o.status === '已核對';
+      const groupColor = getThemeColor(o.groupName);
+      const statusClass = isVerified ? 'bg-slate-50 opacity-80' : 'bg-white shadow-sm';
+
+      let remitDisplay = "";
+      if (o.remitCode) {
+        remitDisplay = `<span class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-md font-bold shadow-sm ring-2 ring-indigo-100 italic">🏦 ${o.remitCode}</span>`;
+      } else if (!isVerified) {
+        remitDisplay = `<span class="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md font-bold">待填末五碼</span>`;
+      }
+
+      htmlContent += `
+        <div class="order-card admin-order-item cursor-pointer active:scale-95 transition-all border-2 ${statusClass}" 
+            onclick="toggleOrderStatus(${o.rowIndex}, '${o.status}', '${o.lineName}')"
+            style="border-color: ${isVerified ? '#e2e8f0' : groupColor + '88'}"
+            data-status="${o.status}" 
+            data-search="${((o.groupName || '') + (o.lineName || '') + (o.contact || '') + (o.email || '') + (o.remitCode || '')).toLowerCase()}">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-2">
+                <p class="font-black text-lg text-slate-800">${o.lineName || '未知'}</p>
+                ${remitDisplay}
+              </div>
+              <p class="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">${o.email || '無 Email'}</p>
+            </div>
+            <span class="text-[10px] font-black px-3 py-1 rounded-full ${isVerified ? 'bg-green-500 text-white' : 'text-white animate-pulse'}"
+                  style="${!isVerified ? 'background-color:' + groupColor : ''}">
+              ${isVerified ? '✓ ' + o.status : '● ' + o.status}
+            </span>
+          </div>
+          <div class="my-3 text-xs text-slate-600 bg-white bg-opacity-60 p-2 rounded-lg border border-slate-100 whitespace-pre-line">${o.detail || ''}</div>
+          <div class="flex justify-between items-center font-black">
+            <div class="flex items-center gap-1">
+              <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">ID</span>
+              <span class="text-[11px] text-slate-500">${o.contact || '無'}</span>
+            </div>
+            <span style="color: ${groupColor}">NT$ ${o.total || 0}</span>
+          </div>
+        </div>`;
+    });
+
+    listDiv.innerHTML = htmlContent;
+    filterOrders();
+  }
+
+  /**
+   * 3. 切換「團務管理」工作表狀態 (E 欄)
+   */
+  function changeGroupStatusByName(groupName, newStatus) {
+    if (!confirm("確定要將【" + groupName + "】更新為：" + newStatus + "？")) return;
+    
+    if (typeof google !== 'undefined') {
+      google.script.run.withSuccessHandler(res => {
+        if (res.success) loadAdminOrders(); // 成功後刷新全部
+        else alert("更新失敗：" + res.error);
+      }).updateGroupStatusByName(groupName, newStatus);
+    }
+  }
+
+  /**
+   * 4. 切換「訂單資料」核對狀態 (H 欄)
+   */
+  function toggleOrderStatus(rowIndex, currentStatus, name) {
+    const targetCard = event.currentTarget;
+    if (targetCard.style.pointerEvents === 'none') return;
+    targetCard.style.pointerEvents = 'none';
+
+    if (typeof google !== 'undefined') {
+      google.script.run.withSuccessHandler(res => {
+        targetCard.style.pointerEvents = 'auto';
+        if (res.success) {
+          // 直接更新 UI，不重新渲染整頁以保持流暢度
+          const isNowVerified = (res.newStatus === '已核對');
+          targetCard.setAttribute('data-status', res.newStatus);
+          targetCard.setAttribute('onclick', `toggleOrderStatus(${rowIndex}, '${res.newStatus}', '${name}')`);
+          
+          // 重新跑一次篩選，若有勾選「隱藏已核對」該卡片會消失
+          filterOrders();
+        }
+      }).toggleOrderStatus(rowIndex, currentStatus);
+    }
+  }
+
+  /**
+   * 5. 搜尋與隱藏邏輯 (含動畫效果)
+   */
+  function filterOrders() {
+    const term = document.getElementById('orderSearchInput').value.toLowerCase();
+    const hideChecked = document.getElementById('hideCheckedVerify').checked;
+    
+    document.querySelectorAll('.admin-order-item').forEach(card => {
+      const isVerified = (card.getAttribute('data-status') === '已核對');
+      const matchesSearch = card.getAttribute('data-search').includes(term);
+      
+      if (matchesSearch && !(hideChecked && isVerified)) {
+        card.style.display = "block";
+        setTimeout(() => card.style.opacity = "1", 10);
+      } else {
+        card.style.opacity = "0";
+        setTimeout(() => card.style.display = "none", 400); 
+      }
+    });
+  }
+
+  function saveToSheet() {
+    let prods = [];
+    document.querySelectorAll('#itemBody tr').forEach(r => {
+      const n = r.querySelector('.p-name').value;
+      if(n) {
+        prods.push({ 
+          groupId: currentGroupId, 
+          name: n, 
+          twd: r.querySelector('.p-twd').value, 
+          foreign: r.querySelector('.p-foreign').value, 
+          master: r.querySelector('.p-cost').value, 
+          profit: r.querySelector('.p-profit').value 
+        });
+      }
+    });
+    if(typeof google !== 'undefined') {
+      google.script.run.withSuccessHandler(() => alert("同步成功")).batchAddProducts(prods);
+    }
+  }
+</script>
+</body>
+</html>
