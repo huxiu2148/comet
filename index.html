@@ -1,14 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>COMET 訂單查詢系統</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMET訂單查詢系統</title>
+    <meta charset="UTF-8">
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
-    <iframe src="https://script.google.com/macros/s/AKfycbwEyNEMfdbHflnI4eT3SO6B4-w7474FNGPHYOLCSetavKvXOeMS5ELHQD-EWr6-y32HYQ/exec?pli=1"></iframe>
+    <iframe id="myFrame" src=""></iframe>
+
+    <script>
+        const gasUrl = "https://script.google.com/macros/s/你的網址代碼/exec";
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // 1. 如果妳手動在網址加了 ?iamtheowner，就設定妳為主人
+        if (urlParams.has('iamtheowner')) {
+            localStorage.setItem('comet_role', 'admin');
+        }
+
+        // 2. 檢查這台設備是不是主人
+        const role = localStorage.getItem('comet_role');
+        const finalUrl = (role === 'admin') ? gasUrl + "?mode=admin" : gasUrl;
+
+        // 3. 載入網頁
+        document.getElementById('myFrame').src = finalUrl;
+    </script>
 </body>
 </html>
