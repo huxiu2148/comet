@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>台灣麻將記帳系統</title>
-<style>
+<title>麻將算帳本</title>
+<style id="app-style">
   :root{
     --red: #b3122b;
     --red-dark: #7d0d1e;
@@ -180,14 +180,24 @@
   .empty-hint{ text-align:center; color:#a08a6a; padding: 14px 0; font-size:.85rem; }
 
   .footer-note{ text-align:center; font-size:.72rem; color:#a08a6a; margin-top:10px; }
+
+  .cloud-badge{
+    display:inline-block; margin-top:8px; font-size:.72rem; font-weight:700;
+    padding:4px 12px; border-radius:999px; letter-spacing:.5px;
+  }
+  .cloud-badge.local{ background:rgba(255,255,255,.18); color:#fff3d6; }
+  .cloud-badge.synced{ background:#1e8a3c; color:#fff; }
+  .cloud-badge.syncing{ background:var(--gold); color:#4a2e00; }
+  .cloud-badge.readonly{ background:#5b6b8c; color:#fff; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header class="topbar">
-    <h1>🧧 台灣麻將記帳系統 🧧</h1>
+    <h1>🧧 麻將算帳本 🧧</h1>
     <p>新年發大財・輸贏一目瞭然</p>
+    <div class="cloud-badge local" id="cloudBadge">💾 本機模式</div>
   </header>
 
   <!-- 設定區 -->
@@ -286,10 +296,15 @@
 
   <div class="footer-note">恭喜發財 · 手氣旺旺 🏮</div>
 </div>
-
-<script>
+<script id="initial-state" type="application/json">{}</script>
+<script id="app-script">
 (function(){
   "use strict";
+  // Captured before any render touches the DOM, so this always holds the
+  // pristine empty shell (no selected pickers, no filled inputs) — the same
+  // shell every published version starts from.
+  var BODY_SHELL_HTML = document.querySelector(".wrap").outerHTML;
+
   var STORAGE_KEY = "twmj_scorekeeper_v1";
   var WINDS = ["東","南","西","北"];
 
@@ -300,9 +315,47 @@
     history: []
   };
 
-  var state = loadState();
+  // cloud sync (Artifact "artifact" capability) — null/false when this page
+  // is opened outside the claude.ai viewer (e.g. a downloaded copy), in
+  // which case everything falls back to localStorage only.
+  var artifactNs = null;
+  var cloudReady = false;
+  var isReadOnly = false;
+  var syncing = false;
 
-  // form-local (not persisted) selections
+  function normalizeState(parsed){
+    if(!parsed || typeof parsed !== "object") return null;
+    var s = {};
+    s.players = (Array.isArray(parsed.players) && parsed.players.length === 4) ? parsed.players : defaultState.players.slice();
+    s.base = typeof parsed.base === "number" ? parsed.base : defaultState.base;
+    s.tai = typeof parsed.tai === "number" ? parsed.tai : defaultState.tai;
+    s.history = Array.isArray(parsed.history) ? parsed.history : [];
+    return s;
+  }
+
+  function readEmbeddedState(){
+    try{
+      var el = document.getElementById("initial-state");
+      if(!el || !el.textContent) return null;
+      return normalizeState(JSON.parse(el.textContent));
+    }catch(e){ return null; }
+  }
+
+  function loadLocal(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      return normalizeState(JSON.parse(raw));
+    }catch(e){ return null; }
+  }
+
+  function saveLocal(s){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }catch(e){}
+  }
+
+  var state = readEmbeddedState() || loadLocal() || JSON.parse(JSON.stringify(defaultState));
+
+  // form-local (not persisted, never published) selections
   var form = {
     dealerIndex: 0,
     streak: 0,
@@ -312,23 +365,66 @@
     tai: 0
   };
 
-  function loadState(){
-    try{
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return JSON.parse(JSON.stringify(defaultState));
-      var parsed = JSON.parse(raw);
-      if(!parsed.players || parsed.players.length !== 4) parsed.players = defaultState.players.slice();
-      if(typeof parsed.base !== "number") parsed.base = defaultState.base;
-      if(typeof parsed.tai !== "number") parsed.tai = defaultState.tai;
-      if(!Array.isArray(parsed.history)) parsed.history = [];
-      return parsed;
-    }catch(e){
-      return JSON.parse(JSON.stringify(defaultState));
-    }
+  // ---------- cloud sync ----------
+  function buildFullHtml(newState){
+    var styleText = document.getElementById("app-style").textContent;
+    var scriptText = document.getElementById("app-script").textContent;
+    var stateJson = JSON.stringify(newState).replace(/</g, "\\u003c");
+    return "<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0\">\n<title>麻將算帳本</title>\n<style id=\"app-style\">" +
+      styleText + "</style>\n</head>\n<body>\n" + BODY_SHELL_HTML +
+      "\n<script id=\"initial-state\" type=\"application/json\">" + stateJson + "<\/script>\n<script id=\"app-script\">" +
+      scriptText + "<\/script>\n</body>\n</html>";
   }
 
-  function saveState(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  function setCloudBadge(){
+    var el = document.getElementById("cloudBadge");
+    if(!el) return;
+    if(!cloudReady){ el.textContent = "💾 本機模式"; el.className = "cloud-badge local"; }
+    else if(isReadOnly){ el.textContent = "👀 唯讀檢視"; el.className = "cloud-badge readonly"; }
+    else if(syncing){ el.textContent = "☁️ 同步中…"; el.className = "cloud-badge syncing"; }
+    else{ el.textContent = "☁️ 雲端已同步"; el.className = "cloud-badge synced"; }
+  }
+
+  function applyLocally(newState){
+    state = newState;
+    saveLocal(state);
+    fillSettingsInputs();
+    resetFormForNextHand();
+    renderAll();
+  }
+
+  function commitState(newState){
+    if(cloudReady && !isReadOnly && artifactNs){
+      syncing = true; setCloudBadge();
+      var html;
+      try{ html = buildFullHtml(newState); }
+      catch(e){ syncing = false; applyLocally(newState); setCloudBadge(); return; }
+      artifactNs.publish(html).then(function(){
+        syncing = false;
+        applyLocally(newState);
+        setCloudBadge();
+      }, function(err){
+        syncing = false;
+        var code = err && err.code;
+        if(code === "conflict"){
+          // a newer version is already on its way in; nothing to do
+          setCloudBadge();
+          return;
+        }
+        if(code === "not_writer" || code === "not_granted" || code === "not_declared" ||
+           code === "capability_disabled" || code === "capability_removed"){
+          isReadOnly = true;
+          setCloudBadge();
+          alert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
+          return;
+        }
+        applyLocally(newState);
+        setCloudBadge();
+        alert("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+      });
+    }else{
+      applyLocally(newState);
+    }
   }
 
   function computeTotals(){
@@ -375,21 +471,19 @@
     }
     var base = parseInt(document.getElementById("baseInput").value, 10);
     var tai = parseInt(document.getElementById("taiInput").value, 10);
-    state.players = newNames;
-    state.base = isNaN(base) ? 0 : Math.max(0, base);
-    state.tai = isNaN(tai) ? 0 : Math.max(0, tai);
-    saveState();
+    var newState = {
+      players: newNames,
+      base: isNaN(base) ? 0 : Math.max(0, base),
+      tai: isNaN(tai) ? 0 : Math.max(0, tai),
+      history: state.history
+    };
     document.getElementById("settingsDetails").removeAttribute("open");
-    renderAll();
+    commitState(newState);
   });
 
   document.getElementById("resetAllBtn").addEventListener("click", function(){
     if(!confirm("確定要清空所有紀錄與設定嗎？此動作無法復原。")) return;
-    state = JSON.parse(JSON.stringify(defaultState));
-    saveState();
-    fillSettingsInputs();
-    resetFormForNextHand();
-    renderAll();
+    commitState(JSON.parse(JSON.stringify(defaultState)));
   });
 
   // ---------- pickers ----------
@@ -548,7 +642,7 @@
       }
     }
 
-    state.history.push({
+    var record = {
       dealerIndex: form.dealerIndex,
       streak: form.streak,
       winnerIndex: form.winnerIndex,
@@ -559,20 +653,27 @@
       amount: amount,
       deltas: deltas,
       ts: Date.now()
-    });
+    };
 
-    saveState();
-    resetFormForNextHand();
-    renderAll();
+    var newState = {
+      players: state.players,
+      base: state.base,
+      tai: state.tai,
+      history: state.history.concat([record])
+    };
+    commitState(newState);
   });
 
   document.getElementById("undoBtn").addEventListener("click", function(){
     if(state.history.length === 0) return;
     if(!confirm("確定要刪除最後一筆紀錄嗎？")) return;
-    state.history.pop();
-    saveState();
-    resetFormForNextHand();
-    renderAll();
+    var newState = {
+      players: state.players,
+      base: state.base,
+      tai: state.tai,
+      history: state.history.slice(0, -1)
+    };
+    commitState(newState);
   });
 
   // ---------- dashboard ----------
@@ -656,6 +757,15 @@
   fillSettingsInputs();
   resetFormForNextHand();
   renderAll();
+  setCloudBadge();
+
+  if(window.claude && typeof window.claude.use === "function"){
+    window.claude.use("artifact").then(function(ns){
+      artifactNs = ns;
+      cloudReady = !!ns;
+      setCloudBadge();
+    });
+  }
 })();
 </script>
 </body>
