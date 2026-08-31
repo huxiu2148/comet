@@ -354,6 +354,7 @@
         <button type="button" class="subtab-btn" data-sub="games">歷史牌局</button>
         <button type="button" class="subtab-btn" data-sub="analysis">分析</button>
       </div>
+      <div class="chip-row" id="statsTargetChips" style="display:none;"></div>
       <div id="statsContent"></div>
     </div>
   </section>
@@ -880,6 +881,7 @@
   var ui = {
     tab: "game",
     statsSub: "longterm",
+    statsTargetName: null,
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     calSelectedDate: null,
@@ -1114,8 +1116,16 @@
         others.forEach(function(n,i){ deltas[n] -= shares[i]; });
         deltas[winnerName] += amount;
       }else{
-        others.forEach(function(n){ deltas[n] -= amount; });
-        deltas[winnerName] += amount*3;
+        // 閒家自摸時，莊家台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
+        // 不是三家一起多付。莊家胡牌時 bonus 恆為 0，此時三家都付 baseAmount，行為不變。
+        var baseAmount = game.base + taiInput * game.tai;
+        var winnerGain = 0;
+        others.forEach(function(n){
+          var pay = (n === dealerName) ? amount : baseAmount;
+          deltas[n] -= pay;
+          winnerGain += pay;
+        });
+        deltas[winnerName] += winnerGain;
       }
     }
     return {
@@ -1669,17 +1679,47 @@
       '<div class="stat-list">'+rows+'</div>';
   }
 
-  function renderWindHtml(endedGames){
+  function statsTargetCandidates(){
+    // anyone in the roster, plus anyone else who's ever actually played but
+    // isn't (or no longer is) a saved roster entry
+    var names = state.roster.map(function(r){ return r.name; });
+    state.games.forEach(function(g){
+      g.players.forEach(function(n){ if(names.indexOf(n) === -1) names.push(n); });
+    });
+    return names;
+  }
+  function currentStatsTarget(){
+    if(ui.statsTargetName && statsTargetCandidates().indexOf(ui.statsTargetName) !== -1) return ui.statsTargetName;
     var me = meRoster();
-    if(!me) return '<div class="empty-hint">尚未在「名單」設定「我」，設定後才能看到門風統計。</div>';
+    return me ? me.name : (statsTargetCandidates()[0] || null);
+  }
+  function renderStatsTargetChips(){
+    var el = document.getElementById("statsTargetChips");
+    var show = (ui.statsSub === "wind" || ui.statsSub === "analysis");
+    el.style.display = show ? "flex" : "none";
+    if(!show) return;
+    var target = currentStatsTarget();
+    el.innerHTML = "";
+    statsTargetCandidates().forEach(function(name){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (name === target ? " chip-selected" : "");
+      b.textContent = name;
+      b.addEventListener("click", function(){ ui.statsTargetName = name; renderStatsTab(); });
+      el.appendChild(b);
+    });
+  }
+
+  function renderWindHtml(endedGames, targetName){
+    if(!targetName) return '<div class="empty-hint">名單裡還沒有人，先到「名單」新增牌友。</div>';
     var buckets = [{hands:0,net:0},{hands:0,net:0},{hands:0,net:0},{hands:0,net:0}];
     endedGames.forEach(function(g){
-      if(g.players.indexOf(me.name) === -1) return;
+      if(g.players.indexOf(targetName) === -1) return;
       allHandsOf(g).forEach(function(h){
-        var idx = h.seatOrderAtHand.indexOf(me.name);
+        var idx = h.seatOrderAtHand.indexOf(targetName);
         if(idx === -1) return;
         buckets[idx].hands += 1;
-        buckets[idx].net += (h.deltas[me.name]||0);
+        buckets[idx].net += (h.deltas[targetName]||0);
       });
     });
     var rows = WINDS.map(function(w,i){
@@ -1689,27 +1729,26 @@
       return '<div class="stat-row"><div class="stat-name">'+w+'</div><div class="stat-mid">'+d.hands+' 手</div>' +
         '<div class="stat-amt '+cls+'">'+sign+d.net+'</div></div>';
     }).join("");
-    return '<div class="stat-summary">「'+escapeHtml(me.name)+'」各門風總輸贏（依手數）</div><div class="stat-list">'+rows+'</div>';
+    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」各門風總輸贏（依手數）</div><div class="stat-list">'+rows+'</div>';
   }
 
-  function renderAnalysisHtml(endedGames){
-    var me = meRoster();
-    if(!me) return '<div class="empty-hint">尚未在「名單」設定「我」，設定後才能看到分析。</div>';
+  function renderAnalysisHtml(endedGames, targetName){
+    if(!targetName) return '<div class="empty-hint">名單裡還沒有人，先到「名單」新增牌友。</div>';
     if(!endedGames.length) return '<div class="empty-hint">還沒有結束的牌局。打完幾場之後，這裡會告訴你贏在哪、輸在哪。</div>';
     var selfWinCount=0, discardWinCount=0, selfWinAmt=0, discardWinAmt=0;
     var gotDiscardedCount=0, gotDiscardedAmt=0, paidSelfDrawCount=0, paidSelfDrawAmt=0;
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
     endedGames.forEach(function(g){
-      if(g.players.indexOf(me.name) === -1) return;
+      if(g.players.indexOf(targetName) === -1) return;
       allHandsOf(g).forEach(function(h){
-        var myDelta = h.deltas[me.name] || 0;
-        if(h.dealerName === me.name){ dealerNet+=myDelta; dealerHands++; }
+        var myDelta = h.deltas[targetName] || 0;
+        if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
         else{ nonDealerNet+=myDelta; nonDealerHands++; }
-        if(h.winnerName === me.name){
+        if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
         }else{
-          if(h.method === "discard" && h.loserName === me.name){ gotDiscardedCount++; gotDiscardedAmt+=myDelta; }
+          if(h.method === "discard" && h.loserName === targetName){ gotDiscardedCount++; gotDiscardedAmt+=myDelta; }
           else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
         }
       });
@@ -1726,7 +1765,7 @@
                card("被別人自摸", paidSelfDrawCount, paidSelfDrawAmt) +
                card("當莊時", dealerHands, dealerNet) +
                card("非莊時", nonDealerHands, nonDealerNet);
-    return '<div class="stat-summary">「'+escapeHtml(me.name)+'」贏在哪、輸在哪</div><div class="stat-list">'+rows+'</div>';
+    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」贏在哪、輸在哪</div><div class="stat-list">'+rows+'</div>';
   }
 
   function renderGamesListInto(container, endedGames){
@@ -1756,10 +1795,26 @@
       var detail = document.createElement("div");
       detail.className = "log-detail";
       detail.style.display = "none";
-      detail.innerHTML = g.players.map(function(n){
+      var summaryEl = document.createElement("div");
+      summaryEl.innerHTML = g.players.map(function(n){
         var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
         return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
       }).join('　') + '<br>共 '+allHandsOf(g).length+' 手';
+      detail.appendChild(summaryEl);
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "link-btn danger";
+      delBtn.style.marginTop = "6px";
+      delBtn.textContent = "🗑️ 刪除這場牌局";
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        showConfirm("確定要刪除這場牌局嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
+          var ns = deepClone(state);
+          ns.games = ns.games.filter(function(x){ return x.id !== g.id; });
+          commitState(ns);
+        });
+      });
+      detail.appendChild(delBtn);
       head.addEventListener("click", function(){
         detail.style.display = (detail.style.display !== "none") ? "none" : "block";
       });
@@ -1774,12 +1829,13 @@
     for(var i=0;i<btns.length;i++){
       btns[i].classList.toggle("selected", btns[i].getAttribute("data-sub") === ui.statsSub);
     }
+    renderStatsTargetChips();
     var content = document.getElementById("statsContent");
     var endedGames = state.games.filter(function(g){ return g.status === "ended"; });
     if(ui.statsSub === "longterm") content.innerHTML = renderLongTermHtml(endedGames);
-    else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames);
+    else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames, currentStatsTarget());
     else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, endedGames); }
-    else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames);
+    else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames, currentStatsTarget());
   }
 
   // ================= 月曆 =================
