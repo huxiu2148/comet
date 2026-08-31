@@ -226,6 +226,26 @@
   .gesture-card.flash-lose{ animation: flashlose .5s ease; }
   @keyframes flashwin{ 0%{ background: var(--win); } 100%{ background: var(--cream); } }
   @keyframes flashlose{ 0%{ background: var(--lose); } 100%{ background: var(--cream); } }
+
+  /* custom confirm/prompt/alert — native dialogs are unreliable inside the
+     Artifact viewer's sandboxed iframe, so everything goes through this. */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(30,15,10,.55); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-box{
+    background:#fff; border-radius:16px; padding:20px; max-width:320px; width:100%;
+    border:2px solid var(--gold); box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  .modal-message{ font-size:.95rem; color:var(--ink); margin-bottom:14px; line-height:1.6; white-space:pre-line; }
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions .btn{ flex:1; padding:12px; min-height:auto; }
+  #modalInput{ margin-bottom:14px; }
+  .toast{
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
+    background:rgba(30,20,10,.94); color:#fff; padding:10px 18px; border-radius:999px;
+    font-size:.82rem; z-index:210; max-width:85vw; text-align:center; line-height:1.4;
+  }
 </style>
 </head>
 <body>
@@ -409,6 +429,18 @@
   <button type="button" class="tab-btn" data-tab="roster"><span class="tab-icon">👥</span><span>名單</span></button>
   <button type="button" class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
 </nav>
+
+<div id="modalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-message" id="modalMessage"></div>
+    <input type="text" id="modalInput" style="display:none;">
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" id="modalCancelBtn">取消</button>
+      <button type="button" class="btn btn-primary" id="modalConfirmBtn">確定</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast" style="display:none;"></div>
 </div>
 <script id="initial-state" type="application/json">{}</script>
 <script id="app-script">
@@ -643,6 +675,7 @@
       var html;
       try{ html = buildFullHtml(newState); }
       catch(e){ syncing=false; applyLocally(newState); setCloudBadge(); return; }
+      stashUiForReload();
       artifactNs.publish(html).then(function(){
         syncing = false;
         applyLocally(newState);
@@ -655,16 +688,119 @@
            code === "capability_disabled" || code === "capability_removed"){
           isReadOnly = true;
           setCloudBadge();
-          alert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
+          showAlert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
           return;
         }
         applyLocally(newState);
         setCloudBadge();
-        alert("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+        showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
       });
     }else{
       applyLocally(newState);
     }
+  }
+
+  // ---------- custom confirm/prompt/alert/toast ----------
+  // Native window.confirm/prompt/alert are silently blocked (return
+  // false/null instantly, no dialog shown) inside the Artifact viewer's
+  // sandboxed iframe, which made every confirm-gated button look totally
+  // unresponsive. Everything routes through these instead.
+  function closeModal(){
+    document.getElementById("modalOverlay").style.display = "none";
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "";
+  }
+  function showConfirm(message, onConfirm){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    var cancelBtn = document.getElementById("modalCancelBtn");
+    function onOk(){ cleanup(); onConfirm(); }
+    function onCancel(){ cleanup(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+    }
+    confirmBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+  }
+  function showPrompt(message, defaultValue, onSubmit){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    var input = document.getElementById("modalInput");
+    input.style.display = "block";
+    input.value = defaultValue || "";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    var cancelBtn = document.getElementById("modalCancelBtn");
+    function onOk(){ var v = input.value; cleanup(); onSubmit(v); }
+    function onCancel(){ cleanup(); }
+    function onKey(e){ if(e.key === "Enter") onOk(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      input.removeEventListener("keydown", onKey);
+    }
+    confirmBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    input.addEventListener("keydown", onKey);
+    setTimeout(function(){ input.focus(); }, 50);
+  }
+  function showAlert(message, onOk){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "none";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    function handler(){ cleanup(); if(onOk) onOk(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", handler);
+    }
+    confirmBtn.addEventListener("click", handler);
+  }
+  var toastTimer = null;
+  function showToast(message){
+    var el = document.getElementById("toast");
+    el.textContent = message;
+    el.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.style.display = "none"; }, 2800);
+  }
+
+  // ---------- ui state that must survive a cloud-publish reload ----------
+  // A successful artifact publish reloads this view (platform behavior),
+  // wiping the in-memory `ui` object. Stash the bits of navigation state
+  // that matter (active tab etc.) right before publishing, and restore
+  // them on the next load — otherwise every action from a non-本局 tab
+  // bounces the viewer back to 本局, which reads as broken.
+  var UI_SESSION_KEY = "twmj_ui_session_v1";
+  function stashUiForReload(){
+    try{
+      sessionStorage.setItem(UI_SESSION_KEY, JSON.stringify({
+        tab: ui.tab, statsSub: ui.statsSub, calSelectedDate: ui.calSelectedDate,
+        calYear: ui.calYear, calMonth: ui.calMonth
+      }));
+    }catch(e){}
+  }
+  function restoreUiFromSession(){
+    try{
+      var raw = sessionStorage.getItem(UI_SESSION_KEY);
+      if(!raw) return;
+      sessionStorage.removeItem(UI_SESSION_KEY);
+      var saved = JSON.parse(raw);
+      if(saved.tab) ui.tab = saved.tab;
+      if(saved.statsSub) ui.statsSub = saved.statsSub;
+      if(typeof saved.calSelectedDate !== "undefined") ui.calSelectedDate = saved.calSelectedDate;
+      if(typeof saved.calYear === "number") ui.calYear = saved.calYear;
+      if(typeof saved.calMonth === "number") ui.calMonth = saved.calMonth;
+    }catch(e){}
   }
 
   // ---------- shared helpers ----------
@@ -754,6 +890,7 @@
     showSetLog: false,
     endSetPanelOpen: false
   };
+  restoreUiFromSession();
 
   // ================= TAB NAVIGATION =================
   function updateTabVisibility(){
@@ -918,7 +1055,7 @@
   document.getElementById("startGameBtn").addEventListener("click", function(){
     var me = meRoster();
     if(!me) return;
-    if(ui.newGame.opponents.length !== 3){ alert("請選滿 3 位對手"); return; }
+    if(ui.newGame.opponents.length !== 3){ showToast("請選滿 3 位對手"); return; }
     if(!ui.newGame.seatOrder) return;
     var date = document.getElementById("ngDate").value || todayISO();
     var venue = document.getElementById("ngVenue").value.trim();
@@ -1167,13 +1304,14 @@
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
-    if(!confirm("確定要刪除最後一筆紀錄嗎？")) return;
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-    ns.hands.pop();
-    syncDealerFromHands(ns);
-    commitState(newState);
+    showConfirm("確定要刪除最後一筆紀錄嗎？", function(){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.hands.pop();
+      syncDealerFromHands(ns);
+      commitState(newState);
+    });
   });
 
   document.getElementById("endSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = true; renderGameTab(); });
@@ -1196,19 +1334,20 @@
   });
 
   document.getElementById("finishGameBtn").addEventListener("click", function(){
-    if(!confirm("確定要結束整場並結算嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。")) return;
     var game = activeGame(); if(!game) return;
-    var set = activeSet(game);
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    if(set){
-      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-      ns.status = "ended"; ns.endedAt = Date.now();
-    }
-    ng.status = "ended"; ng.endedAt = Date.now();
-    newState.activeGameId = null;
-    ui.newGameFormReady = false; ui.endSetPanelOpen = false;
-    commitState(newState);
+    showConfirm("確定要結束整場並結算嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。", function(){
+      var set = activeSet(game);
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      if(set){
+        var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+        ns.status = "ended"; ns.endedAt = Date.now();
+      }
+      ng.status = "ended"; ng.endedAt = Date.now();
+      newState.activeGameId = null;
+      ui.newGameFormReady = false; ui.endSetPanelOpen = false;
+      commitState(newState);
+    });
   });
 
   function renderSetLog(set){
@@ -1364,22 +1503,23 @@
       var renameBtn = document.createElement("button");
       renameBtn.type = "button"; renameBtn.className = "link-btn"; renameBtn.textContent = "改名";
       renameBtn.addEventListener("click", function(){
-        var newName = prompt("修改名字", r.name);
-        if(newName === null) return;
-        newName = newName.trim();
-        if(!newName) return;
-        var ns = deepClone(state);
-        var rr = ns.roster.filter(function(x){ return x.id === r.id; })[0];
-        if(rr) rr.name = newName;
-        commitState(ns);
+        showPrompt("修改名字", r.name, function(newName){
+          newName = newName.trim();
+          if(!newName) return;
+          var ns = deepClone(state);
+          var rr = ns.roster.filter(function(x){ return x.id === r.id; })[0];
+          if(rr) rr.name = newName;
+          commitState(ns);
+        });
       });
       var delBtn = document.createElement("button");
       delBtn.type = "button"; delBtn.className = "link-btn danger"; delBtn.textContent = "刪除";
       delBtn.addEventListener("click", function(){
-        if(!confirm("確定刪除「"+r.name+"」嗎？（不會影響已記錄的牌局資料）")) return;
-        var ns = deepClone(state);
-        ns.roster = ns.roster.filter(function(x){ return x.id !== r.id; });
-        commitState(ns);
+        showConfirm("確定刪除「"+r.name+"」嗎？（不會影響已記錄的牌局資料）", function(){
+          var ns = deepClone(state);
+          ns.roster = ns.roster.filter(function(x){ return x.id !== r.id; });
+          commitState(ns);
+        });
       });
       actions.appendChild(renameBtn);
       actions.appendChild(delBtn);
@@ -1447,9 +1587,10 @@
     commitState(ns);
   });
   document.getElementById("resetAllBtn").addEventListener("click", function(){
-    if(!confirm("確定要清空所有牌局、名單與設定嗎？此動作無法復原。")) return;
-    ui.newGameFormReady = false;
-    commitState(defaultState());
+    showConfirm("確定要清空所有牌局、名單與設定嗎？此動作無法復原。", function(){
+      ui.newGameFormReady = false;
+      commitState(defaultState());
+    });
   });
 
   // ================= 戰績 =================
