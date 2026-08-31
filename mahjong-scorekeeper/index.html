@@ -317,6 +317,8 @@
 
         <div class="gesture-grid" id="gestureGrid" style="margin-top:14px;"></div>
 
+        <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:12px;">🌊 流局（沒人胡牌，莊家連莊）</button>
+
         <div class="toggle-row">
           <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
           <button type="button" class="btn btn-outline" id="dealerBonusBtn">莊家台 ✓</button>
@@ -491,7 +493,8 @@
   function syncDealerFromHands(set){
     if(!set.hands.length){ set.dealerIndex = 0; set.streak = 0; return; }
     var last = set.hands[set.hands.length-1];
-    if(last.winnerName === last.dealerName){
+    // 流局（no winner）: dealer always stays and 連莊 continues, same as a dealer win
+    if(last.method === "draw" || last.winnerName === last.dealerName){
       var di = set.seatOrder.indexOf(last.dealerName);
       set.dealerIndex = di===-1?0:di;
       set.streak = last.streak + 1;
@@ -1139,6 +1142,34 @@
     commitState(newState);
   }
 
+  function buildDrawRecord(set){
+    var dealerName = set.seatOrder[set.dealerIndex];
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    return {
+      dealerName: dealerName, streak: set.streak,
+      winnerName: null, method: "draw", loserName: null,
+      tai: 0, dealerBonusTai: 0, effectiveTai: 0,
+      amount: 0, deltas: deltas,
+      seatOrderAtHand: set.seatOrder.slice(),
+      ts: Date.now()
+    };
+  }
+
+  function commitDraw(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(isReadOnly) return;
+    var record = buildDrawRecord(set);
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.hands.push(record);
+    syncDealerFromHands(ns);
+    commitState(newState);
+  }
+  document.getElementById("drawBtn").addEventListener("click", function(){ commitDraw(); });
+
   function flashCard(name, cls){
     var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
     if(!el) return;
@@ -1362,22 +1393,28 @@
       var item = document.createElement("div");
       item.className = "log-item";
       var bonusText = h.dealerBonusTai > 0 ? "（含莊家加成 +"+h.dealerBonusTai+"台）" : "";
-      var detail;
-      if(h.method === "discard"){
-        detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
-                 escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
-      }else{
-        var parts = [];
-        Object.keys(h.deltas).forEach(function(n){
-          if(n === h.winnerName) return;
-          parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
-        });
-        detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
-      }
       var dealerStreakText = h.streak > 0 ? '（'+streakLabel(h.streak)+'）' : '';
-      var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+escapeHtml(h.loserName)+"）");
+      var headLine, detail;
+      if(h.method === "draw"){
+        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・流局（沒人胡牌）';
+        detail = '不換錢，莊家連莊。';
+      }else{
+        if(h.method === "discard"){
+          detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
+                   escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
+        }else{
+          var parts = [];
+          Object.keys(h.deltas).forEach(function(n){
+            if(n === h.winnerName) return;
+            parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
+          });
+          detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
+        }
+        var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+escapeHtml(h.loserName)+"）");
+        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+bonusText;
+      }
       item.innerHTML =
-        '<div class="log-head">第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+bonusText+'</div>' +
+        '<div class="log-head">'+headLine+'</div>' +
         '<div class="log-detail">'+detail+'</div>';
       list.appendChild(item);
     }
