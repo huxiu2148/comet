@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>台灣麻將記帳系統</title>
+<style>
+  :root{
+    --red: #b3122b;
+    --red-dark: #7d0d1e;
+    --gold: #d4af37;
+    --gold-light: #f6e3a1;
+    --cream: #fff8ec;
+    --win: #1e8a3c;
+    --lose: #c0392b;
+    --ink: #3a2418;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: linear-gradient(180deg,#8a0f22 0%, #b3122b 140px, var(--cream) 140px);
+    font-family: "PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 0 12px 40px; }
+
+  header.topbar{
+    text-align:center;
+    padding: 18px 10px 14px;
+    color: #fff3d6;
+  }
+  header.topbar h1{
+    margin:0; font-size: 1.5rem; letter-spacing: 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+  header.topbar p{ margin:4px 0 0; font-size:.8rem; opacity:.9; }
+
+  .card{
+    background: #fff;
+    border: 2px solid var(--gold);
+    border-radius: 18px;
+    padding: 14px 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 14px rgba(120,20,20,.15);
+  }
+  .card h2{
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    color: var(--red-dark);
+    display:flex; align-items:center; gap:6px;
+  }
+  .card h2 .badge{
+    margin-left:auto;
+    font-size:.72rem;
+    background: var(--gold-light);
+    color:#7a5c00;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  /* settings */
+  details.settings summary{
+    cursor:pointer; list-style:none; font-size:1.05rem; font-weight:700;
+    color: var(--red-dark); padding:2px 0;
+  }
+  details.settings summary::-webkit-details-marker{ display:none; }
+  details.settings summary::after{
+    content: "▾"; float:right; transition: transform .2s;
+  }
+  details.settings[open] summary::after{ transform: rotate(180deg); }
+  .settings-body{ margin-top:12px; }
+
+  .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  label.field{ display:block; font-size:.78rem; color:#8a5a00; margin-bottom:4px; font-weight:600; }
+  input[type=text], input[type=number]{
+    width:100%; padding:10px 12px; font-size:1rem;
+    border:1.5px solid #e5c98a; border-radius: 10px;
+    background: var(--cream);
+    color: var(--ink);
+  }
+  input:focus{ outline: 2px solid var(--gold); }
+
+  .apply-btn{
+    margin-top:12px; width:100%;
+  }
+
+  /* buttons */
+  .btn{
+    border:none; border-radius: 14px; cursor:pointer;
+    font-weight:700; font-size:1rem;
+    padding: 14px 10px;
+    min-height: 52px;
+    transition: transform .05s ease, box-shadow .15s ease;
+    -webkit-user-select:none; user-select:none;
+  }
+  .btn:active{ transform: scale(.97); }
+  .btn-primary{ background: linear-gradient(180deg,#d4af37,#b8860b); color:#3a2000; box-shadow: 0 3px 0 #8a660a; }
+  .btn-danger-outline{ background:#fff; color: var(--lose); border:1.5px solid var(--lose); }
+  .btn-outline{ background:#fff; color: var(--red-dark); border:1.5px solid var(--gold); }
+  .btn-block{ width:100%; }
+
+  .picker{
+    display:grid; grid-template-columns: repeat(4,1fr); gap:8px;
+  }
+  .picker.two{ grid-template-columns: repeat(2,1fr); }
+  .pick-btn{
+    border: 2px solid #e5c98a; background:#fff; color: var(--ink);
+    border-radius:12px; padding:12px 4px; font-size:.92rem; font-weight:700;
+    cursor:pointer; min-height:50px;
+  }
+  .pick-btn.selected{
+    background: var(--red); border-color: var(--red-dark); color:#fff;
+    box-shadow: 0 2px 6px rgba(179,18,43,.4);
+  }
+  .pick-btn:disabled{ opacity:.35; cursor:not-allowed; }
+
+  .method-row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .method-btn{
+    border:2px solid var(--gold); background:#fff; color:var(--red-dark);
+    border-radius:14px; padding:16px 4px; font-size:1.05rem; font-weight:800;
+    cursor:pointer;
+  }
+  .method-btn.selected{ background: var(--gold); color:#4a2e00; }
+
+  .stepper{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--cream); border:1.5px solid #e5c98a; border-radius: 12px;
+    padding: 6px;
+  }
+  .stepper button{
+    width:44px; height:44px; border-radius:10px; border:none;
+    background: var(--red); color:#fff; font-size:1.4rem; font-weight:700; cursor:pointer;
+  }
+  .stepper .val{
+    flex:1; text-align:center; font-size:1.3rem; font-weight:800; color: var(--red-dark);
+  }
+  .stepper .val small{ display:block; font-size:.7rem; color:#8a5a00; font-weight:600; }
+
+  .section-label{ font-size:.8rem; color:#8a5a00; font-weight:700; margin: 12px 0 6px; }
+
+  .preview{
+    margin-top: 12px; padding: 10px 12px; border-radius:12px;
+    background: var(--gold-light); color:#5c3d00; font-size:.85rem; font-weight:600;
+    text-align:center;
+  }
+
+  .submit-btn{ margin-top:14px; font-size:1.1rem; padding:16px; }
+
+  /* dashboard */
+  .dash-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
+  .dash-card{
+    border-radius:14px; padding:12px 10px; text-align:center;
+    background: var(--cream); border:1.5px solid #e5c98a;
+    position:relative;
+  }
+  .dash-card .name{ font-size:.85rem; font-weight:700; color:#7a5c00; }
+  .dash-card .amt{ font-size:1.35rem; font-weight:800; margin-top:2px; }
+  .dash-card .amt.win{ color: var(--win); }
+  .dash-card .amt.lose{ color: var(--lose); }
+  .dash-card .amt.zero{ color:#888; }
+  .dash-card .dealer-tag{
+    position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    background: var(--red); color:#fff; font-size:.65rem; padding:2px 8px;
+    border-radius:999px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,.2);
+  }
+
+  .undo-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .undo-row .btn{ flex:1; }
+
+  .log-item{
+    border-bottom: 1px dashed #e5c98a; padding: 10px 0; font-size:.85rem;
+  }
+  .log-item:last-child{ border-bottom:none; }
+  .log-head{ font-weight:700; color: var(--red-dark); margin-bottom:4px; }
+  .log-detail{ color:#6b5a44; line-height:1.5; }
+  .log-detail .plus{ color: var(--win); font-weight:700; }
+  .log-detail .minus{ color: var(--lose); font-weight:700; }
+  .empty-hint{ text-align:center; color:#a08a6a; padding: 14px 0; font-size:.85rem; }
+
+  .footer-note{ text-align:center; font-size:.72rem; color:#a08a6a; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <h1>🧧 台灣麻將記帳系統 🧧</h1>
+    <p>新年發大財・輸贏一目瞭然</p>
+  </header>
+
+  <!-- 設定區 -->
+  <div class="card">
+    <details class="settings" id="settingsDetails">
+      <summary>⚙️ 設定區（玩家 / 底台）</summary>
+      <div class="settings-body">
+        <div class="grid2">
+          <div>
+            <label class="field">玩家 1（東）</label>
+            <input type="text" id="name0" maxlength="8">
+          </div>
+          <div>
+            <label class="field">玩家 2（南）</label>
+            <input type="text" id="name1" maxlength="8">
+          </div>
+          <div>
+            <label class="field">玩家 3（西）</label>
+            <input type="text" id="name2" maxlength="8">
+          </div>
+          <div>
+            <label class="field">玩家 4（北）</label>
+            <input type="text" id="name3" maxlength="8">
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label class="field">底（元）</label>
+            <input type="number" id="baseInput" min="0" step="10">
+          </div>
+          <div>
+            <label class="field">每台（元）</label>
+            <input type="number" id="taiInput" min="0" step="10">
+          </div>
+        </div>
+        <button class="btn btn-primary apply-btn" id="applySettingsBtn">💾 套用設定</button>
+        <button class="btn btn-danger-outline btn-block" style="margin-top:8px;" id="resetAllBtn">🗑️ 清空所有紀錄與設定</button>
+      </div>
+    </details>
+  </div>
+
+  <!-- 戰況表 -->
+  <div class="card">
+    <h2>💰 即時戰況 <span class="badge" id="handCountBadge">第 1 局</span></h2>
+    <div class="dash-grid" id="dashGrid"></div>
+  </div>
+
+  <!-- 記分操作區 -->
+  <div class="card">
+    <h2>🀄 本局紀錄</h2>
+
+    <div class="section-label">莊家</div>
+    <div class="picker" id="dealerPicker"></div>
+
+    <div class="section-label">連莊</div>
+    <div class="stepper">
+      <button type="button" id="streakMinus">－</button>
+      <div class="val" id="streakVal">莊<small>首莊，尚未連莊</small></div>
+      <button type="button" id="streakPlus">＋</button>
+    </div>
+
+    <div class="section-label">贏家</div>
+    <div class="picker" id="winnerPicker"></div>
+
+    <div class="section-label">贏牌方式</div>
+    <div class="method-row">
+      <button type="button" class="method-btn" id="methodSelf">🀄 自摸</button>
+      <button type="button" class="method-btn" id="methodDiscard">💥 放槍</button>
+    </div>
+
+    <div id="loserBlock" style="display:none;">
+      <div class="section-label">放槍者</div>
+      <div class="picker" id="loserPicker"></div>
+    </div>
+
+    <div class="section-label">台數</div>
+    <div class="stepper">
+      <button type="button" id="taiMinus">－</button>
+      <div class="val" id="taiVal">0<small>台</small></div>
+      <button type="button" id="taiPlus">＋</button>
+    </div>
+
+    <div class="preview" id="previewBox">請先選擇莊家與贏家</div>
+
+    <button class="btn btn-primary btn-block submit-btn" id="submitBtn">✅ 記錄這一局</button>
+  </div>
+
+  <!-- 歷史紀錄 -->
+  <div class="card">
+    <h2>📜 歷史對戰紀錄</h2>
+    <div class="undo-row">
+      <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
+    </div>
+    <div id="logList"></div>
+  </div>
+
+  <div class="footer-note">恭喜發財 · 手氣旺旺 🏮</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var STORAGE_KEY = "twmj_scorekeeper_v1";
+  var WINDS = ["東","南","西","北"];
+
+  var defaultState = {
+    players: ["東","南","西","北"],
+    base: 100,
+    tai: 20,
+    history: []
+  };
+
+  var state = loadState();
+
+  // form-local (not persisted) selections
+  var form = {
+    dealerIndex: 0,
+    streak: 0,
+    winnerIndex: null,
+    method: null, // 'self' | 'discard'
+    loserIndex: null,
+    tai: 0
+  };
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(defaultState));
+      var parsed = JSON.parse(raw);
+      if(!parsed.players || parsed.players.length !== 4) parsed.players = defaultState.players.slice();
+      if(typeof parsed.base !== "number") parsed.base = defaultState.base;
+      if(typeof parsed.tai !== "number") parsed.tai = defaultState.tai;
+      if(!Array.isArray(parsed.history)) parsed.history = [];
+      return parsed;
+    }catch(e){
+      return JSON.parse(JSON.stringify(defaultState));
+    }
+  }
+
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function computeTotals(){
+    var totals = [0,0,0,0];
+    state.history.forEach(function(h){
+      h.deltas.forEach(function(d,i){ totals[i]+=d; });
+    });
+    return totals;
+  }
+
+  function suggestNextDealer(){
+    if(state.history.length === 0) return { dealerIndex: 0, streak: 0 };
+    var last = state.history[state.history.length-1];
+    if(last.winnerIndex === last.dealerIndex){
+      return { dealerIndex: last.dealerIndex, streak: last.streak + 1 };
+    }
+    return { dealerIndex: (last.dealerIndex + 1) % 4, streak: 0 };
+  }
+
+  function resetFormForNextHand(){
+    var sug = suggestNextDealer();
+    form.dealerIndex = sug.dealerIndex;
+    form.streak = sug.streak;
+    form.winnerIndex = null;
+    form.method = null;
+    form.loserIndex = null;
+    form.tai = 0;
+  }
+
+  // ---------- settings ----------
+  function fillSettingsInputs(){
+    for(var i=0;i<4;i++){
+      document.getElementById("name"+i).value = state.players[i];
+    }
+    document.getElementById("baseInput").value = state.base;
+    document.getElementById("taiInput").value = state.tai;
+  }
+
+  document.getElementById("applySettingsBtn").addEventListener("click", function(){
+    var newNames = [];
+    for(var i=0;i<4;i++){
+      var v = document.getElementById("name"+i).value.trim();
+      newNames.push(v || WINDS[i]);
+    }
+    var base = parseInt(document.getElementById("baseInput").value, 10);
+    var tai = parseInt(document.getElementById("taiInput").value, 10);
+    state.players = newNames;
+    state.base = isNaN(base) ? 0 : Math.max(0, base);
+    state.tai = isNaN(tai) ? 0 : Math.max(0, tai);
+    saveState();
+    document.getElementById("settingsDetails").removeAttribute("open");
+    renderAll();
+  });
+
+  document.getElementById("resetAllBtn").addEventListener("click", function(){
+    if(!confirm("確定要清空所有紀錄與設定嗎？此動作無法復原。")) return;
+    state = JSON.parse(JSON.stringify(defaultState));
+    saveState();
+    fillSettingsInputs();
+    resetFormForNextHand();
+    renderAll();
+  });
+
+  // ---------- pickers ----------
+  function renderPicker(containerId, opts){
+    // opts: {selected, onSelect, disabledIndex}
+    var container = document.getElementById(containerId);
+    container.innerHTML = "";
+    state.players.forEach(function(name, idx){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pick-btn" + (opts.selected === idx ? " selected" : "");
+      btn.textContent = name;
+      if(opts.disabledIndex === idx){
+        btn.disabled = true;
+      }else{
+        btn.addEventListener("click", function(){ opts.onSelect(idx); });
+      }
+      container.appendChild(btn);
+    });
+  }
+
+  function renderDealerPicker(){
+    renderPicker("dealerPicker", {
+      selected: form.dealerIndex,
+      onSelect: function(idx){
+        form.dealerIndex = idx;
+        renderDealerPicker();
+        renderWinnerPicker();
+        renderLoserPicker();
+        updatePreview();
+      }
+    });
+  }
+
+  function renderWinnerPicker(){
+    renderPicker("winnerPicker", {
+      selected: form.winnerIndex,
+      onSelect: function(idx){
+        form.winnerIndex = idx;
+        if(form.loserIndex === idx) form.loserIndex = null;
+        renderWinnerPicker();
+        renderLoserPicker();
+        updatePreview();
+      }
+    });
+  }
+
+  function renderLoserPicker(){
+    renderPicker("loserPicker", {
+      selected: form.loserIndex,
+      disabledIndex: form.winnerIndex,
+      onSelect: function(idx){
+        form.loserIndex = idx;
+        renderLoserPicker();
+        updatePreview();
+      }
+    });
+  }
+
+  function streakLabel(n){
+    if(n <= 0) return "莊";
+    var cn = ["一","二","三","四","五","六","七","八","九","十"];
+    var label = n <= 10 ? cn[n-1] : n;
+    return "連" + label;
+  }
+
+  function renderStreak(){
+    var el = document.getElementById("streakVal");
+    var sub = form.streak <= 0 ? "首莊，尚未連莊" : ("莊家加成 +" + (2*form.streak) + " 台");
+    el.innerHTML = streakLabel(form.streak) + "<small>"+sub+"</small>";
+  }
+
+  document.getElementById("streakMinus").addEventListener("click", function(){
+    form.streak = Math.max(0, form.streak - 1);
+    renderStreak(); updatePreview();
+  });
+  document.getElementById("streakPlus").addEventListener("click", function(){
+    form.streak = Math.min(20, form.streak + 1);
+    renderStreak(); updatePreview();
+  });
+
+  function renderTai(){
+    document.getElementById("taiVal").innerHTML = form.tai + "<small>台</small>";
+  }
+  document.getElementById("taiMinus").addEventListener("click", function(){
+    form.tai = Math.max(0, form.tai - 1);
+    renderTai(); updatePreview();
+  });
+  document.getElementById("taiPlus").addEventListener("click", function(){
+    form.tai = Math.min(80, form.tai + 1);
+    renderTai(); updatePreview();
+  });
+
+  function setMethod(m){
+    form.method = m;
+    if(m === "self"){
+      form.loserIndex = null;
+      document.getElementById("loserBlock").style.display = "none";
+    }else{
+      document.getElementById("loserBlock").style.display = "block";
+      renderLoserPicker();
+    }
+    document.getElementById("methodSelf").classList.toggle("selected", m === "self");
+    document.getElementById("methodDiscard").classList.toggle("selected", m === "discard");
+    updatePreview();
+  }
+  document.getElementById("methodSelf").addEventListener("click", function(){ setMethod("self"); });
+  document.getElementById("methodDiscard").addEventListener("click", function(){ setMethod("discard"); });
+
+  function currentAmountPerPayment(){
+    var effectiveTai = form.tai + 2 * form.streak;
+    return state.base + effectiveTai * state.tai;
+  }
+
+  function updatePreview(){
+    var box = document.getElementById("previewBox");
+    if(form.winnerIndex === null || !form.method){
+      box.textContent = "請先選擇莊家、贏家與贏牌方式";
+      return;
+    }
+    if(form.method === "discard" && form.loserIndex === null){
+      box.textContent = "請選擇放槍者";
+      return;
+    }
+    var effectiveTai = form.tai + 2 * form.streak;
+    var amount = currentAmountPerPayment();
+    var winnerName = state.players[form.winnerIndex];
+    if(form.method === "self"){
+      box.innerHTML = "底" + state.base + " + " + effectiveTai + "台×" + state.tai +
+        " = 每家付 <b>" + amount + "</b> 元 → " + winnerName + " 共得 <b>" + (amount*3) + "</b> 元";
+    }else{
+      var loserName = state.players[form.loserIndex];
+      box.innerHTML = "底" + state.base + " + " + effectiveTai + "台×" + state.tai +
+        " = " + loserName + " 賠 <b>" + amount + "</b> 元給 " + winnerName;
+    }
+  }
+
+  // ---------- submit ----------
+  document.getElementById("submitBtn").addEventListener("click", function(){
+    if(form.winnerIndex === null){ alert("請選擇贏家"); return; }
+    if(!form.method){ alert("請選擇贏牌方式（自摸／放槍）"); return; }
+    if(form.method === "discard" && form.loserIndex === null){ alert("請選擇放槍者"); return; }
+
+    var effectiveTai = form.tai + 2 * form.streak;
+    var amount = state.base + effectiveTai * state.tai;
+    var deltas = [0,0,0,0];
+
+    if(form.method === "discard"){
+      deltas[form.loserIndex] -= amount;
+      deltas[form.winnerIndex] += amount;
+    }else{
+      for(var i=0;i<4;i++){
+        if(i === form.winnerIndex) continue;
+        deltas[i] -= amount;
+        deltas[form.winnerIndex] += amount;
+      }
+    }
+
+    state.history.push({
+      dealerIndex: form.dealerIndex,
+      streak: form.streak,
+      winnerIndex: form.winnerIndex,
+      method: form.method,
+      loserIndex: form.loserIndex,
+      tai: form.tai,
+      effectiveTai: effectiveTai,
+      amount: amount,
+      deltas: deltas,
+      ts: Date.now()
+    });
+
+    saveState();
+    resetFormForNextHand();
+    renderAll();
+  });
+
+  document.getElementById("undoBtn").addEventListener("click", function(){
+    if(state.history.length === 0) return;
+    if(!confirm("確定要刪除最後一筆紀錄嗎？")) return;
+    state.history.pop();
+    saveState();
+    resetFormForNextHand();
+    renderAll();
+  });
+
+  // ---------- dashboard ----------
+  function renderDashboard(){
+    var totals = computeTotals();
+    var grid = document.getElementById("dashGrid");
+    grid.innerHTML = "";
+    state.players.forEach(function(name, idx){
+      var cell = document.createElement("div");
+      cell.className = "dash-card";
+      var amtClass = totals[idx] > 0 ? "win" : (totals[idx] < 0 ? "lose" : "zero");
+      var sign = totals[idx] > 0 ? "+" : "";
+      var dealerTagText = form.streak > 0 ? "莊・"+streakLabel(form.streak) : "莊家";
+      var dealerTag = (idx === form.dealerIndex) ? '<div class="dealer-tag">'+dealerTagText+'</div>' : "";
+      cell.innerHTML = dealerTag +
+        '<div class="name">'+escapeHtml(name)+'</div>' +
+        '<div class="amt '+amtClass+'">'+sign+totals[idx]+'</div>';
+      grid.appendChild(cell);
+    });
+    document.getElementById("handCountBadge").textContent = "第 " + (state.history.length + 1) + " 局";
+  }
+
+  function methodText(h){
+    if(h.method === "self") return "自摸";
+    return "放槍（" + state.players[h.loserIndex] + "）";
+  }
+
+  function renderHistory(){
+    var list = document.getElementById("logList");
+    list.innerHTML = "";
+    if(state.history.length === 0){
+      list.innerHTML = '<div class="empty-hint">尚無對戰紀錄，記錄第一局吧！</div>';
+      return;
+    }
+    for(var i = state.history.length - 1; i >= 0; i--){
+      var h = state.history[i];
+      var item = document.createElement("div");
+      item.className = "log-item";
+      var bonusText = h.streak > 0 ? "（含莊家加成 +"+(2*h.streak)+"台）" : "";
+      var detail;
+      if(h.method === "discard"){
+        detail = state.players[h.loserIndex] + ' <span class="minus">-'+h.amount+'</span> → ' +
+                 state.players[h.winnerIndex] + ' <span class="plus">+'+h.amount+'</span>';
+      }else{
+        var parts = [];
+        for(var p=0;p<4;p++){
+          if(p===h.winnerIndex) continue;
+          parts.push(state.players[p]+' <span class="minus">-'+h.amount+'</span>');
+        }
+        detail = parts.join('、') + ' → ' + state.players[h.winnerIndex] + ' <span class="plus">+'+(h.amount*3)+'</span>';
+      }
+      var dealerStreakText = h.streak > 0 ? '（'+streakLabel(h.streak)+'）' : '';
+      item.innerHTML =
+        '<div class="log-head">第'+(i+1)+'局・莊家 '+escapeHtml(state.players[h.dealerIndex])+dealerStreakText+'・贏家 '+escapeHtml(state.players[h.winnerIndex])+'・'+methodText(h)+'・'+h.tai+'台'+bonusText+'</div>' +
+        '<div class="log-detail">'+detail+'</div>';
+      list.appendChild(item);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function renderAll(){
+    renderDealerPicker();
+    renderWinnerPicker();
+    renderLoserPicker();
+    renderStreak();
+    renderTai();
+    document.getElementById("methodSelf").classList.toggle("selected", form.method === "self");
+    document.getElementById("methodDiscard").classList.toggle("selected", form.method === "discard");
+    document.getElementById("loserBlock").style.display = form.method === "discard" ? "block" : "none";
+    updatePreview();
+    renderDashboard();
+    renderHistory();
+  }
+
+  // init
+  fillSettingsInputs();
+  resetFormForNextHand();
+  renderAll();
+})();
+</script>
+</body>
+</html>
