@@ -25,39 +25,18 @@
   }
   .wrap{ max-width: 560px; margin: 0 auto; padding: 0 12px 84px; }
 
-  header.topbar{
-    text-align:center;
-    padding: 18px 10px 14px;
-    color: #fff3d6;
-  }
-  header.topbar h1{
-    margin:0; font-size: 1.5rem; letter-spacing: 2px;
-    text-shadow: 0 1px 2px rgba(0,0,0,.35);
-  }
+  header.topbar{ text-align:center; padding: 18px 10px 14px; color: #fff3d6; }
+  header.topbar h1{ margin:0; font-size: 1.5rem; letter-spacing: 2px; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
   header.topbar p{ margin:4px 0 0; font-size:.8rem; opacity:.9; }
 
   .card{
-    background: #fff;
-    border: 2px solid var(--gold);
-    border-radius: 18px;
-    padding: 14px 14px 16px;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 14px rgba(120,20,20,.15);
+    background: #fff; border: 2px solid var(--gold); border-radius: 18px;
+    padding: 14px 14px 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(120,20,20,.15);
   }
-  .card h2{
-    margin: 0 0 10px;
-    font-size: 1.05rem;
-    color: var(--red-dark);
-    display:flex; align-items:center; gap:6px;
-  }
+  .card h2{ margin: 0 0 10px; font-size: 1.05rem; color: var(--red-dark); display:flex; align-items:center; gap:6px; }
   .card h2 .badge{
-    margin-left:auto;
-    font-size:.72rem;
-    background: var(--gold-light);
-    color:#7a5c00;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-weight: 600;
+    margin-left:auto; font-size:.72rem; background: var(--gold-light); color:#7a5c00;
+    padding: 3px 8px; border-radius: 999px; font-weight: 600;
   }
 
   .hint-text{ font-size:.78rem; color:#8a6a4a; margin:0 0 10px; line-height:1.5; }
@@ -65,104 +44,52 @@
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
   label.field{ display:block; font-size:.78rem; color:#8a5a00; margin-bottom:4px; font-weight:600; }
   input[type=text], input[type=number], input[type=date]{
-    width:100%; padding:10px 12px; font-size:1rem;
-    border:1.5px solid #e5c98a; border-radius: 10px;
-    background: var(--cream);
-    color: var(--ink);
+    width:100%; padding:10px 12px; font-size:1rem; border:1.5px solid #e5c98a; border-radius: 10px;
+    background: var(--cream); color: var(--ink);
   }
   input:focus{ outline: 2px solid var(--gold); }
 
-  .apply-btn{
-    margin-top:12px; width:100%;
-  }
+  .apply-btn{ margin-top:12px; width:100%; }
 
-  /* buttons */
   .btn{
-    border:none; border-radius: 14px; cursor:pointer;
-    font-weight:700; font-size:1rem;
-    padding: 14px 10px;
-    min-height: 52px;
-    transition: transform .05s ease, box-shadow .15s ease;
+    border:none; border-radius: 14px; cursor:pointer; font-weight:700; font-size:1rem;
+    padding: 14px 10px; min-height: 52px; transition: transform .05s ease, box-shadow .15s ease;
     -webkit-user-select:none; user-select:none;
   }
   .btn:active{ transform: scale(.97); }
   .btn-primary{ background: linear-gradient(180deg,#d4af37,#b8860b); color:#3a2000; box-shadow: 0 3px 0 #8a660a; }
   .btn-danger-outline{ background:#fff; color: var(--lose); border:1.5px solid var(--lose); }
   .btn-outline{ background:#fff; color: var(--red-dark); border:1.5px solid var(--gold); }
+  .btn-outline.selected{ background: var(--gold); color:#4a2e00; }
   .btn-block{ width:100%; }
   .btn:disabled{ opacity:.4; cursor:not-allowed; }
-
-  .picker{
-    display:grid; grid-template-columns: repeat(4,1fr); gap:8px;
-  }
-  .pick-btn{
-    border: 2px solid #e5c98a; background:#fff; color: var(--ink);
-    border-radius:12px; padding:12px 4px; font-size:.92rem; font-weight:700;
-    cursor:pointer; min-height:50px;
-  }
-  .pick-btn.selected{
-    background: var(--red); border-color: var(--red-dark); color:#fff;
-    box-shadow: 0 2px 6px rgba(179,18,43,.4);
-  }
-  .pick-btn:disabled{ opacity:.35; cursor:not-allowed; }
 
   .method-row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
   .method-btn{
     border:2px solid var(--gold); background:#fff; color:var(--red-dark);
-    border-radius:14px; padding:16px 4px; font-size:1.05rem; font-weight:800;
-    cursor:pointer;
+    border-radius:14px; padding:16px 4px; font-size:1.05rem; font-weight:800; cursor:pointer;
   }
   .method-btn.selected{ background: var(--gold); color:#4a2e00; }
 
   .stepper{
     display:flex; align-items:center; justify-content:space-between;
-    background: var(--cream); border:1.5px solid #e5c98a; border-radius: 12px;
-    padding: 6px;
+    background: var(--cream); border:1.5px solid #e5c98a; border-radius: 12px; padding: 6px;
   }
   .stepper button{
     width:44px; height:44px; border-radius:10px; border:none;
     background: var(--red); color:#fff; font-size:1.4rem; font-weight:700; cursor:pointer;
   }
-  .stepper .val{
-    flex:1; text-align:center; font-size:1.3rem; font-weight:800; color: var(--red-dark);
-  }
+  .stepper .val{ flex:1; text-align:center; font-size:1.3rem; font-weight:800; color: var(--red-dark); }
   .stepper .val small{ display:block; font-size:.7rem; color:#8a5a00; font-weight:600; }
 
-  .section-label{ font-size:.8rem; color:#8a5a00; font-weight:700; margin: 12px 0 6px; }
-
-  .preview{
-    margin-top: 12px; padding: 10px 12px; border-radius:12px;
-    background: var(--gold-light); color:#5c3d00; font-size:.85rem; font-weight:600;
-    text-align:center;
-  }
-
-  .submit-btn{ margin-top:14px; font-size:1.1rem; padding:16px; }
-
-  /* dashboard */
-  .dash-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
-  .dash-card{
-    border-radius:14px; padding:12px 10px; text-align:center;
-    background: var(--cream); border:1.5px solid #e5c98a;
-    position:relative;
-  }
-  .dash-card .name{ font-size:.85rem; font-weight:700; color:#7a5c00; }
-  .dash-card .amt{ font-size:1.35rem; font-weight:800; margin-top:2px; font-variant-numeric: tabular-nums; }
-  .dash-card .amt.win{ color: var(--win); }
-  .dash-card .amt.lose{ color: var(--lose); }
-  .dash-card .amt.zero{ color:#888; }
-  .dash-card .dealer-tag{
-    position:absolute; top:-9px; left:50%; transform:translateX(-50%);
-    background: var(--red); color:#fff; font-size:.65rem; padding:2px 8px;
-    border-radius:999px; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,.2);
-  }
-  .game-meta{ margin-top:8px; font-size:.75rem; color:#8a6a4a; text-align:center; }
+  .section-label{ font-size:.8rem; color:#8a5a00; font-weight:700; margin: 12px 0 6px; display:flex; align-items:center; gap:8px; }
 
   .undo-row{ display:flex; gap:10px; margin-bottom:10px; }
   .undo-row .btn{ flex:1; }
+  .toggle-row{ display:flex; gap:10px; margin-top:12px; }
+  .toggle-row .btn{ flex:1; padding:10px; min-height:auto; font-size:.85rem; }
 
-  .log-item{
-    border-bottom: 1px dashed #e5c98a; padding: 10px 0; font-size:.85rem;
-  }
+  .log-item{ border-bottom: 1px dashed #e5c98a; padding: 10px 0; font-size:.85rem; }
   .log-item:last-child{ border-bottom:none; }
   .log-head{ font-weight:700; color: var(--red-dark); margin-bottom:4px; }
   .log-detail{ color:#6b5a44; line-height:1.5; }
@@ -181,24 +108,17 @@
   .cloud-badge.synced{ background:#1e8a3c; color:#fff; }
   .cloud-badge.syncing{ background:var(--gold); color:#4a2e00; }
   .cloud-badge.readonly{ background:#5b6b8c; color:#fff; }
-
-  .cloud-badge-lg{
-    display:inline-block; font-size:.85rem; font-weight:700;
-    padding:6px 14px; border-radius:999px; margin-bottom:8px;
-  }
+  .cloud-badge-lg{ display:inline-block; font-size:.85rem; font-weight:700; padding:6px 14px; border-radius:999px; margin-bottom:8px; }
   .cloud-badge-lg.local{ background:#eee; color:#666; }
   .cloud-badge-lg.synced{ background:#1e8a3c; color:#fff; }
   .cloud-badge-lg.syncing{ background:var(--gold); color:#4a2e00; }
   .cloud-badge-lg.readonly{ background:#5b6b8c; color:#fff; }
 
-  /* tabs */
   .tab-page{ display:none; }
   .tab-page.active{ display:block; }
-
   .tabbar{
     position:fixed; left:0; right:0; bottom:0; z-index:50;
-    display:flex; background:#fff; border-top:2px solid var(--gold);
-    box-shadow: 0 -2px 10px rgba(0,0,0,.12);
+    display:flex; background:#fff; border-top:2px solid var(--gold); box-shadow: 0 -2px 10px rgba(0,0,0,.12);
   }
   .tab-btn{
     flex:1; border:none; background:none; cursor:pointer;
@@ -208,52 +128,38 @@
   .tab-btn .tab-icon{ font-size:1.25rem; }
   .tab-btn.active{ color: var(--red); }
 
-  /* chips */
   .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
   .chip{
     border:1.5px solid #e5c98a; background:var(--cream); color:var(--ink);
     border-radius:999px; padding:6px 12px; font-size:.8rem; font-weight:600; cursor:pointer;
   }
+  .chip-selected{ background: var(--red); border-color: var(--red-dark); color:#fff; }
+  .chip:disabled{ opacity:.35; cursor:not-allowed; }
 
-  /* roster / venue lists */
   .add-row{ display:flex; gap:8px; margin-bottom:12px; }
   .add-row input{ flex:1; }
   .add-row .btn{ padding:10px 16px; min-height:auto; }
 
-  .roster-row{
-    display:flex; align-items:center; gap:10px;
-    border-bottom:1px dashed #e5c98a; padding:10px 0;
-  }
+  .roster-row{ display:flex; align-items:center; gap:10px; border-bottom:1px dashed #e5c98a; padding:10px 0; }
   .roster-row:last-child{ border-bottom:none; }
-  .roster-star{
-    border:none; background:none; font-size:1.2rem; color:#c9a227; cursor:pointer; padding:0;
-  }
+  .roster-star{ border:none; background:none; font-size:1.2rem; color:#c9a227; cursor:pointer; padding:0; }
   .roster-star.active{ color: var(--gold); }
   .roster-name{ flex:1; font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:6px; }
-  .me-badge{
-    font-size:.65rem; background: var(--win); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700;
-  }
+  .me-badge{ font-size:.65rem; background: var(--win); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700; }
   .roster-actions{ display:flex; gap:10px; }
-  .link-btn{
-    border:none; background:none; color: var(--red-dark); font-size:.8rem; font-weight:700; cursor:pointer; padding:4px;
-  }
+  .link-btn{ border:none; background:none; color: var(--red-dark); font-size:.8rem; font-weight:700; cursor:pointer; padding:4px; }
   .link-btn.danger{ color: var(--lose); }
 
-  /* stats */
   .subtab-row{ display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px; }
   .subtab-btn{
     border:1.5px solid var(--gold); background:#fff; color: var(--red-dark);
-    border-radius:999px; padding:8px 14px; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap;
-    flex-shrink:0;
+    border-radius:999px; padding:8px 14px; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0;
   }
   .subtab-btn.selected{ background: var(--red); border-color: var(--red-dark); color:#fff; }
 
   .stat-summary{ font-size:.85rem; color:#8a6a4a; margin-bottom:10px; font-weight:600; }
   .stat-list{ display:flex; flex-direction:column; }
-  .stat-row{
-    display:flex; align-items:center; gap:10px;
-    border-bottom:1px dashed #e5c98a; padding:9px 0; font-size:.9rem;
-  }
+  .stat-row{ display:flex; align-items:center; gap:10px; border-bottom:1px dashed #e5c98a; padding:9px 0; font-size:.9rem; }
   .stat-row:last-child{ border-bottom:none; }
   .stat-name{ flex:1; font-weight:700; }
   .stat-mid{ color:#8a6a4a; font-size:.78rem; }
@@ -263,14 +169,10 @@
   .stat-amt.lose{ color: var(--lose); }
   .stat-amt.zero{ color:#888; }
 
-  /* calendar */
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .cal-nav{ padding:8px 16px; min-height:auto; }
   .cal-title{ font-weight:800; color: var(--red-dark); font-size:1.05rem; }
-  .cal-weekdays{
-    display:grid; grid-template-columns:repeat(7,1fr); text-align:center;
-    font-size:.72rem; color:#8a6a4a; font-weight:700; margin-bottom:4px;
-  }
+  .cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:.72rem; color:#8a6a4a; font-weight:700; margin-bottom:4px; }
   .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
   .cal-cell{
     border:1px solid #eee0bd; background:var(--cream); border-radius:8px;
@@ -284,6 +186,46 @@
   .cal-amt.lose{ color: var(--lose); }
   .cal-amt.zero{ color:#888; }
   .cal-summary{ margin-top:10px; font-size:.82rem; color:#6b5a44; text-align:center; }
+
+  .game-meta{ margin-top:6px; font-size:.75rem; color:#8a6a4a; text-align:center; }
+
+  /* seat draw list (new game) */
+  .seat-row{
+    display:flex; align-items:center; gap:10px; border-bottom:1px dashed #e5c98a; padding:10px 0; border-radius:8px;
+  }
+  .seat-row:last-child{ border-bottom:none; }
+  .seat-row-selected{ background: var(--gold-light); }
+  .seat-name{ flex:1; font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:6px; }
+  .seat-arrow{
+    width:34px; height:34px; border-radius:8px; border:1.5px solid #e5c98a; background:#fff; cursor:pointer; font-size:.9rem;
+  }
+  .seat-arrow:disabled{ opacity:.3; cursor:not-allowed; }
+  .wind-chip{
+    width:32px; height:32px; border-radius:50%; border:2px solid var(--gold);
+    background:#fff; color:var(--red-dark); font-weight:800; font-size:.85rem;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .wind-dealer{ background: var(--red); border-color: var(--red-dark); color:#fff; }
+
+  /* gesture cards */
+  .gesture-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
+  .gesture-card{
+    border-radius:14px; padding:10px 8px; text-align:center; background: var(--cream);
+    border:1.5px solid #e5c98a; position:relative; touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none;
+    transition: box-shadow .15s ease;
+  }
+  .gesture-card .name{ font-size:.85rem; font-weight:700; color:#7a5c00; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:4px; }
+  .gesture-card .amt{ font-size:1.2rem; font-weight:800; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .gesture-card .amt.win{ color: var(--win); }
+  .gesture-card .amt.lose{ color: var(--lose); }
+  .gesture-card .amt.zero{ color:#888; }
+  .gesture-card .mini-stats{ font-size:.62rem; color:#8a6a4a; margin-top:4px; }
+  .gesture-card.dragging{ box-shadow: 0 8px 18px rgba(0,0,0,.3); cursor:grabbing; }
+  .gesture-card.drop-hover{ background: var(--gold-light); border-color: var(--red); }
+  .gesture-card.flash-win{ animation: flashwin .5s ease; }
+  .gesture-card.flash-lose{ animation: flashlose .5s ease; }
+  @keyframes flashwin{ 0%{ background: var(--win); } 100%{ background: var(--cream); } }
+  @keyframes flashlose{ 0%{ background: var(--lose); } 100%{ background: var(--cream); } }
 </style>
 </head>
 <body>
@@ -305,15 +247,7 @@
       <div class="section-label">場地</div>
       <input type="text" id="ngVenue" placeholder="家裡客廳、雀莊名稱…">
       <div class="chip-row" id="ngVenueChips"></div>
-      <div class="section-label">入座玩家（點常用對手快速帶入）</div>
-      <div class="chip-row" id="ngRosterChips"></div>
       <div class="grid2">
-        <div><label class="field">東（首莊）</label><input type="text" id="ngSeat0" maxlength="8"></div>
-        <div><label class="field">南</label><input type="text" id="ngSeat1" maxlength="8"></div>
-        <div><label class="field">西</label><input type="text" id="ngSeat2" maxlength="8"></div>
-        <div><label class="field">北</label><input type="text" id="ngSeat3" maxlength="8"></div>
-      </div>
-      <div class="grid2" style="margin-top:10px;">
         <div><label class="field">底（元）</label><input type="number" id="ngBase" min="0" step="10"></div>
         <div><label class="field">每台（元）</label><input type="number" id="ngTai" min="0" step="10"></div>
       </div>
@@ -322,55 +256,67 @@
         <button type="button" class="method-btn" id="ngModeFull">各付全額</button>
         <button type="button" class="method-btn" id="ngModeSplit">三家均攤</button>
       </div>
-      <div class="hint-text" style="margin-top:6px;">各付全額：其他三家各付「底+台數×每台」，胡牌者收三倍。三家均攤：三家平分同一筆總額。</div>
-      <button class="btn btn-primary btn-block submit-btn" id="startGameBtn">🎬 開始牌局</button>
+
+      <div id="ngNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能開新牌局。</div>
+
+      <div id="ngOpponentPickBlock">
+        <div class="section-label">選 3 位對手 <span id="ngOppCount" class="badge">0/3</span></div>
+        <p class="hint-text">你自己會自動入座，只要選 3 位對手。要換人請到「名單」分頁改。</p>
+        <div class="chip-row" id="ngOpponentChips"></div>
+        <div class="add-row">
+          <input type="text" id="ngNewOpponentInput" placeholder="新增牌友名字" maxlength="8">
+          <button class="btn btn-outline" id="ngNewOpponentBtn">新增</button>
+        </div>
+      </div>
+
+      <div id="ngSeatBlock" style="display:none;">
+        <div class="section-label">抓位門風 <button type="button" class="link-btn" id="ngReshuffleBtn">🔀 重新抓位</button></div>
+        <p class="hint-text">已隨機抓位，坐東的那位是第一位莊家（開局後還能改）。點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
+        <button type="button" class="btn btn-outline btn-block" id="ngSwapModeBtn" style="margin-bottom:8px;">🔁 點兩人互換：關閉</button>
+        <div id="ngSeatList"></div>
+      </div>
+
+      <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
     </div>
 
     <div id="activeGamePanel" style="display:none;">
       <div class="card">
-        <h2>💰 本局戰況 <span class="badge" id="handCountBadge">第 1 局</span></h2>
-        <div class="dash-grid" id="dashGrid"></div>
-        <div class="game-meta" id="gameMetaLine"></div>
+        <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span></h2>
+        <div class="game-meta" id="gameMetaLine1"></div>
+        <div class="game-meta" id="gameMetaLine2"></div>
       </div>
 
       <div class="card">
-        <h2>🀄 本局紀錄</h2>
-        <div class="section-label">莊家</div>
-        <div class="picker" id="dealerPicker"></div>
-        <div class="section-label">連莊</div>
-        <div class="stepper">
-          <button type="button" id="streakMinus">－</button>
-          <div class="val" id="streakVal">莊<small>首莊，尚未連莊</small></div>
-          <button type="button" id="streakPlus">＋</button>
-        </div>
-        <div class="section-label">贏家</div>
-        <div class="picker" id="winnerPicker"></div>
-        <div class="section-label">贏牌方式</div>
-        <div class="method-row">
-          <button type="button" class="method-btn" id="methodSelf">🀄 自摸</button>
-          <button type="button" class="method-btn" id="methodDiscard">💥 放槍</button>
-        </div>
-        <div id="loserBlock" style="display:none;">
-          <div class="section-label">放槍者</div>
-          <div class="picker" id="loserPicker"></div>
-        </div>
         <div class="section-label">台數</div>
         <div class="stepper">
           <button type="button" id="taiMinus">－</button>
           <div class="val" id="taiVal">0<small>台</small></div>
           <button type="button" id="taiPlus">＋</button>
         </div>
-        <div class="preview" id="previewBox">請先選擇莊家與贏家</div>
-        <button class="btn btn-primary btn-block submit-btn" id="submitBtn">✅ 記錄這一局</button>
+        <div class="chip-row" id="taiPresetRow"></div>
+
+        <div class="gesture-grid" id="gestureGrid" style="margin-top:14px;"></div>
+
+        <div class="toggle-row">
+          <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
+          <button type="button" class="btn btn-outline" id="dealerBonusBtn">莊家台 ✓</button>
+        </div>
+        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家</p>
+
+        <div class="undo-row" style="margin-top:6px;">
+          <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
+          <button class="btn btn-danger-outline" id="endSetBtn">🏁 這將打完</button>
+        </div>
+
+        <button type="button" class="link-btn" id="toggleSetLogBtn" style="margin-top:8px;">顯示本手・還沒記</button>
+        <div id="setLogList" style="display:none; margin-top:8px;"></div>
       </div>
 
-      <div class="card">
-        <h2>📜 本局歷史</h2>
-        <div class="undo-row">
-          <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
-          <button class="btn btn-danger-outline" id="endGameBtn">🏁 結束本局</button>
-        </div>
-        <div id="logList"></div>
+      <div id="endSetPanel" class="card" style="display:none;">
+        <h2>🏁 這將打完</h2>
+        <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
+        <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（重新抓位）</button>
+        <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
       </div>
     </div>
   </section>
@@ -400,9 +346,7 @@
         <div class="cal-title" id="calTitle">—</div>
         <button type="button" class="btn btn-outline cal-nav" id="calNext">›</button>
       </div>
-      <div class="cal-weekdays">
-        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
-      </div>
+      <div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-summary" id="calSummary"></div>
     </div>
@@ -416,7 +360,7 @@
   <section id="tab-roster" class="tab-page">
     <div class="card">
       <h2>👥 常用對手</h2>
-      <p class="hint-text">點 ⭐ 標成常用，開局選人時會排在最前面。標「我」的那位是你自己，用於門風／月曆／分析統計。</p>
+      <p class="hint-text">點 ⭐ 標成常用，開局選人時會排在最前面。標「我」的那位是你自己，用於開局自動入座與門風／月曆／分析統計。</p>
       <div class="add-row">
         <input type="text" id="rosterNameInput" placeholder="新增牌友名字" maxlength="8">
         <button class="btn btn-primary" id="rosterAddBtn">新增</button>
@@ -474,8 +418,9 @@
   // pristine empty shell — the same shell every published version starts from.
   var BODY_SHELL_HTML = document.getElementById("app-shell").outerHTML;
 
-  var STORAGE_KEY = "twmj_scorekeeper_v2";
+  var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
+  var WINDS = ["東","南","西","北"];
 
   function genId(prefix){
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -500,19 +445,100 @@
     var dd = String(d.getDate()); if(dd.length<2) dd="0"+dd;
     return d.getFullYear()+"-"+mm+"-"+dd;
   }
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t=a[i]; a[i]=a[j]; a[j]=t;
+    }
+    return a;
+  }
+  function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  // ---------- normalize / migrate ----------
+  function syncDealerFromHands(set){
+    if(!set.hands.length){ set.dealerIndex = 0; set.streak = 0; return; }
+    var last = set.hands[set.hands.length-1];
+    if(last.winnerName === last.dealerName){
+      var di = set.seatOrder.indexOf(last.dealerName);
+      set.dealerIndex = di===-1?0:di;
+      set.streak = last.streak + 1;
+    }else{
+      var curIdx = set.seatOrder.indexOf(last.dealerName);
+      if(curIdx===-1) curIdx = 0;
+      set.dealerIndex = (curIdx+1)%4;
+      set.streak = 0;
+    }
+  }
+
+  function convertOldIndexHandsToNameHands(players, oldHands){
+    return oldHands.map(function(h){
+      var deltas = {};
+      players.forEach(function(n,i){ deltas[n] = (h.deltas && typeof h.deltas[i]==="number") ? h.deltas[i] : 0; });
+      return {
+        dealerName: players[h.dealerIndex] || players[0],
+        streak: typeof h.streak==="number" ? h.streak : 0,
+        winnerName: players[h.winnerIndex] || players[0],
+        method: h.method==="discard" ? "discard" : "self",
+        loserName: (h.method==="discard" && typeof h.loserIndex==="number") ? (players[h.loserIndex]||null) : null,
+        tai: typeof h.tai==="number" ? h.tai : 0,
+        dealerBonusTai: 0,
+        effectiveTai: typeof h.effectiveTai==="number" ? h.effectiveTai : (h.tai||0),
+        amount: typeof h.amount==="number" ? h.amount : 0,
+        deltas: deltas,
+        seatOrderAtHand: players.slice(),
+        ts: typeof h.ts==="number" ? h.ts : Date.now()
+      };
+    });
+  }
+
+  function normalizeSet(s, players){
+    if(!s || typeof s !== "object") return null;
+    var out = {
+      id: s.id || genId("s"),
+      seatOrder: (Array.isArray(s.seatOrder) && s.seatOrder.length===4) ? s.seatOrder : players.slice(),
+      dealerIndex: typeof s.dealerIndex==="number" ? s.dealerIndex : 0,
+      streak: typeof s.streak==="number" ? s.streak : 0,
+      hands: Array.isArray(s.hands) ? s.hands : [],
+      status: s.status==="ended" ? "ended" : "active",
+      createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
+      endedAt: typeof s.endedAt==="number" ? s.endedAt : null
+    };
+    return out;
+  }
 
   function normalizeGame(g){
     if(!g || typeof g !== "object") return null;
+    var players = (Array.isArray(g.players) && g.players.length===4) ? g.players : DEFAULT_NAMES.slice();
+    var base = typeof g.base==="number" ? g.base : 100;
+    var tai = typeof g.tai==="number" ? g.tai : 20;
+    var selfDrawMode = g.selfDrawMode==="split" ? "split" : "full";
+    var sets;
+    if(Array.isArray(g.sets) && g.sets.length){
+      sets = g.sets.map(function(s){ return normalizeSet(s, players); }).filter(function(s){ return !!s; });
+    }else if(Array.isArray(g.hands)){
+      var rawHands = g.hands;
+      var hands = (rawHands.length && typeof rawHands[0].winnerIndex === "number")
+        ? convertOldIndexHandsToNameHands(players, rawHands)
+        : rawHands;
+      var oneSet = {
+        id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
+        hands: hands, status: g.status==="ended" ? "ended" : "active",
+        createdAt: typeof g.createdAt==="number" ? g.createdAt : Date.now(),
+        endedAt: g.endedAt || null
+      };
+      syncDealerFromHands(oneSet);
+      sets = [oneSet];
+    }else{
+      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
+    }
     return {
       id: g.id || genId("g"),
-      date: typeof g.date === "string" && g.date ? g.date : todayISO(),
+      date: (typeof g.date === "string" && g.date) ? g.date : todayISO(),
       venue: typeof g.venue === "string" ? g.venue : "",
-      players: (Array.isArray(g.players) && g.players.length===4) ? g.players : DEFAULT_NAMES.slice(),
-      base: typeof g.base === "number" ? g.base : 100,
-      tai: typeof g.tai === "number" ? g.tai : 20,
-      selfDrawMode: g.selfDrawMode === "split" ? "split" : "full",
+      players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       status: g.status === "ended" ? "ended" : "active",
-      hands: Array.isArray(g.hands) ? g.hands : [],
+      sets: sets,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null
     };
@@ -520,17 +546,16 @@
 
   function normalizeState(parsed){
     if(!parsed || typeof parsed !== "object") return null;
-    // migrate the old single-ledger schema (players/base/tai/history at top level)
     if(Array.isArray(parsed.history) && Array.isArray(parsed.players) && !Array.isArray(parsed.games)){
-      var migrated = normalizeGame({
+      var migratedGame = normalizeGame({
         players: parsed.players, base: parsed.base, tai: parsed.tai,
-        hands: parsed.history, status: "active", selfDrawMode: "full"
+        hands: parsed.history, status: "active"
       });
       var ds = defaultState();
-      ds.games = [migrated];
-      ds.activeGameId = migrated.id;
-      ds.defaultBase = migrated.base;
-      ds.defaultTai = migrated.tai;
+      ds.games = [migratedGame];
+      ds.activeGameId = migratedGame.id;
+      ds.defaultBase = migratedGame.base;
+      ds.defaultTai = migratedGame.tai;
       return ds;
     }
     if(!Array.isArray(parsed.games)) return null;
@@ -538,15 +563,13 @@
     s.roster = (Array.isArray(parsed.roster) && parsed.roster.length) ? parsed.roster.map(function(r){
       return {
         id: r.id || genId("r"),
-        name: typeof r.name === "string" && r.name ? r.name : "?",
+        name: (typeof r.name === "string" && r.name) ? r.name : "?",
         favorite: !!r.favorite,
         isMe: !!r.isMe
       };
     }) : defaultState().roster;
     var meFound = false;
-    s.roster.forEach(function(r){
-      if(r.isMe){ if(meFound) r.isMe = false; else meFound = true; }
-    });
+    s.roster.forEach(function(r){ if(r.isMe){ if(meFound) r.isMe=false; else meFound=true; } });
     s.venues = Array.isArray(parsed.venues) ? parsed.venues.filter(function(v){ return typeof v === "string" && v.trim(); }) : [];
     s.games = parsed.games.map(normalizeGame).filter(function(g){ return !!g; });
     s.activeGameId = typeof parsed.activeGameId === "string" ? parsed.activeGameId : null;
@@ -575,7 +598,6 @@
   function saveLocal(s){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }catch(e){}
   }
-  function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
   var state = readEmbeddedState() || loadLocal() || defaultState();
 
@@ -657,39 +679,51 @@
     var label = n <= 10 ? cn[n-1] : n;
     return "連" + label;
   }
-  function computeGameTotals(game){
-    var totals = [0,0,0,0];
-    game.hands.forEach(function(h){ h.deltas.forEach(function(d,i){ totals[i]+=d; }); });
-    return totals;
-  }
   function activeGame(){
     if(!state.activeGameId) return null;
     var g = null;
     for(var i=0;i<state.games.length;i++){ if(state.games[i].id === state.activeGameId){ g = state.games[i]; break; } }
     return (g && g.status === "active") ? g : null;
   }
+  function activeSet(game){
+    if(!game) return null;
+    for(var i=game.sets.length-1;i>=0;i--){ if(game.sets[i].status === "active") return game.sets[i]; }
+    return null;
+  }
   function meRoster(){
     for(var i=0;i<state.roster.length;i++){ if(state.roster[i].isMe) return state.roster[i]; }
     return null;
   }
-  function suggestNextDealer(game){
-    if(!game.hands.length) return { dealerIndex:0, streak:0 };
-    var last = game.hands[game.hands.length-1];
-    if(last.winnerIndex === last.dealerIndex) return { dealerIndex:last.dealerIndex, streak:last.streak+1 };
-    return { dealerIndex:(last.dealerIndex+1)%4, streak:0 };
+  function allHandsOf(game){
+    var out = [];
+    game.sets.forEach(function(set){ set.hands.forEach(function(h){ out.push(h); }); });
+    return out;
   }
-  function renderPicker(containerId, items, opts){
-    var container = document.getElementById(containerId);
-    container.innerHTML = "";
-    items.forEach(function(name, idx){
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "pick-btn" + (opts.selected === idx ? " selected" : "");
-      btn.textContent = name;
-      if(opts.disabledIndex === idx){ btn.disabled = true; }
-      else{ btn.addEventListener("click", function(){ opts.onSelect(idx); }); }
-      container.appendChild(btn);
+  function computeSetTotals(set){
+    var totals = {};
+    set.seatOrder.forEach(function(n){ totals[n]=0; });
+    set.hands.forEach(function(h){
+      Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
     });
+    return totals;
+  }
+  function computeGameTotals(game){
+    var totals = {};
+    game.players.forEach(function(n){ totals[n]=0; });
+    game.sets.forEach(function(set){
+      set.hands.forEach(function(h){
+        Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+      });
+    });
+    return totals;
+  }
+  function computePlayerHandStats(set, name){
+    var s = {self:0, win:0, discard:0};
+    set.hands.forEach(function(h){
+      if(h.winnerName===name){ s.win++; if(h.method==="self") s.self++; }
+      if(h.method==="discard" && h.loserName===name) s.discard++;
+    });
+    return s;
   }
   function renderChipRow(containerId, items, onPick){
     var el = document.getElementById(containerId);
@@ -697,9 +731,7 @@
     if(!items || !items.length) return;
     items.forEach(function(text){
       var b = document.createElement("button");
-      b.type = "button";
-      b.className = "chip";
-      b.textContent = text;
+      b.type = "button"; b.className = "chip"; b.textContent = text;
       b.addEventListener("click", function(){ onPick(text); });
       el.appendChild(b);
     });
@@ -714,15 +746,14 @@
     calSelectedDate: null,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    hand: { dealerIndex:0, streak:0, winnerIndex:null, method:null, loserIndex:null, tai:0 }
+    newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null },
+    tai: 0,
+    swapMode: false,
+    swapSelected: null,
+    dealerBonusEnabled: true,
+    showSetLog: false,
+    endSetPanelOpen: false
   };
-  (function initHandForm(){
-    var g = activeGame();
-    if(g){
-      var sug = suggestNextDealer(g);
-      ui.hand = { dealerIndex: sug.dealerIndex, streak: sug.streak, winnerIndex:null, method:null, loserIndex:null, tai:0 };
-    }
-  })();
 
   // ================= TAB NAVIGATION =================
   function updateTabVisibility(){
@@ -744,56 +775,167 @@
     });
   }
 
-  // ================= 本局 =================
-  function rosterQuickNames(){
-    var favs = state.roster.filter(function(r){ return r.favorite; });
-    var rest = state.roster.filter(function(r){ return !r.favorite; });
-    return favs.concat(rest).map(function(r){ return r.name; });
-  }
-  function fillFirstEmptySeat(name){
-    for(var i=0;i<4;i++){
-      var el = document.getElementById("ngSeat"+i);
-      if(!el.value.trim()){ el.value = name; return; }
-    }
-  }
+  // ================= 本局：開新牌局 =================
   function renderNewGameForm(){
+    var me = meRoster();
+    document.getElementById("ngNoMeWarning").style.display = me ? "none" : "block";
+    document.getElementById("ngOpponentPickBlock").style.display = me ? "block" : "none";
+    document.getElementById("startGameBtn").disabled = !me;
+
     if(!ui.newGameFormReady){
       document.getElementById("ngDate").value = ui.calSelectedDate || todayISO();
       document.getElementById("ngVenue").value = "";
-      var favNames = state.roster.filter(function(r){ return r.favorite; }).map(function(r){ return r.name; });
-      for(var i=0;i<4;i++){
-        document.getElementById("ngSeat"+i).value = favNames[i] || DEFAULT_NAMES[i];
-      }
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
+      ui.newGame = { opponents: [], seatOrder: null, swapMode: false, swapSelected: null };
       ui.newGameFormReady = true;
     }
     renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
-    renderChipRow("ngRosterChips", rosterQuickNames(), function(name){ fillFirstEmptySeat(name); });
     document.getElementById("ngModeFull").classList.toggle("selected", ui.newGameSelfDrawMode !== "split");
     document.getElementById("ngModeSplit").classList.toggle("selected", ui.newGameSelfDrawMode === "split");
+
+    if(!me){ document.getElementById("ngSeatBlock").style.display = "none"; return; }
+
+    var candidates = state.roster.filter(function(r){ return !r.isMe; });
+    candidates = candidates.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
+    var chipsEl = document.getElementById("ngOpponentChips");
+    chipsEl.innerHTML = "";
+    candidates.forEach(function(r){
+      var b = document.createElement("button");
+      b.type = "button";
+      var selected = ui.newGame.opponents.indexOf(r.name) !== -1;
+      b.className = "chip" + (selected ? " chip-selected" : "");
+      b.textContent = (r.favorite ? "★ " : "") + r.name;
+      if(!selected && ui.newGame.opponents.length >= 3) b.disabled = true;
+      b.addEventListener("click", function(){ toggleOpponent(r.name); });
+      chipsEl.appendChild(b);
+    });
+    document.getElementById("ngOppCount").textContent = ui.newGame.opponents.length + "/3";
+
+    var seatBlock = document.getElementById("ngSeatBlock");
+    if(ui.newGame.opponents.length === 3){
+      seatBlock.style.display = "block";
+      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = shuffle([me.name].concat(ui.newGame.opponents));
+      renderNgSeatList();
+    }else{
+      seatBlock.style.display = "none";
+      ui.newGame.seatOrder = null;
+    }
   }
+
+  function toggleOpponent(name){
+    var idx = ui.newGame.opponents.indexOf(name);
+    if(idx !== -1){ ui.newGame.opponents.splice(idx,1); }
+    else if(ui.newGame.opponents.length < 3){ ui.newGame.opponents.push(name); }
+    ui.newGame.seatOrder = null;
+    renderGameTab();
+  }
+
+  document.getElementById("ngNewOpponentBtn").addEventListener("click", function(){
+    var input = document.getElementById("ngNewOpponentInput");
+    var name = input.value.trim();
+    if(!name) return;
+    var exists = state.roster.some(function(r){ return r.name === name; });
+    var ns = deepClone(state);
+    if(!exists) ns.roster.push({ id: genId("r"), name: name, favorite:false, isMe:false });
+    input.value = "";
+    if(ui.newGame.opponents.length < 3 && ui.newGame.opponents.indexOf(name) === -1){
+      ui.newGame.opponents.push(name);
+      ui.newGame.seatOrder = null;
+    }
+    commitState(ns);
+  });
+
+  document.getElementById("ngReshuffleBtn").addEventListener("click", function(){
+    if(ui.newGame.opponents.length !== 3) return;
+    var me = meRoster();
+    ui.newGame.seatOrder = shuffle([me.name].concat(ui.newGame.opponents));
+    renderGameTab();
+  });
+
+  document.getElementById("ngSwapModeBtn").addEventListener("click", function(){
+    ui.newGame.swapMode = !ui.newGame.swapMode;
+    ui.newGame.swapSelected = null;
+    renderGameTab();
+  });
+
+  function renderNgSeatList(){
+    var el = document.getElementById("ngSeatList");
+    el.innerHTML = "";
+    document.getElementById("ngSwapModeBtn").textContent = "🔁 點兩人互換：" + (ui.newGame.swapMode ? "開啟" : "關閉");
+    document.getElementById("ngSwapModeBtn").classList.toggle("selected", ui.newGame.swapMode);
+    var me = meRoster();
+    ui.newGame.seatOrder.forEach(function(name, idx){
+      var row = document.createElement("div");
+      row.className = "seat-row" + (ui.newGame.swapSelected === name ? " seat-row-selected" : "");
+      var badge = document.createElement("span");
+      badge.className = "wind-chip" + (idx===0 ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      var nameEl = document.createElement("span");
+      nameEl.className = "seat-name";
+      nameEl.textContent = name;
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
+      }
+      var upBtn = document.createElement("button");
+      upBtn.type="button"; upBtn.className="seat-arrow"; upBtn.textContent="▲"; upBtn.disabled = idx===0;
+      upBtn.addEventListener("click", function(e){ e.stopPropagation(); swapSeatIdx(idx, idx-1); });
+      var downBtn = document.createElement("button");
+      downBtn.type="button"; downBtn.className="seat-arrow"; downBtn.textContent="▼"; downBtn.disabled = idx===3;
+      downBtn.addEventListener("click", function(e){ e.stopPropagation(); swapSeatIdx(idx, idx+1); });
+
+      row.appendChild(badge);
+      row.appendChild(nameEl);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+
+      row.addEventListener("click", function(){
+        if(!ui.newGame.swapMode) return;
+        if(ui.newGame.swapSelected === null){ ui.newGame.swapSelected = name; renderGameTab(); }
+        else if(ui.newGame.swapSelected === name){ ui.newGame.swapSelected = null; renderGameTab(); }
+        else{
+          var a = ui.newGame.seatOrder.indexOf(ui.newGame.swapSelected);
+          var b = ui.newGame.seatOrder.indexOf(name);
+          var tmp = ui.newGame.seatOrder[a]; ui.newGame.seatOrder[a] = ui.newGame.seatOrder[b]; ui.newGame.seatOrder[b] = tmp;
+          ui.newGame.swapSelected = null;
+          renderGameTab();
+        }
+      });
+      el.appendChild(row);
+    });
+  }
+  function swapSeatIdx(i,j){
+    var o = ui.newGame.seatOrder;
+    var t = o[i]; o[i] = o[j]; o[j] = t;
+    renderGameTab();
+  }
+
   document.getElementById("ngModeFull").addEventListener("click", function(){ ui.newGameSelfDrawMode="full"; renderGameTab(); });
   document.getElementById("ngModeSplit").addEventListener("click", function(){ ui.newGameSelfDrawMode="split"; renderGameTab(); });
 
   document.getElementById("startGameBtn").addEventListener("click", function(){
+    var me = meRoster();
+    if(!me) return;
+    if(ui.newGame.opponents.length !== 3){ alert("請選滿 3 位對手"); return; }
+    if(!ui.newGame.seatOrder) return;
     var date = document.getElementById("ngDate").value || todayISO();
     var venue = document.getElementById("ngVenue").value.trim();
-    var seats = [];
-    for(var i=0;i<4;i++){
-      var v = document.getElementById("ngSeat"+i).value.trim();
-      seats.push(v || DEFAULT_NAMES[i]);
-    }
     var base = parseInt(document.getElementById("ngBase").value, 10);
     var tai = parseInt(document.getElementById("ngTai").value, 10);
-    var newGame = normalizeGame({
-      date: date, venue: venue, players: seats,
+    var players = [me.name].concat(ui.newGame.opponents);
+    var firstSet = {
+      id: genId("s"), seatOrder: ui.newGame.seatOrder.slice(), dealerIndex: 0, streak: 0,
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+    };
+    var newGame = {
+      id: genId("g"), date: date, venue: venue, players: players,
       base: isNaN(base) ? 0 : Math.max(0, base),
       tai: isNaN(tai) ? 0 : Math.max(0, tai),
       selfDrawMode: ui.newGameSelfDrawMode,
-      status: "active", hands: []
-    });
+      status: "active", sets: [firstSet], createdAt: Date.now(), endedAt: null
+    };
     var newState = deepClone(state);
     newState.games.push(newGame);
     newState.activeGameId = newGame.id;
@@ -801,200 +943,382 @@
     newState.defaultTai = newGame.tai;
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
-    ui.hand = { dealerIndex:0, streak:0, winnerIndex:null, method:null, loserIndex:null, tai:0 };
+    ui.tai = 0; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
+    ui.showSetLog = false; ui.endSetPanelOpen = false;
     commitState(newState);
   });
 
-  function renderStreakVal(){
-    var sub = ui.hand.streak <= 0 ? "首莊，尚未連莊" : ("莊家加成 +" + (2*ui.hand.streak) + " 台");
-    document.getElementById("streakVal").innerHTML = streakLabel(ui.hand.streak) + "<small>"+sub+"</small>";
+  // ================= 本局：進行中的將 =================
+  function computeDealerBonus(set, winnerName){
+    var dealerName = set.seatOrder[set.dealerIndex];
+    if(winnerName === dealerName) return 0; // dealer self-draws: no auto bonus
+    if(!ui.dealerBonusEnabled) return 0;
+    return 2*set.streak + 1;
   }
-  function renderTaiVal(){
-    document.getElementById("taiVal").innerHTML = ui.hand.tai + "<small>台</small>";
-  }
-  document.getElementById("streakMinus").addEventListener("click", function(){ ui.hand.streak = Math.max(0, ui.hand.streak-1); renderGameTab(); });
-  document.getElementById("streakPlus").addEventListener("click", function(){ ui.hand.streak = Math.min(20, ui.hand.streak+1); renderGameTab(); });
-  document.getElementById("taiMinus").addEventListener("click", function(){ ui.hand.tai = Math.max(0, ui.hand.tai-1); renderGameTab(); });
-  document.getElementById("taiPlus").addEventListener("click", function(){ ui.hand.tai = Math.min(80, ui.hand.tai+1); renderGameTab(); });
-  document.getElementById("methodSelf").addEventListener("click", function(){ ui.hand.method="self"; ui.hand.loserIndex=null; renderGameTab(); });
-  document.getElementById("methodDiscard").addEventListener("click", function(){ ui.hand.method="discard"; renderGameTab(); });
 
-  function updatePreview(game){
-    var box = document.getElementById("previewBox");
-    if(ui.hand.winnerIndex === null || !ui.hand.method){ box.textContent = "請先選擇莊家、贏家與贏牌方式"; return; }
-    if(ui.hand.method === "discard" && ui.hand.loserIndex === null){ box.textContent = "請選擇放槍者"; return; }
-    var effectiveTai = ui.hand.tai + 2*ui.hand.streak;
-    var amount = game.base + effectiveTai*game.tai;
-    var winnerName = game.players[ui.hand.winnerIndex];
-    if(ui.hand.method === "self"){
+  function buildHandRecord(game, set, winnerName, method, loserName, taiInput){
+    var dealerName = set.seatOrder[set.dealerIndex];
+    var bonus = (method === "self") ? computeDealerBonus(set, winnerName) : 0;
+    var effectiveTai = taiInput + bonus;
+    var amount = game.base + effectiveTai * game.tai;
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    if(method === "discard"){
+      deltas[loserName] -= amount;
+      deltas[winnerName] += amount;
+    }else{
+      var others = set.seatOrder.filter(function(n){ return n !== winnerName; });
       if(game.selfDrawMode === "split"){
         var share = Math.round(amount/3);
-        box.innerHTML = "底"+game.base+" + "+effectiveTai+"台×"+game.tai+" = 總額 <b>"+amount+"</b>（三家均攤，每家約付 <b>"+share+"</b>）→ "+winnerName+" 共得 <b>"+amount+"</b> 元";
+        var shares = [share, share, amount - share*2];
+        others.forEach(function(n,i){ deltas[n] -= shares[i]; });
+        deltas[winnerName] += amount;
       }else{
-        box.innerHTML = "底"+game.base+" + "+effectiveTai+"台×"+game.tai+" = 每家付 <b>"+amount+"</b> 元 → "+winnerName+" 共得 <b>"+(amount*3)+"</b> 元";
+        others.forEach(function(n){ deltas[n] -= amount; });
+        deltas[winnerName] += amount*3;
       }
-    }else{
-      var loserName = game.players[ui.hand.loserIndex];
-      box.innerHTML = "底"+game.base+" + "+effectiveTai+"台×"+game.tai+" = "+loserName+" 賠 <b>"+amount+"</b> 元給 "+winnerName;
     }
+    return {
+      dealerName: dealerName, streak: set.streak,
+      winnerName: winnerName, method: method, loserName: loserName || null,
+      tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
+      amount: amount, deltas: deltas,
+      seatOrderAtHand: set.seatOrder.slice(),
+      ts: Date.now()
+    };
   }
 
-  function renderGameDashboard(game){
-    var totals = computeGameTotals(game);
-    var grid = document.getElementById("dashGrid");
-    grid.innerHTML = "";
-    game.players.forEach(function(name, idx){
-      var cell = document.createElement("div");
-      cell.className = "dash-card";
-      var amtClass = totals[idx] > 0 ? "win" : (totals[idx] < 0 ? "lose" : "zero");
-      var sign = totals[idx] > 0 ? "+" : "";
-      var dealerTagText = ui.hand.streak > 0 ? "莊・"+streakLabel(ui.hand.streak) : "莊家";
-      var dealerTag = (idx === ui.hand.dealerIndex) ? '<div class="dealer-tag">'+dealerTagText+'</div>' : "";
-      cell.innerHTML = dealerTag + '<div class="name">'+escapeHtml(name)+'</div>' + '<div class="amt '+amtClass+'">'+sign+totals[idx]+'</div>';
-      grid.appendChild(cell);
+  function commitHand(winnerName, method, loserName){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(isReadOnly) return;
+    var record = buildHandRecord(game, set, winnerName, method, loserName, ui.tai);
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.hands.push(record);
+    syncDealerFromHands(ns);
+    ui.tai = 0;
+    commitState(newState);
+  }
+
+  function flashCard(name, cls){
+    var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
+    if(!el) return;
+    el.classList.add(cls);
+    setTimeout(function(){ el.classList.remove(cls); }, 500);
+  }
+  function cssEscape(s){
+    if(window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_ -￿-]/g, "\\$&");
+  }
+
+  function recordSelfDrawGesture(name){
+    commitHand(name, "self", null);
+    flashCard(name, "flash-win");
+  }
+  function recordDiscardGesture(winnerName, loserName){
+    commitHand(winnerName, "discard", loserName);
+    flashCard(winnerName, "flash-win");
+    flashCard(loserName, "flash-lose");
+  }
+
+  function setDealerGesture(name){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(isReadOnly) return;
+    var idx = set.seatOrder.indexOf(name);
+    if(idx === -1 || idx === set.dealerIndex) return;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.dealerIndex = idx;
+    ns.streak = 0;
+    commitState(newState);
+  }
+
+  function handleSwapTap(name){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(ui.swapSelected === null){ ui.swapSelected = name; renderGameTab(); return; }
+    if(ui.swapSelected === name){ ui.swapSelected = null; renderGameTab(); return; }
+    var a = ui.swapSelected, b = name;
+    ui.swapSelected = null;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    var order = ns.seatOrder.slice();
+    var ia = order.indexOf(a), ib = order.indexOf(b);
+    if(ia===-1 || ib===-1){ renderGameTab(); return; }
+    var tmp = order[ia]; order[ia] = order[ib]; order[ib] = tmp;
+    ns.seatOrder = order;
+    commitState(newState);
+  }
+
+  // ---- gesture recognition: triple-tap = self-draw, press+drag onto another card = discard ----
+  var DRAG_THRESHOLD = 12;
+  var TAP_WINDOW = 700;
+  var tapState = {}; // name -> [timestamps]
+
+  function attachCardGestures(cardEl, playerName){
+    var drag = null;
+    cardEl.addEventListener("pointerdown", function(e){
+      if(isReadOnly) return;
+      drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId };
+      try{ cardEl.setPointerCapture(e.pointerId); }catch(err){}
     });
-    document.getElementById("handCountBadge").textContent = "第 " + (game.hands.length + 1) + " 局";
+    cardEl.addEventListener("pointermove", function(e){
+      if(!drag || drag.pointerId !== e.pointerId) return;
+      var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+      if(!drag.moved && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD){
+        drag.moved = true;
+        cardEl.classList.add("dragging");
+      }
+      if(drag.moved){
+        cardEl.style.transform = "translate(" + dx + "px," + dy + "px)";
+        cardEl.style.position = "relative";
+        cardEl.style.zIndex = "10";
+        highlightDropTargetAt(e.clientX, e.clientY, cardEl);
+      }
+    });
+    cardEl.addEventListener("pointerup", function(e){
+      if(!drag || drag.pointerId !== e.pointerId) return;
+      var moved = drag.moved;
+      var startClientX = e.clientX, startClientY = e.clientY;
+      cardEl.classList.remove("dragging");
+      cardEl.style.transform = "";
+      cardEl.style.zIndex = "";
+      clearDropHighlights();
+      drag = null;
+      if(isReadOnly) return;
+      if(moved){
+        var target = findDropTargetAt(startClientX, startClientY, cardEl);
+        if(target && target !== playerName){
+          recordDiscardGesture(playerName, target);
+        }
+        return;
+      }
+      if(ui.swapMode){ handleSwapTap(playerName); return; }
+      var now = Date.now();
+      var arr = tapState[playerName] || [];
+      arr.push(now);
+      arr = arr.filter(function(t){ return now - t < TAP_WINDOW; });
+      tapState[playerName] = arr;
+      if(arr.length >= 3){
+        tapState[playerName] = [];
+        recordSelfDrawGesture(playerName);
+      }
+    });
+    cardEl.addEventListener("pointercancel", function(){
+      drag = null;
+      cardEl.classList.remove("dragging");
+      cardEl.style.transform = "";
+      cardEl.style.zIndex = "";
+      clearDropHighlights();
+    });
   }
-  function renderGameMeta(game){
-    var el = document.getElementById("gameMetaLine");
-    var modeText = game.selfDrawMode === "split" ? "自摸均攤" : "自摸各付全額";
-    el.textContent = game.date + (game.venue ? "・"+game.venue : "") + "・" + modeText;
+  function findDropTargetAt(x, y, exceptEl){
+    var cards = document.querySelectorAll(".gesture-card");
+    for(var i=0;i<cards.length;i++){
+      if(cards[i] === exceptEl) continue;
+      var r = cards[i].getBoundingClientRect();
+      if(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom){
+        return cards[i].getAttribute("data-player");
+      }
+    }
+    return null;
   }
-  function renderGameLog(game){
-    var list = document.getElementById("logList");
+  function highlightDropTargetAt(x, y, exceptEl){
+    clearDropHighlights();
+    var name = findDropTargetAt(x, y, exceptEl);
+    if(name){
+      var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
+      if(el) el.classList.add("drop-hover");
+    }
+  }
+  function clearDropHighlights(){
+    var els = document.querySelectorAll(".gesture-card.drop-hover");
+    for(var i=0;i<els.length;i++){ els[i].classList.remove("drop-hover"); }
+  }
+
+  function renderTaiVal(){
+    document.getElementById("taiVal").innerHTML = ui.tai + "<small>台</small>";
+  }
+  function renderTaiPresets(){
+    var el = document.getElementById("taiPresetRow");
+    el.innerHTML = "";
+    for(var n=0;n<=8;n++){
+      (function(n){
+        var b = document.createElement("button");
+        b.type="button"; b.className = "chip" + (ui.tai===n ? " chip-selected" : "");
+        b.textContent = n;
+        b.addEventListener("click", function(){ ui.tai = n; renderGameTab(); });
+        el.appendChild(b);
+      })(n);
+    }
+  }
+  document.getElementById("taiMinus").addEventListener("click", function(){ ui.tai = Math.max(0, ui.tai-1); renderGameTab(); });
+  document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
+
+  document.getElementById("swapModeBtn").addEventListener("click", function(){ ui.swapMode = !ui.swapMode; ui.swapSelected = null; renderGameTab(); });
+  document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
+  document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
+
+  document.getElementById("undoBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(!confirm("確定要刪除最後一筆紀錄嗎？")) return;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.hands.pop();
+    syncDealerFromHands(ns);
+    commitState(newState);
+  });
+
+  document.getElementById("endSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = true; renderGameTab(); });
+  document.getElementById("continueSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = false; renderGameTab(); });
+
+  document.getElementById("newSetBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.status = "ended"; ns.endedAt = Date.now();
+    ng.sets.push({
+      id: genId("s"), seatOrder: shuffle(ng.players), dealerIndex: 0, streak: 0,
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+    });
+    ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
+    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = false; ui.tai = 0;
+    commitState(newState);
+  });
+
+  document.getElementById("finishGameBtn").addEventListener("click", function(){
+    if(!confirm("確定要結束整場並結算嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。")) return;
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game);
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    if(set){
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.status = "ended"; ns.endedAt = Date.now();
+    }
+    ng.status = "ended"; ng.endedAt = Date.now();
+    newState.activeGameId = null;
+    ui.newGameFormReady = false; ui.endSetPanelOpen = false;
+    commitState(newState);
+  });
+
+  function renderSetLog(set){
+    var list = document.getElementById("setLogList");
     list.innerHTML = "";
-    if(!game.hands.length){
-      list.innerHTML = '<div class="empty-hint">尚無對戰紀錄，記錄第一局吧！</div>';
+    if(!set.hands.length){
+      list.innerHTML = '<div class="empty-hint">尚無對戰紀錄，記錄第一手吧！</div>';
       return;
     }
-    for(var i = game.hands.length - 1; i >= 0; i--){
-      var h = game.hands[i];
+    for(var i=set.hands.length-1; i>=0; i--){
+      var h = set.hands[i];
       var item = document.createElement("div");
       item.className = "log-item";
-      var bonusText = h.streak > 0 ? "（含莊家加成 +"+(2*h.streak)+"台）" : "";
+      var bonusText = h.dealerBonusTai > 0 ? "（含莊家加成 +"+h.dealerBonusTai+"台）" : "";
       var detail;
       if(h.method === "discard"){
-        detail = game.players[h.loserIndex] + ' <span class="minus">-'+h.amount+'</span> → ' +
-                 game.players[h.winnerIndex] + ' <span class="plus">+'+h.amount+'</span>';
+        detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
+                 escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
       }else{
         var parts = [];
-        for(var p=0;p<4;p++){
-          if(p===h.winnerIndex) continue;
-          parts.push(game.players[p]+' <span class="minus">-'+(-h.deltas[p])+'</span>');
-        }
-        detail = parts.join('、') + ' → ' + game.players[h.winnerIndex] + ' <span class="plus">+'+h.deltas[h.winnerIndex]+'</span>';
+        Object.keys(h.deltas).forEach(function(n){
+          if(n === h.winnerName) return;
+          parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
+        });
+        detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
       }
       var dealerStreakText = h.streak > 0 ? '（'+streakLabel(h.streak)+'）' : '';
-      var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+game.players[h.loserIndex]+"）");
+      var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+escapeHtml(h.loserName)+"）");
       item.innerHTML =
-        '<div class="log-head">第'+(i+1)+'局・莊家 '+escapeHtml(game.players[h.dealerIndex])+dealerStreakText+'・贏家 '+escapeHtml(game.players[h.winnerIndex])+'・'+methodLabel+'・'+h.tai+'台'+bonusText+'</div>' +
+        '<div class="log-head">第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+bonusText+'</div>' +
         '<div class="log-detail">'+detail+'</div>';
       list.appendChild(item);
     }
   }
 
-  document.getElementById("submitBtn").addEventListener("click", function(){
-    var game = activeGame();
-    if(!game) return;
-    if(ui.hand.winnerIndex === null){ alert("請選擇贏家"); return; }
-    if(!ui.hand.method){ alert("請選擇贏牌方式（自摸／放槍）"); return; }
-    if(ui.hand.method === "discard" && ui.hand.loserIndex === null){ alert("請選擇放槍者"); return; }
+  function renderActiveSet(game, set){
+    var setIdx = game.sets.indexOf(set);
+    document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
+    var modeText = game.selfDrawMode === "split" ? "三家均攤" : "各付全額";
+    document.getElementById("gameMetaLine1").textContent = game.date + (game.venue ? "・"+game.venue : "") + "・底$"+game.base+"/台$"+game.tai+"・自摸"+modeText;
+    var setHandCount = set.hands.length;
+    var gameHandCount = allHandsOf(game).length;
+    document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
 
-    var effectiveTai = ui.hand.tai + 2*ui.hand.streak;
-    var amount = game.base + effectiveTai*game.tai;
-    var deltas = [0,0,0,0];
+    renderTaiVal();
+    renderTaiPresets();
 
-    if(ui.hand.method === "discard"){
-      deltas[ui.hand.loserIndex] -= amount;
-      deltas[ui.hand.winnerIndex] += amount;
-    }else if(game.selfDrawMode === "split"){
-      var share = Math.round(amount/3);
-      var shares = [share, share, amount - share*2];
-      var si = 0;
-      for(var i=0;i<4;i++){
-        if(i===ui.hand.winnerIndex) continue;
-        deltas[i] -= shares[si]; si++;
+    var setTotals = computeSetTotals(set);
+    var grid = document.getElementById("gestureGrid");
+    grid.innerHTML = "";
+    var me = meRoster();
+    set.seatOrder.forEach(function(name, idx){
+      var card = document.createElement("div");
+      card.className = "gesture-card" + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
+      card.setAttribute("data-player", name);
+
+      var badge = document.createElement("button");
+      badge.type = "button";
+      badge.className = "wind-chip" + (idx === set.dealerIndex ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      badge.addEventListener("pointerdown", function(e){ e.stopPropagation(); });
+      badge.addEventListener("click", function(e){ e.stopPropagation(); setDealerGesture(name); });
+      card.appendChild(badge);
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.appendChild(document.createTextNode(name));
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
       }
-      deltas[ui.hand.winnerIndex] += amount;
-    }else{
-      for(var i2=0;i2<4;i2++){
-        if(i2===ui.hand.winnerIndex) continue;
-        deltas[i2] -= amount;
-        deltas[ui.hand.winnerIndex] += amount;
-      }
-    }
+      card.appendChild(nameEl);
 
-    var record = {
-      dealerIndex: ui.hand.dealerIndex, streak: ui.hand.streak,
-      winnerIndex: ui.hand.winnerIndex, method: ui.hand.method, loserIndex: ui.hand.loserIndex,
-      tai: ui.hand.tai, effectiveTai: effectiveTai, amount: amount, deltas: deltas, ts: Date.now()
-    };
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    ng.hands.push(record);
-    var sug = suggestNextDealer(ng);
-    ui.hand = { dealerIndex: sug.dealerIndex, streak: sug.streak, winnerIndex:null, method:null, loserIndex:null, tai:0 };
-    commitState(newState);
-  });
+      var amt = setTotals[name] || 0;
+      var amtEl = document.createElement("div");
+      amtEl.className = "amt " + (amt>0?"win":(amt<0?"lose":"zero"));
+      amtEl.textContent = (amt>0?"+":"")+amt;
+      card.appendChild(amtEl);
 
-  document.getElementById("undoBtn").addEventListener("click", function(){
-    var game = activeGame();
-    if(!game || !game.hands.length) return;
-    if(!confirm("確定要刪除最後一筆紀錄嗎？")) return;
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    ng.hands.pop();
-    var sug = suggestNextDealer(ng);
-    ui.hand = { dealerIndex: sug.dealerIndex, streak: sug.streak, winnerIndex:null, method:null, loserIndex:null, tai:0 };
-    commitState(newState);
-  });
+      var stats = computePlayerHandStats(set, name);
+      var statsEl = document.createElement("div");
+      statsEl.className = "mini-stats";
+      statsEl.textContent = "摸"+stats.self+" 胡"+stats.win+" 槍"+stats.discard;
+      card.appendChild(statsEl);
 
-  document.getElementById("endGameBtn").addEventListener("click", function(){
-    var game = activeGame();
-    if(!game) return;
-    if(!confirm("確定要結束本局嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。")) return;
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    ng.status = "ended";
-    ng.endedAt = Date.now();
-    newState.activeGameId = null;
-    ui.newGameFormReady = false;
-    commitState(newState);
-  });
+      attachCardGestures(card, name);
+      grid.appendChild(card);
+    });
+
+    document.getElementById("swapModeBtn").classList.toggle("selected", ui.swapMode);
+    document.getElementById("swapModeBtn").textContent = ui.swapMode ? "🔁 換位中" : "🔁 換位";
+    document.getElementById("dealerBonusBtn").classList.toggle("selected", ui.dealerBonusEnabled);
+    document.getElementById("dealerBonusBtn").textContent = "莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
+
+    var logBtn = document.getElementById("toggleSetLogBtn");
+    logBtn.textContent = set.hands.length ? ("顯示本手・共"+set.hands.length+"手") : "顯示本手・還沒記";
+    document.getElementById("setLogList").style.display = ui.showSetLog ? "block" : "none";
+    if(ui.showSetLog) renderSetLog(set);
+
+    document.getElementById("endSetPanel").style.display = ui.endSetPanelOpen ? "block" : "none";
+  }
 
   function renderGameTab(){
     var game = activeGame();
     document.getElementById("newGamePanel").style.display = game ? "none" : "block";
     document.getElementById("activeGamePanel").style.display = game ? "block" : "none";
-    if(!game){
-      renderNewGameForm();
-    }else{
-      renderPicker("dealerPicker", game.players, {
-        selected: ui.hand.dealerIndex,
-        onSelect: function(idx){ ui.hand.dealerIndex = idx; renderGameTab(); }
-      });
-      renderPicker("winnerPicker", game.players, {
-        selected: ui.hand.winnerIndex,
-        onSelect: function(idx){
-          ui.hand.winnerIndex = idx;
-          if(ui.hand.loserIndex === idx) ui.hand.loserIndex = null;
-          renderGameTab();
-        }
-      });
-      renderPicker("loserPicker", game.players, {
-        selected: ui.hand.loserIndex,
-        disabledIndex: ui.hand.winnerIndex,
-        onSelect: function(idx){ ui.hand.loserIndex = idx; renderGameTab(); }
-      });
-      renderStreakVal();
-      renderTaiVal();
-      document.getElementById("methodSelf").classList.toggle("selected", ui.hand.method === "self");
-      document.getElementById("methodDiscard").classList.toggle("selected", ui.hand.method === "discard");
-      document.getElementById("loserBlock").style.display = ui.hand.method === "discard" ? "block" : "none";
-      updatePreview(game);
-      renderGameDashboard(game);
-      renderGameMeta(game);
-      renderGameLog(game);
+    if(!game){ renderNewGameForm(); }
+    else{
+      var set = activeSet(game);
+      if(set) renderActiveSet(game, set);
     }
   }
 
@@ -1019,7 +1343,7 @@
       });
       var nameSpan = document.createElement("div");
       nameSpan.className = "roster-name";
-      nameSpan.textContent = r.name;
+      nameSpan.appendChild(document.createTextNode(r.name));
       if(r.isMe){
         var meBadge = document.createElement("span");
         meBadge.className = "me-badge"; meBadge.textContent = "我";
@@ -1144,12 +1468,13 @@
     var totalHands = 0;
     var byName = {};
     endedGames.forEach(function(g){
-      totalHands += g.hands.length;
+      var hands = allHandsOf(g);
+      totalHands += hands.length;
       var totals = computeGameTotals(g);
-      g.players.forEach(function(name, idx){
+      g.players.forEach(function(name){
         if(!byName[name]) byName[name] = { games:0, net:0 };
         byName[name].games += 1;
-        byName[name].net += totals[idx];
+        byName[name].net += (totals[name]||0);
       });
     });
     var names = Object.keys(byName).sort(function(a,b){ return byName[b].net - byName[a].net; });
@@ -1169,23 +1494,24 @@
   function renderWindHtml(endedGames){
     var me = meRoster();
     if(!me) return '<div class="empty-hint">尚未在「名單」設定「我」，設定後才能看到門風統計。</div>';
-    var buckets = [{games:0,net:0},{games:0,net:0},{games:0,net:0},{games:0,net:0}];
+    var buckets = [{hands:0,net:0},{hands:0,net:0},{hands:0,net:0},{hands:0,net:0}];
     endedGames.forEach(function(g){
-      var idx = g.players.indexOf(me.name);
-      if(idx===-1) return;
-      var totals = computeGameTotals(g);
-      buckets[idx].games += 1;
-      buckets[idx].net += totals[idx];
+      if(g.players.indexOf(me.name) === -1) return;
+      allHandsOf(g).forEach(function(h){
+        var idx = h.seatOrderAtHand.indexOf(me.name);
+        if(idx === -1) return;
+        buckets[idx].hands += 1;
+        buckets[idx].net += (h.deltas[me.name]||0);
+      });
     });
-    var winds = ["東","南","西","北"];
-    var rows = winds.map(function(w,i){
+    var rows = WINDS.map(function(w,i){
       var d = buckets[i];
       var cls = d.net>0?"win":(d.net<0?"lose":"zero");
       var sign = d.net>0?"+":"";
-      return '<div class="stat-row"><div class="stat-name">'+w+'</div><div class="stat-mid">'+d.games+' 場</div>' +
+      return '<div class="stat-row"><div class="stat-name">'+w+'</div><div class="stat-mid">'+d.hands+' 手</div>' +
         '<div class="stat-amt '+cls+'">'+sign+d.net+'</div></div>';
     }).join("");
-    return '<div class="stat-summary">「'+escapeHtml(me.name)+'」各門風總輸贏</div><div class="stat-list">'+rows+'</div>';
+    return '<div class="stat-summary">「'+escapeHtml(me.name)+'」各門風總輸贏（依手數）</div><div class="stat-list">'+rows+'</div>';
   }
 
   function renderAnalysisHtml(endedGames){
@@ -1196,18 +1522,17 @@
     var gotDiscardedCount=0, gotDiscardedAmt=0, paidSelfDrawCount=0, paidSelfDrawAmt=0;
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
     endedGames.forEach(function(g){
-      var idx = g.players.indexOf(me.name);
-      if(idx===-1) return;
-      g.hands.forEach(function(h){
-        var myDelta = h.deltas[idx];
-        if(h.dealerIndex===idx){ dealerNet+=myDelta; dealerHands++; }
-        else { nonDealerNet+=myDelta; nonDealerHands++; }
-        if(h.winnerIndex===idx){
-          if(h.method==="self"){ selfWinCount++; selfWinAmt+=myDelta; }
-          else { discardWinCount++; discardWinAmt+=myDelta; }
+      if(g.players.indexOf(me.name) === -1) return;
+      allHandsOf(g).forEach(function(h){
+        var myDelta = h.deltas[me.name] || 0;
+        if(h.dealerName === me.name){ dealerNet+=myDelta; dealerHands++; }
+        else{ nonDealerNet+=myDelta; nonDealerHands++; }
+        if(h.winnerName === me.name){
+          if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
+          else{ discardWinCount++; discardWinAmt+=myDelta; }
         }else{
-          if(h.method==="discard" && h.loserIndex===idx){ gotDiscardedCount++; gotDiscardedAmt+=myDelta; }
-          else if(h.method==="self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
+          if(h.method === "discard" && h.loserName === me.name){ gotDiscardedCount++; gotDiscardedAmt+=myDelta; }
+          else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
         }
       });
     });
@@ -1237,26 +1562,26 @@
       var totals = computeGameTotals(g);
       var item = document.createElement("div");
       item.className = "log-item";
-      var meIdx = me ? g.players.indexOf(me.name) : -1;
+      var meIn = me && g.players.indexOf(me.name) !== -1;
       var headline;
-      if(meIdx !== -1){
-        var net = totals[meIdx];
+      if(meIn){
+        var net = totals[me.name] || 0;
         var cls = net>0?"plus":(net<0?"minus":"");
         headline = '<span class="'+cls+'">'+(net>0?'+':'')+net+'</span>';
       }else{
-        headline = g.players.map(function(n,i){ return escapeHtml(n)+' '+(totals[i]>0?'+':'')+totals[i]; }).join('、');
+        headline = g.players.map(function(n){ return escapeHtml(n)+' '+((totals[n]||0)>0?'+':'')+(totals[n]||0); }).join('、');
       }
       var head = document.createElement("div");
       head.className = "log-head";
       head.style.cursor = "pointer";
-      head.innerHTML = escapeHtml(g.date) + (g.venue ? '・'+escapeHtml(g.venue) : '') + '・' + headline + ' <span class="expand-hint">▾</span>';
+      head.innerHTML = escapeHtml(g.date) + (g.venue ? '・'+escapeHtml(g.venue) : '') + '・共'+g.sets.length+'將・' + headline + ' <span class="expand-hint">▾</span>';
       var detail = document.createElement("div");
       detail.className = "log-detail";
       detail.style.display = "none";
-      detail.innerHTML = g.players.map(function(n,i){
-        var t = totals[i]; var cls = t>0?"plus":(t<0?"minus":"");
+      detail.innerHTML = g.players.map(function(n){
+        var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
         return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-      }).join('　') + '<br>共 '+g.hands.length+' 手';
+      }).join('　') + '<br>共 '+allHandsOf(g).length+' 手';
       head.addEventListener("click", function(){
         detail.style.display = (detail.style.display !== "none") ? "none" : "block";
       });
@@ -1312,8 +1637,8 @@
         row.className = "log-item";
         var statusText = g.status === "active" ? "進行中" : "已結束";
         row.innerHTML = '<div class="log-head">'+(g.venue?escapeHtml(g.venue):"（未填場地）")+' ・ '+statusText+'</div>' +
-          '<div class="log-detail">'+g.players.map(function(n,i){
-            var t = totals[i]; var cls = t>0?"plus":(t<0?"minus":"");
+          '<div class="log-detail">'+g.players.map(function(n){
+            var t = totals[n]||0; var cls = t>0?"plus":(t<0?"minus":"");
             return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
           }).join('　')+'</div>';
         contentEl.appendChild(row);
@@ -1377,13 +1702,12 @@
       var games = byDate[iso] || [];
       if(inMonth){
         monthGamesCount += games.length;
-        games.forEach(function(g){ monthHands += g.hands.length; });
+        games.forEach(function(g){ monthHands += allHandsOf(g).length; });
       }
       if(games.length && me){
         var dayNet = 0; var found = false;
         games.forEach(function(g){
-          var mi = g.players.indexOf(me.name);
-          if(mi!==-1){ found = true; dayNet += computeGameTotals(g)[mi]; }
+          if(g.players.indexOf(me.name) !== -1){ found = true; dayNet += (computeGameTotals(g)[me.name]||0); }
         });
         if(found){
           var amtEl = document.createElement("div");
@@ -1433,6 +1757,7 @@
     });
   }
 })();
+
 </script>
 </body>
 </html>
