@@ -749,6 +749,7 @@
   var cloudReady = false;
   var isReadOnly = false;
   var syncing = false;
+  var downloadsNs = null; // "downloads" capability, used by 資料備份's 下載檔案 button
 
   function buildFullHtml(newState){
     var styleText = document.getElementById("app-style").textContent;
@@ -1977,10 +1978,15 @@
     document.getElementById("backupExportPanel").style.display = "none";
     document.getElementById("backupImportPanel").style.display = "none";
   }
+  function updateBackupDownloadVisibility(){
+    var btn = document.getElementById("downloadBackupBtn");
+    if(btn) btn.style.display = downloadsNs ? "" : "none";
+  }
   document.getElementById("exportBackupBtn").addEventListener("click", function(){
     document.getElementById("backupExportText").value = JSON.stringify(state, null, 2);
     closeBackupPanels();
     document.getElementById("backupExportPanel").style.display = "block";
+    updateBackupDownloadVisibility();
   });
   document.getElementById("closeExportPanelBtn").addEventListener("click", closeBackupPanels);
   document.getElementById("copyBackupBtn").addEventListener("click", function(){
@@ -2000,19 +2006,14 @@
     }
   });
   document.getElementById("downloadBackupBtn").addEventListener("click", function(){
-    try{
-      var blob = new Blob([document.getElementById("backupExportText").value], { type: "application/json" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "麻將算帳本備份_" + todayISO() + ".json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-    }catch(e){
+    if(!downloadsNs){ showToast("這個環境不支援下載檔案，請改用上面的「複製到剪貼簿」。"); return; }
+    var json = document.getElementById("backupExportText").value;
+    downloadsNs.save({ filename: "麻將算帳本備份_" + todayISO() + ".json", data: json }).then(function(){
+      showToast("已儲存檔案！");
+    }, function(err){
+      if(err && err.code === "declined") return;
       showToast("下載失敗，請改用上面的「複製到剪貼簿」。");
-    }
+    });
   });
 
   document.getElementById("importBackupBtn").addEventListener("click", function(){
@@ -2473,6 +2474,10 @@
       artifactNs = ns;
       cloudReady = !!ns;
       setCloudBadge();
+    });
+    window.claude.use("downloads").then(function(ns){
+      downloadsNs = ns;
+      updateBackupDownloadVisibility();
     });
   }
 })();
