@@ -2035,35 +2035,68 @@
     var selfWinCount=0, discardWinCount=0, selfWinAmt=0, discardWinAmt=0;
     var gotDiscardedCount=0, gotDiscardedAmt=0, paidSelfDrawCount=0, paidSelfDrawAmt=0;
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
+    var drawCount=0;
+    var maxWin=null, maxDealIn=null; // {amt, detail}
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
+      var whenStr = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '');
       allHandsOf(g).forEach(function(h){
         if(h.method === "manual") return; // backfilled totals have no real dealer/自摸/放槍 breakdown
         var myDelta = h.deltas[targetName] || 0;
         if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
         else{ nonDealerNet+=myDelta; nonDealerHands++; }
+        if(h.method === "draw"){ drawCount++; return; }
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
+          if(!maxWin || myDelta > maxWin.amt){
+            var winWhat = h.method === "self" ? '自摸・'+h.effectiveTai+'台' : '胡'+escapeHtml(h.loserName)+'的銃・'+h.effectiveTai+'台';
+            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat };
+          }
         }else{
-          if(h.method === "discard" && h.loserName === targetName){ gotDiscardedCount++; gotDiscardedAmt+=myDelta; }
+          if(h.method === "discard" && h.loserName === targetName){
+            gotDiscardedCount++; gotDiscardedAmt+=myDelta;
+            if(!maxDealIn || myDelta < maxDealIn.amt){
+              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName)+'・'+h.effectiveTai+'台' };
+            }
+          }
           else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
         }
       });
     });
+    var totalHands = dealerHands + nonDealerHands;
+    var winCount = selfWinCount + discardWinCount;
+    function pct(n, d){ return d>0 ? Math.round(n/d*100)+'%' : '－'; }
     function card(label, count, amt){
       var cls = amt>0?"win":(amt<0?"lose":"zero");
       var sign = amt>0?"+":"";
       return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+count+' 次</div>' +
         '<div class="stat-amt '+cls+'">'+sign+amt+'</div></div>';
     }
-    var rows = card("自摸胡牌", selfWinCount, selfWinAmt) +
+    function rateCard(label, sub, rateText){
+      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+sub+'</div>' +
+        '<div class="stat-amt">'+rateText+'</div></div>';
+    }
+    function extremeCard(label, item){
+      if(!item) return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">尚無紀錄</div><div class="stat-amt zero">－</div></div>';
+      var cls = item.amt>0?"win":(item.amt<0?"lose":"zero");
+      var sign = item.amt>0?"+":"";
+      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+item.detail+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div>';
+    }
+    var overallRows = rateCard("胡牌率", totalHands+' 手中 '+winCount+' 手', pct(winCount, totalHands)) +
+                       rateCard("放槍率", totalHands+' 手中 '+gotDiscardedCount+' 手', pct(gotDiscardedCount, totalHands)) +
+                       rateCard("流局率", totalHands+' 手中 '+drawCount+' 手', pct(drawCount, totalHands));
+    var detailRows = card("自摸胡牌", selfWinCount, selfWinAmt) +
                card("胡別人放槍", discardWinCount, discardWinAmt) +
                card("放槍賠錢", gotDiscardedCount, gotDiscardedAmt) +
                card("被別人自摸", paidSelfDrawCount, paidSelfDrawAmt) +
                card("當莊時", dealerHands, dealerNet) +
                card("非莊時", nonDealerHands, nonDealerNet);
-    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」贏在哪、輸在哪</div><div class="stat-list">'+rows+'</div>';
+    var extremeRows = extremeCard("單手最大胡牌", maxWin) + extremeCard("單手最大放槍", maxDealIn);
+    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」整體表現・共 '+totalHands+' 手</div><div class="stat-list">'+overallRows+'</div>' +
+      '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
+      '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>';
   }
 
   function renderGamesListInto(container, endedGames){
