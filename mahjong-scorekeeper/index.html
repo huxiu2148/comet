@@ -970,7 +970,7 @@
     swapMode: false,
     swapSelected: null,
     dealerBonusEnabled: true,
-    showSetLog: false,
+    showSetLog: true,
     endSetPanelOpen: false
   };
   restoreUiFromSession();
@@ -1166,7 +1166,7 @@
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
     ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
-    ui.showSetLog = false; ui.endSetPanelOpen = false;
+    ui.showSetLog = true; ui.endSetPanelOpen = false;
     commitState(newState);
   });
 
@@ -1610,7 +1610,7 @@
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
-    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = false; ui.tai = 0; ui.taiTags = [];
+    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = [];
     commitState(newState);
   });
 
@@ -1731,7 +1731,8 @@
     document.getElementById("dealerBonusBtn").textContent = "莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
 
     var logBtn = document.getElementById("toggleSetLogBtn");
-    logBtn.textContent = set.hands.length ? ("顯示本手・共"+set.hands.length+"手") : "顯示本手・還沒記";
+    var logBtnPrefix = ui.showSetLog ? "隱藏本手" : "顯示本手";
+    logBtn.textContent = set.hands.length ? (logBtnPrefix+"・共"+set.hands.length+"手") : (logBtnPrefix+"・還沒記");
     document.getElementById("setLogList").style.display = ui.showSetLog ? "block" : "none";
     if(ui.showSetLog) renderSetLog(set);
 
