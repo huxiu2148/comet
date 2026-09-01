@@ -2149,8 +2149,18 @@
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
     var drawCount=0;
     var maxWin=null, maxDealIn=null; // {amt, detail}
+    var venueMap = {}; // name -> {count, winCount, loseCount, drawCount, netAmt}
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
+      var gameNet = (computeGameTotals(g)[targetName]) || 0;
+      var vName = (g.venue && g.venue.trim()) ? g.venue : "（未填場地）";
+      if(!venueMap[vName]) venueMap[vName] = {count:0, winCount:0, loseCount:0, drawCount:0, netAmt:0};
+      var vs = venueMap[vName];
+      vs.count++;
+      vs.netAmt += gameNet;
+      if(gameNet>0) vs.winCount++;
+      else if(gameNet<0) vs.loseCount++;
+      else vs.drawCount++;
       var whenStr = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '');
       allHandsOf(g).forEach(function(h){
         if(h.method === "manual") return; // backfilled totals have no real dealer/自摸/放槍 breakdown
@@ -2211,9 +2221,47 @@
                card("當莊時", dealerHands, dealerNet) +
                card("非莊時", nonDealerHands, nonDealerNet);
     var extremeRows = extremeCard("單手最大胡牌", maxWin) + extremeCard("單手最大放槍", maxDealIn);
+
+    var venueNames = Object.keys(venueMap);
+    var MIN_VENUE_GAMES = 2; // 場次太少的地點排除在「最高」評選外，避免單場就跳出100%
+    var bestVenue=null, worstVenue=null;
+    venueNames.forEach(function(vName){
+      var vs = venueMap[vName];
+      if(vs.count < MIN_VENUE_GAMES) return;
+      var winRate = vs.winCount / vs.count, loseRate = vs.loseCount / vs.count;
+      if(!bestVenue || winRate > bestVenue.rate || (winRate === bestVenue.rate && vs.count > bestVenue.count)){
+        bestVenue = { name: vName, rate: winRate, count: vs.count, winCount: vs.winCount, loseCount: vs.loseCount, netAmt: vs.netAmt };
+      }
+      if(!worstVenue || loseRate > worstVenue.rate || (loseRate === worstVenue.rate && vs.count > worstVenue.count)){
+        worstVenue = { name: vName, rate: loseRate, count: vs.count, winCount: vs.winCount, loseCount: vs.loseCount, netAmt: vs.netAmt };
+      }
+    });
+    function venueExtremeCard(label, v){
+      if(!v){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+          '<div class="stat-amt zero">－</div></div><div class="stat-mid">還沒有地點打滿 '+MIN_VENUE_GAMES+' 場</div></div>';
+      }
+      var sign = v.netAmt>0?"+":"";
+      var cls = v.netAmt>0?"win":(v.netAmt<0?"lose":"zero");
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+        '<div class="stat-amt">'+escapeHtml(v.name)+'</div></div><div class="stat-mid">共'+v.count+'場・勝'+v.winCount+'場('+pct(v.winCount,v.count)+')・敗'+v.loseCount+'場('+pct(v.loseCount,v.count)+')・淨額<span class="'+cls+'">'+sign+v.netAmt+'</span></div></div>';
+    }
+    var venueHighlightRows = venueExtremeCard("勝率最高地點", bestVenue) + venueExtremeCard("敗率最高地點", worstVenue);
+    var venueListRows = venueNames.slice().sort(function(a,b){ return venueMap[b].count - venueMap[a].count; }).map(function(vName){
+      var vs = venueMap[vName];
+      var sign = vs.netAmt>0?"+":"";
+      var cls = vs.netAmt>0?"win":(vs.netAmt<0?"lose":"zero");
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(vName)+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+vs.netAmt+'</div></div><div class="stat-mid">共'+vs.count+'場・勝'+vs.winCount+'場('+pct(vs.winCount,vs.count)+')・敗'+vs.loseCount+'場('+pct(vs.loseCount,vs.count)+')</div></div>';
+    }).join('');
+    var venueSection = venueNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">地點戰績</div><div class="stat-list">'+venueHighlightRows+'</div>' +
+       '<div class="stat-list" style="margin-top:8px;">'+venueListRows+'</div>') : '';
+
     return '<div class="stat-summary">「'+escapeHtml(targetName)+'」整體表現・共 '+totalHands+' 手</div><div class="stat-list">'+overallRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
-      '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>';
+      '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>' +
+      venueSection;
   }
 
   function renderGamesListInto(container, endedGames){
