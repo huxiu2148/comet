@@ -168,6 +168,10 @@
   .stat-amt.win{ color: var(--win); }
   .stat-amt.lose{ color: var(--lose); }
   .stat-amt.zero{ color:#888; }
+  .stat-row2{ border-bottom:1px dashed #e5c98a; padding:9px 0; font-size:.9rem; }
+  .stat-row2:last-child{ border-bottom:none; }
+  .stat-row2-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stat-row2 .stat-mid{ margin-top:3px; }
 
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .cal-nav{ padding:8px 16px; min-height:auto; }
@@ -2078,11 +2082,16 @@
         '<div class="stat-amt">'+rateText+'</div></div>';
     }
     function extremeCard(label, item){
-      if(!item) return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">尚無紀錄</div><div class="stat-amt zero">－</div></div>';
+      // 標籤 + 金額同一行，日期/對手/台數等較長的說明文字獨立一行放在下面，
+      // 避免跟其他統計列一樣塞進三欄 flex，窄螢幕上把標籤擠到逐字換行。
+      if(!item){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+          '<div class="stat-amt zero">－</div></div><div class="stat-mid">尚無紀錄</div></div>';
+      }
       var cls = item.amt>0?"win":(item.amt<0?"lose":"zero");
       var sign = item.amt>0?"+":"";
-      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+item.detail+'</div>' +
-        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div>';
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div><div class="stat-mid">'+item.detail+'</div></div>';
     }
     var overallRows = rateCard("胡牌率", totalHands+' 手中 '+winCount+' 手', pct(winCount, totalHands)) +
                        rateCard("放槍率", totalHands+' 手中 '+gotDiscardedCount+' 手', pct(gotDiscardedCount, totalHands)) +
