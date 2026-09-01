@@ -1432,6 +1432,7 @@
   }
 
   function recordSelfDrawGesture(name){
+    if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
     commitHand(name, "self", null);
     flashCard(name, "flash-win");
   }
