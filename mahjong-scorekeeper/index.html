@@ -1321,7 +1321,11 @@
 
   function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags){
     var dealerName = set.seatOrder[set.dealerIndex];
-    var bonus = (method === "self") ? computeDealerBonus(set, winnerName) : 0;
+    // 自摸一定跟莊家有關（莊家自己贏，或莊家是付錢的三家之一）；放槍只有莊家自己胡別人的銃、
+    // 或莊家自己放槍出去時才跟莊家有關，這兩種情況拉莊台一樣要算，其他人對打的放槍則無關。
+    var dealerInvolved = method === "self" ||
+      (method === "discard" && (winnerName === dealerName || loserName === dealerName));
+    var bonus = dealerInvolved ? computeDealerBonus(set, winnerName) : 0;
     var effectiveTai = taiInput + bonus;
     var amount = game.base + effectiveTai * game.tai;
     var deltas = {};
