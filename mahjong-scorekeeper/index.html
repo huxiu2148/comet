@@ -307,13 +307,14 @@
       </div>
 
       <div class="card">
-        <div class="section-label">台數</div>
+        <div class="section-label">台數・共 <b id="taiTotalText">0</b> 台</div>
+        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。</p>
+        <div class="chip-row" id="taiTagRow"></div>
         <div class="stepper">
           <button type="button" id="taiMinus">－</button>
-          <div class="val" id="taiVal">0<small>台</small></div>
+          <div class="val" id="taiVal">0<small>其他台</small></div>
           <button type="button" id="taiPlus">＋</button>
         </div>
-        <div class="chip-row" id="taiPresetRow"></div>
 
         <div class="gesture-grid" id="gestureGrid" style="margin-top:14px;"></div>
 
@@ -456,6 +457,26 @@
   var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
   var WINDS = ["東","南","西","北"];
+  var TAI_TAGS = [
+    { key: "menqing", label: "門清", value: 1 },
+    { key: "pinghu", label: "平胡", value: 1 },
+    { key: "zimo", label: "自摸", value: 1 },
+    { key: "danDiao", label: "單吊", value: 1 },
+    { key: "zhuangjia", label: "莊家", value: 1 },
+    { key: "queyimen", label: "缺一門", value: 1 },
+    { key: "pengpenghu", label: "碰碰胡", value: 4 },
+    { key: "hunyise", label: "混一色", value: 4 },
+    { key: "qingyise", label: "清一色", value: 8 },
+    { key: "ziyise", label: "字一色", value: 16 },
+    { key: "xiaosanyuan", label: "小三元", value: 4 },
+    { key: "dasanyuan", label: "大三元", value: 8 },
+    { key: "xiaosixi", label: "小四喜", value: 8 },
+    { key: "dasixi", label: "大四喜", value: 16 },
+    { key: "quanqiuren", label: "全求人", value: 1 },
+    { key: "gangshang", label: "槓上開花", value: 1 },
+    { key: "haidi", label: "海底撈月", value: 1 },
+    { key: "qiangang", label: "搶槓", value: 1 }
+  ];
 
   function genId(prefix){
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -889,6 +910,7 @@
     newGameSelfDrawMode: "full",
     newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null },
     tai: 0,
+    taiTags: [],
     swapMode: false,
     swapSelected: null,
     dealerBonusEnabled: true,
@@ -1085,7 +1107,7 @@
     newState.defaultTai = newGame.tai;
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
-    ui.tai = 0; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
+    ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
     ui.showSetLog = false; ui.endSetPanelOpen = false;
     commitState(newState);
   });
@@ -1098,7 +1120,7 @@
     return 2*set.streak + 1;
   }
 
-  function buildHandRecord(game, set, winnerName, method, loserName, taiInput){
+  function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags){
     var dealerName = set.seatOrder[set.dealerIndex];
     var bonus = (method === "self") ? computeDealerBonus(set, winnerName) : 0;
     var effectiveTai = taiInput + bonus;
@@ -1132,23 +1154,38 @@
       dealerName: dealerName, streak: set.streak,
       winnerName: winnerName, method: method, loserName: loserName || null,
       tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
-      amount: amount, deltas: deltas,
+      amount: amount, deltas: deltas, tags: tags || [],
       seatOrderAtHand: set.seatOrder.slice(),
       ts: Date.now()
     };
+  }
+
+  function computeTotalTai(){
+    var sum = ui.tai;
+    ui.taiTags.forEach(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      if(tag) sum += tag.value;
+    });
+    return sum;
+  }
+  function taiTagLabels(){
+    return ui.taiTags.map(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      return tag ? tag.label : key;
+    });
   }
 
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
     if(isReadOnly) return;
-    var record = buildHandRecord(game, set, winnerName, method, loserName, ui.tai);
+    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels());
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0;
+    ui.tai = 0; ui.taiTags = [];
     commitState(newState);
   }
 
@@ -1320,20 +1357,24 @@
   }
 
   function renderTaiVal(){
-    document.getElementById("taiVal").innerHTML = ui.tai + "<small>台</small>";
+    document.getElementById("taiVal").innerHTML = ui.tai + "<small>其他台</small>";
+    document.getElementById("taiTotalText").textContent = computeTotalTai();
   }
-  function renderTaiPresets(){
-    var el = document.getElementById("taiPresetRow");
+  function renderTaiTags(){
+    var el = document.getElementById("taiTagRow");
     el.innerHTML = "";
-    for(var n=0;n<=8;n++){
-      (function(n){
-        var b = document.createElement("button");
-        b.type="button"; b.className = "chip" + (ui.tai===n ? " chip-selected" : "");
-        b.textContent = n;
-        b.addEventListener("click", function(){ ui.tai = n; renderGameTab(); });
-        el.appendChild(b);
-      })(n);
-    }
+    TAI_TAGS.forEach(function(tag){
+      var b = document.createElement("button");
+      var active = ui.taiTags.indexOf(tag.key) !== -1;
+      b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
+      b.textContent = tag.label + "+" + tag.value;
+      b.addEventListener("click", function(){
+        var idx = ui.taiTags.indexOf(tag.key);
+        if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
+        renderGameTab();
+      });
+      el.appendChild(b);
+    });
   }
   document.getElementById("taiMinus").addEventListener("click", function(){ ui.tai = Math.max(0, ui.tai-1); renderGameTab(); });
   document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
@@ -1370,7 +1411,7 @@
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
-    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = false; ui.tai = 0;
+    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = false; ui.tai = 0; ui.taiTags = [];
     commitState(newState);
   });
 
@@ -1421,7 +1462,8 @@
           detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
         }
         var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+escapeHtml(h.loserName)+"）");
-        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+bonusText;
+        var tagsText = (h.tags && h.tags.length) ? '（'+h.tags.map(escapeHtml).join('、')+'）' : '';
+        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+tagsText+bonusText;
       }
       item.innerHTML =
         '<div class="log-head">'+headLine+'</div>' +
@@ -1440,7 +1482,7 @@
     document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
 
     renderTaiVal();
-    renderTaiPresets();
+    renderTaiTags();
 
     var setTotals = computeSetTotals(set);
     var grid = document.getElementById("gestureGrid");
