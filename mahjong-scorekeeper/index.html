@@ -1313,8 +1313,9 @@
   // ================= 本局：進行中的將 =================
   function computeDealerBonus(set, winnerName){
     var dealerName = set.seatOrder[set.dealerIndex];
-    if(winnerName === dealerName) return 0; // dealer self-draws: no auto bonus
     if(!ui.dealerBonusEnabled) return 0;
+    // 莊家自己自摸時，第一手（還沒連莊）沒有拉莊台可拿；連莊之後自摸，跟閒家自摸一樣算拉莊台。
+    if(winnerName === dealerName && set.streak === 0) return 0;
     return 2*set.streak + 1;
   }
 
@@ -1336,12 +1337,12 @@
         others.forEach(function(n,i){ deltas[n] -= shares[i]; });
         deltas[winnerName] += amount;
       }else{
-        // 閒家自摸時，莊家台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
-        // 不是三家一起多付。莊家胡牌時 bonus 恆為 0，此時三家都付 baseAmount，行為不變。
+        // 閒家自摸時，拉莊台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
+        // 不是三家一起多付。莊家自己連莊自摸時，三家（都不是莊家）一起付含拉莊加成的金額。
         var baseAmount = game.base + taiInput * game.tai;
         var winnerGain = 0;
         others.forEach(function(n){
-          var pay = (n === dealerName) ? amount : baseAmount;
+          var pay = (winnerName === dealerName || n === dealerName) ? amount : baseAmount;
           deltas[n] -= pay;
           winnerGain += pay;
         });
@@ -1641,7 +1642,7 @@
       var h = set.hands[i];
       var item = document.createElement("div");
       item.className = "log-item";
-      var bonusText = h.dealerBonusTai > 0 ? "（含莊家加成 +"+h.dealerBonusTai+"台）" : "";
+      var bonusText = h.dealerBonusTai > 0 ? "（含拉莊台 +"+h.dealerBonusTai+"台）" : "";
       var dealerStreakText = h.streak > 0 ? '（'+streakLabel(h.streak)+'）' : '';
       var headLine, detail;
       if(h.method === "draw"){
