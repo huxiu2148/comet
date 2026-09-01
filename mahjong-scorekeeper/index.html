@@ -341,6 +341,12 @@
         <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（重新抓位）</button>
         <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
       </div>
+
+      <div id="pastSetsCard" class="card" style="display:none;">
+        <h2>📜 本局已結束的將</h2>
+        <p class="hint-text">記錯的整將可以在這裡整將刪除；目前正在記錄的這將請用上面的「刪除上一筆」。</p>
+        <div id="pastSetsList"></div>
+      </div>
     </div>
   </section>
 
@@ -1538,6 +1544,51 @@
     if(ui.showSetLog) renderSetLog(set);
 
     document.getElementById("endSetPanel").style.display = ui.endSetPanelOpen ? "block" : "none";
+
+    renderPastSets(game);
+  }
+
+  function renderPastSets(game){
+    var card = document.getElementById("pastSetsCard");
+    var list = document.getElementById("pastSetsList");
+    var current = activeSet(game);
+    var pastSets = game.sets.filter(function(s){ return s !== current; });
+    if(!pastSets.length){ card.style.display = "none"; list.innerHTML = ""; return; }
+    card.style.display = "block";
+    list.innerHTML = "";
+    pastSets.forEach(function(s){
+      var idx = game.sets.indexOf(s);
+      var totals = computeSetTotals(s);
+      var item = document.createElement("div");
+      item.className = "log-item";
+      var summary = s.seatOrder.map(function(n){
+        var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
+        return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+      }).join('　');
+      var head = document.createElement("div");
+      head.className = "log-head";
+      head.textContent = "第"+(idx+1)+"將・共"+s.hands.length+"手";
+      var detail = document.createElement("div");
+      detail.className = "log-detail";
+      detail.innerHTML = summary;
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "link-btn danger";
+      delBtn.style.marginTop = "6px";
+      delBtn.textContent = "🗑️ 刪除這將";
+      delBtn.addEventListener("click", function(){
+        showConfirm("確定要刪除第"+(idx+1)+"將的紀錄嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
+          var newState = deepClone(state);
+          var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+          ng.sets = ng.sets.filter(function(x){ return x.id !== s.id; });
+          commitState(newState);
+        });
+      });
+      item.appendChild(head);
+      item.appendChild(detail);
+      item.appendChild(delBtn);
+      list.appendChild(item);
+    });
   }
 
   function renderGameTab(){
@@ -1844,6 +1895,42 @@
         return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
       }).join('　') + '<br>共 '+allHandsOf(g).length+' 手';
       detail.appendChild(summaryEl);
+
+      if(g.sets.length > 1){
+        var setsList = document.createElement("div");
+        setsList.style.marginTop = "8px";
+        g.sets.forEach(function(s, sIdx){
+          var setTotals = computeSetTotals(s);
+          var setRow = document.createElement("div");
+          setRow.style.marginTop = "6px";
+          setRow.style.paddingTop = "6px";
+          setRow.style.borderTop = "1px dashed #e5c98a";
+          var setSummary = s.seatOrder.map(function(n){
+            var t = setTotals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
+            return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+          }).join('　');
+          setRow.innerHTML = '第'+(sIdx+1)+'將・共'+s.hands.length+'手・'+setSummary;
+          var delSetBtn = document.createElement("button");
+          delSetBtn.type = "button";
+          delSetBtn.className = "link-btn danger";
+          delSetBtn.style.marginTop = "4px";
+          delSetBtn.style.display = "block";
+          delSetBtn.textContent = "🗑️ 刪除第"+(sIdx+1)+"將";
+          delSetBtn.addEventListener("click", function(e){
+            e.stopPropagation();
+            showConfirm("確定要刪除第"+(sIdx+1)+"將的紀錄嗎？此動作無法復原。", function(){
+              var ns = deepClone(state);
+              var ng = ns.games.filter(function(x){ return x.id === g.id; })[0];
+              if(ng) ng.sets = ng.sets.filter(function(x){ return x.id !== s.id; });
+              commitState(ns);
+            });
+          });
+          setRow.appendChild(delSetBtn);
+          setsList.appendChild(setRow);
+        });
+        detail.appendChild(setsList);
+      }
+
       var delBtn = document.createElement("button");
       delBtn.type = "button";
       delBtn.className = "link-btn danger";
