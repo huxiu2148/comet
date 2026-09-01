@@ -297,6 +297,36 @@
       </div>
 
       <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
+      <button type="button" class="btn btn-outline btn-block" id="openBackfillBtn" style="margin-top:10px;">📝 補記過去的牌局（只有最終輸贏）</button>
+    </div>
+
+    <div id="backfillPanel" class="card" style="display:none;">
+      <h2>📝 補記過去的牌局</h2>
+      <p class="hint-text">沒有逐手紀錄也沒關係，只要輸入這場最後每個人輸贏多少錢，一樣會算進戰績、月曆與歷史牌局（門風、分析等逐手統計不會計入這場，因為沒有逐手資料）。</p>
+      <div class="section-label">日期</div>
+      <input type="date" id="bfDate">
+      <div class="section-label">場地</div>
+      <input type="text" id="bfVenue" placeholder="家裡客廳、雀莊名稱…">
+      <div class="chip-row" id="bfVenueChips"></div>
+
+      <div id="bfNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能補記牌局。</div>
+
+      <div id="bfOpponentPickBlock">
+        <div class="section-label">選 3 位對手 <span id="bfOppCount" class="badge">0/3</span></div>
+        <p class="hint-text">你自己會自動列入，只要選 3 位對手。要加新的人請到「名單」分頁新增。</p>
+        <div class="chip-row" id="bfOpponentChips"></div>
+      </div>
+
+      <div id="bfAmountsBlock" style="display:none;">
+        <div class="section-label">每個人最後輸贏（元） <span id="bfSumBadge" class="badge">合計 0</span></div>
+        <p class="hint-text">正數是贏、負數是輸，四個人加起來要等於 0 才能送出。</p>
+        <div id="bfAmountsList"></div>
+      </div>
+
+      <div class="undo-row" style="margin-top:14px;">
+        <button type="button" class="btn btn-outline" id="bfCancelBtn">取消</button>
+        <button type="button" class="btn btn-primary" id="bfSubmitBtn" disabled>補記這場</button>
+      </div>
     </div>
 
     <div id="activeGamePanel" style="display:none;">
@@ -916,6 +946,9 @@
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
     newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null },
+    backfillFormOpen: false,
+    backfillFormReady: false,
+    backfill: { opponents: [] },
     tai: 0,
     taiTags: [],
     swapMode: false,
@@ -1117,6 +1150,140 @@
     ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
     ui.showSetLog = false; ui.endSetPanelOpen = false;
     commitState(newState);
+  });
+
+  // ================= 本局：補記過去的牌局 =================
+  document.getElementById("openBackfillBtn").addEventListener("click", function(){
+    ui.backfillFormOpen = true;
+    ui.backfillFormReady = false;
+    ui.backfill = { opponents: [] };
+    renderGameTab();
+  });
+  document.getElementById("bfCancelBtn").addEventListener("click", function(){
+    ui.backfillFormOpen = false;
+    renderGameTab();
+  });
+
+  function renderBackfillForm(){
+    var me = meRoster();
+    document.getElementById("bfNoMeWarning").style.display = me ? "none" : "block";
+    document.getElementById("bfOpponentPickBlock").style.display = me ? "block" : "none";
+
+    if(!ui.backfillFormReady){
+      document.getElementById("bfDate").value = ui.calSelectedDate || todayISO();
+      document.getElementById("bfVenue").value = "";
+      ui.backfillFormReady = true;
+    }
+    renderChipRow("bfVenueChips", state.venues, function(v){ document.getElementById("bfVenue").value = v; });
+
+    if(!me){ document.getElementById("bfAmountsBlock").style.display = "none"; document.getElementById("bfSubmitBtn").disabled = true; return; }
+
+    var candidates = state.roster.filter(function(r){ return !r.isMe; });
+    candidates = candidates.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
+    var chipsEl = document.getElementById("bfOpponentChips");
+    chipsEl.innerHTML = "";
+    candidates.forEach(function(r){
+      var b = document.createElement("button");
+      b.type = "button";
+      var selected = ui.backfill.opponents.indexOf(r.name) !== -1;
+      b.className = "chip" + (selected ? " chip-selected" : "");
+      b.textContent = (r.favorite ? "★ " : "") + r.name;
+      if(!selected && ui.backfill.opponents.length >= 3) b.disabled = true;
+      b.addEventListener("click", function(){
+        var idx = ui.backfill.opponents.indexOf(r.name);
+        if(idx !== -1) ui.backfill.opponents.splice(idx, 1);
+        else if(ui.backfill.opponents.length < 3) ui.backfill.opponents.push(r.name);
+        renderGameTab();
+      });
+      chipsEl.appendChild(b);
+    });
+    document.getElementById("bfOppCount").textContent = ui.backfill.opponents.length + "/3";
+
+    var amountsBlock = document.getElementById("bfAmountsBlock");
+    if(ui.backfill.opponents.length === 3){
+      amountsBlock.style.display = "block";
+      var players = [me.name].concat(ui.backfill.opponents);
+      var list = document.getElementById("bfAmountsList");
+      list.innerHTML = "";
+      players.forEach(function(name){
+        var row = document.createElement("div");
+        row.className = "grid2";
+        row.style.alignItems = "center";
+        row.style.marginBottom = "8px";
+        var label = document.createElement("label");
+        label.className = "field";
+        label.style.marginBottom = "0";
+        label.textContent = name + (me.name === name ? "（我）" : "");
+        var input = document.createElement("input");
+        input.type = "number"; input.step = "10";
+        input.value = 0;
+        input.setAttribute("data-name", name);
+        input.addEventListener("input", updateBackfillSum);
+        row.appendChild(label);
+        row.appendChild(input);
+        list.appendChild(row);
+      });
+      updateBackfillSum();
+    }else{
+      amountsBlock.style.display = "none";
+      document.getElementById("bfSubmitBtn").disabled = true;
+    }
+  }
+
+  function updateBackfillSum(){
+    var inputs = document.querySelectorAll("#bfAmountsList input");
+    var sum = 0, hasNonZero = false;
+    for(var i=0;i<inputs.length;i++){
+      var v = parseInt(inputs[i].value, 10) || 0;
+      sum += v;
+      if(v !== 0) hasNonZero = true;
+    }
+    document.getElementById("bfSumBadge").textContent = "合計 " + sum;
+    document.getElementById("bfSubmitBtn").disabled = (sum !== 0 || !hasNonZero);
+  }
+
+  document.getElementById("bfSubmitBtn").addEventListener("click", function(){
+    var me = meRoster();
+    if(!me || ui.backfill.opponents.length !== 3) return;
+    var inputs = document.querySelectorAll("#bfAmountsList input");
+    var players = [me.name].concat(ui.backfill.opponents);
+    var deltas = {};
+    var sum = 0, hasNonZero = false;
+    for(var i=0;i<inputs.length;i++){
+      var name = inputs[i].getAttribute("data-name");
+      var v = parseInt(inputs[i].value, 10) || 0;
+      deltas[name] = v;
+      sum += v;
+      if(v !== 0) hasNonZero = true;
+    }
+    if(sum !== 0){ showToast("四個人的金額加起來要等於 0"); return; }
+    if(!hasNonZero){ showToast("請至少輸入一個人的輸贏金額"); return; }
+    var date = document.getElementById("bfDate").value || todayISO();
+    var venue = document.getElementById("bfVenue").value.trim();
+    var hand = {
+      dealerName: players[0], streak: 0,
+      winnerName: null, method: "manual", loserName: null,
+      tai: 0, dealerBonusTai: 0, effectiveTai: 0,
+      amount: 0, deltas: deltas, tags: [],
+      seatOrderAtHand: players.slice(),
+      ts: Date.now()
+    };
+    var newGame = {
+      id: genId("g"), date: date, venue: venue, players: players,
+      base: 0, tai: 0, selfDrawMode: "full",
+      status: "ended",
+      sets: [{
+        id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
+        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
+      }],
+      createdAt: Date.now(), endedAt: Date.now()
+    };
+    var newState = deepClone(state);
+    newState.games.push(newGame);
+    if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
+    ui.backfillFormOpen = false;
+    commitState(newState);
+    showToast("補記完成，已加進戰績！");
   });
 
   // ================= 本局：進行中的將 =================
@@ -1593,10 +1760,13 @@
 
   function renderGameTab(){
     var game = activeGame();
-    document.getElementById("newGamePanel").style.display = game ? "none" : "block";
+    var showBackfill = !game && ui.backfillFormOpen;
+    document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
+    document.getElementById("backfillPanel").style.display = showBackfill ? "block" : "none";
     document.getElementById("activeGamePanel").style.display = game ? "block" : "none";
-    if(!game){ renderNewGameForm(); }
-    else{
+    if(!game){
+      if(showBackfill) renderBackfillForm(); else renderNewGameForm();
+    }else{
       var set = activeSet(game);
       if(set) renderActiveSet(game, set);
     }
@@ -1730,6 +1900,7 @@
   document.getElementById("resetAllBtn").addEventListener("click", function(){
     showConfirm("確定要清空所有牌局、名單與設定嗎？此動作無法復原。", function(){
       ui.newGameFormReady = false;
+      ui.backfillFormOpen = false;
       commitState(defaultState());
     });
   });
@@ -1810,6 +1981,7 @@
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
       allHandsOf(g).forEach(function(h){
+        if(h.method === "manual") return; // backfilled totals have no real seat/wind data
         var idx = h.seatOrderAtHand.indexOf(targetName);
         if(idx === -1) return;
         buckets[idx].hands += 1;
@@ -1835,6 +2007,7 @@
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
       allHandsOf(g).forEach(function(h){
+        if(h.method === "manual") return; // backfilled totals have no real dealer/自摸/放槍 breakdown
         var myDelta = h.deltas[targetName] || 0;
         if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
         else{ nonDealerNet+=myDelta; nonDealerHands++; }
@@ -1889,11 +2062,12 @@
       var detail = document.createElement("div");
       detail.className = "log-detail";
       detail.style.display = "none";
+      var isBackfilled = allHandsOf(g).some(function(h){ return h.method === "manual"; });
       var summaryEl = document.createElement("div");
       summaryEl.innerHTML = g.players.map(function(n){
         var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
         return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-      }).join('　') + '<br>共 '+allHandsOf(g).length+' 手';
+      }).join('　') + '<br>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
       detail.appendChild(summaryEl);
 
       if(g.sets.length > 1){
