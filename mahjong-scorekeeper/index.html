@@ -379,7 +379,7 @@
 
         <div class="toggle-row">
           <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
-          <button type="button" class="btn btn-outline" id="dealerBonusBtn">莊家台 ✓</button>
+          <button type="button" class="btn btn-outline" id="dealerBonusBtn">自摸莊家台 ✓</button>
         </div>
         <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家</p>
 
@@ -1433,10 +1433,9 @@
 
   function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags){
     var dealerName = set.seatOrder[set.dealerIndex];
-    // 自摸一定跟莊家有關（莊家自己贏，或莊家是付錢的三家之一）；放槍只有莊家自己胡別人的銃、
-    // 或莊家自己放槍出去時才跟莊家有關，這兩種情況拉莊台一樣要算，其他人對打的放槍則無關。
-    var dealerInvolved = method === "self" ||
-      (method === "discard" && (winnerName === dealerName || loserName === dealerName));
+    // 只有自摸才自動加莊家台／拉莊台；放槍（一般胡牌）不自動算，
+    // 要算的話由使用者自己手動點「莊家」或「連莊」台型標籤。
+    var dealerInvolved = method === "self";
     var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
     var effectiveTai = taiInput + bonus;
     var amount = game.base + effectiveTai * game.tai;
@@ -1907,7 +1906,7 @@
     document.getElementById("swapModeBtn").classList.toggle("selected", ui.swapMode);
     document.getElementById("swapModeBtn").textContent = ui.swapMode ? "🔁 換位中" : "🔁 換位";
     document.getElementById("dealerBonusBtn").classList.toggle("selected", ui.dealerBonusEnabled);
-    document.getElementById("dealerBonusBtn").textContent = "莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
+    document.getElementById("dealerBonusBtn").textContent = "自摸莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
 
     var logBtn = document.getElementById("toggleSetLogBtn");
     var logBtnPrefix = ui.showSetLog ? "隱藏本手" : "顯示本手";
