@@ -364,7 +364,7 @@
       </div>
 
       <div class="card">
-        <div class="section-label">台數・共 <b id="taiTotalText">0</b> 台</div>
+        <div class="section-label">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
         <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。</p>
         <div class="chip-row" id="taiTagRow"></div>
         <div class="stepper">
@@ -557,26 +557,74 @@
   var DEFAULT_NAMES = ["東","南","西","北"];
   var WINDS = ["東","南","西","北"];
   var TAI_TAGS = [
-    { key: "menqing", label: "門清", value: 1 },
-    { key: "pinghu", label: "平胡", value: 2 },
-    { key: "zimo", label: "自摸", value: 1 },
-    { key: "buqiuren", label: "不求人", value: 1 },
-    { key: "danDiao", label: "單吊", value: 1 },
     { key: "zhuangjia", label: "莊家", value: 1 },
-    { key: "queyimen", label: "缺一門", value: 1 },
-    { key: "pengpenghu", label: "碰碰胡", value: 4 },
+    { key: "lianzhuang", label: "連莊", value: 1 },
+    { key: "zhongfabai", label: "中發白", value: 1 },
+    { key: "sananke", label: "三暗刻", value: 2 },
+    { key: "sianke", label: "四暗刻", value: 5 },
+    { key: "wuanke", label: "五暗刻", value: 8 },
+    { key: "quanqiu", label: "全求", value: 2 },
     { key: "hunyise", label: "混一色", value: 4 },
     { key: "qingyise", label: "清一色", value: 8 },
-    { key: "ziyise", label: "字一色", value: 16 },
-    { key: "xiaosanyuan", label: "小三元", value: 4 },
     { key: "dasanyuan", label: "大三元", value: 8 },
-    { key: "xiaosixi", label: "小四喜", value: 8 },
+    { key: "xiaosanyuan", label: "小三元", value: 4 },
     { key: "dasixi", label: "大四喜", value: 16 },
-    { key: "quanqiuren", label: "全求人", value: 1 },
-    { key: "gangshang", label: "槓上開花", value: 1 },
+    { key: "xiaosixi", label: "小四喜", value: 8 },
+    { key: "baxianguohai", label: "八仙過海", value: 8 },
+    { key: "pinghu", label: "平胡", value: 2 },
+    { key: "pengpenghu", label: "碰碰胡", value: 4 },
+    { key: "dihu", label: "地胡", value: 16 },
+    { key: "tianhu", label: "天胡", value: 24 },
+    { key: "duting", label: "獨聽", value: 1 },
+    { key: "diting", label: "地聽", value: 4 },
+    { key: "tianting", label: "天聽", value: 8 },
+    { key: "zimo", label: "自摸", value: 1 },
+    { key: "menqing", label: "門清", value: 1 },
+    { key: "menqingzimo", label: "門清自摸", value: 3 },
+    { key: "fengpai", label: "風牌", value: 1 },
+    { key: "huapai", label: "花牌", value: 1 },
     { key: "haidi", label: "海底撈月", value: 1 },
-    { key: "qiangang", label: "搶槓", value: 1 }
+    { key: "gangshang", label: "槓上開花", value: 1 },
+    { key: "qiangganghu", label: "搶槓胡", value: 1 }
   ];
+  var TAI_SORT_KEY = "twmj_tai_sort_v1";
+  function loadTaiSortMode(){
+    try{
+      var v = localStorage.getItem(TAI_SORT_KEY);
+      return v === "freq" ? "freq" : "value";
+    }catch(e){ return "value"; }
+  }
+  function saveTaiSortMode(mode){
+    try{ localStorage.setItem(TAI_SORT_KEY, mode); }catch(e){}
+  }
+  function computeTagFrequency(){
+    var freq = {};
+    state.games.forEach(function(g){
+      g.sets.forEach(function(set){
+        set.hands.forEach(function(h){
+          (h.tags || []).forEach(function(label){ freq[label] = (freq[label] || 0) + 1; });
+        });
+      });
+    });
+    return freq;
+  }
+  function sortedTaiTags(){
+    var entries = TAI_TAGS.map(function(t, i){ return { tag: t, idx: i }; });
+    if(ui.taiSortMode === "freq"){
+      var freq = computeTagFrequency();
+      entries.sort(function(a, b){
+        var fa = freq[a.tag.label] || 0, fb = freq[b.tag.label] || 0;
+        if(fb !== fa) return fb - fa;
+        return a.idx - b.idx;
+      });
+    }else{
+      entries.sort(function(a, b){
+        if(a.tag.value !== b.tag.value) return a.tag.value - b.tag.value;
+        return a.idx - b.idx;
+      });
+    }
+    return entries.map(function(e){ return e.tag; });
+  }
 
   function genId(prefix){
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -1034,7 +1082,8 @@
     dealerBonusEnabled: true,
     showSetLog: true,
     endSetPanelOpen: false,
-    showDuties: true
+    showDuties: true,
+    taiSortMode: loadTaiSortMode()
   };
   restoreUiFromSession();
 
@@ -1630,7 +1679,7 @@
   function renderTaiTags(){
     var el = document.getElementById("taiTagRow");
     el.innerHTML = "";
-    TAI_TAGS.forEach(function(tag){
+    sortedTaiTags().forEach(function(tag){
       var b = document.createElement("button");
       var active = ui.taiTags.indexOf(tag.key) !== -1;
       b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
@@ -1642,9 +1691,16 @@
       });
       el.appendChild(b);
     });
+    var sortBtn = document.getElementById("taiSortToggleBtn");
+    sortBtn.textContent = ui.taiSortMode === "freq" ? "排序：常用優先" : "排序：台數小到大";
   }
   document.getElementById("taiMinus").addEventListener("click", function(){ ui.tai = Math.max(0, ui.tai-1); renderGameTab(); });
   document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
+  document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
+    ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
+    saveTaiSortMode(ui.taiSortMode);
+    renderGameTab();
+  });
 
   document.getElementById("swapModeBtn").addEventListener("click", function(){ ui.swapMode = !ui.swapMode; ui.swapSelected = null; renderGameTab(); });
   document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
