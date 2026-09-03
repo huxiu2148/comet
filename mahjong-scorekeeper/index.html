@@ -217,13 +217,22 @@
   }
   .wind-dealer{ background: var(--red); border-color: var(--red-dark); color:#fff; }
 
-  /* gesture cards */
-  .gesture-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
+  /* gesture cards — arranged in a diamond around an empty center (the
+     table), matching real seating: 我 always at the bottom. */
+  .gesture-grid{
+    display:grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto;
+    gap:10px; align-items:stretch;
+  }
   .gesture-card{
     border-radius:14px; padding:10px 8px; text-align:center; background: var(--cream);
     border:1.5px solid #e5c98a; position:relative; touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none;
     transition: box-shadow .15s ease;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
   }
+  .gesture-card.slot-top{ grid-column:2; grid-row:1; }
+  .gesture-card.slot-right{ grid-column:3; grid-row:2; }
+  .gesture-card.slot-bottom{ grid-column:2; grid-row:3; }
+  .gesture-card.slot-left{ grid-column:1; grid-row:2; }
   .gesture-card .name{ font-size:.85rem; font-weight:700; color:#7a5c00; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:4px; }
   .gesture-card .amt{ font-size:1.2rem; font-weight:800; margin-top:2px; font-variant-numeric: tabular-nums; }
   .gesture-card .amt.win{ color: var(--win); }
@@ -915,7 +924,7 @@
     try{
       sessionStorage.setItem(UI_SESSION_KEY, JSON.stringify({
         tab: ui.tab, statsSub: ui.statsSub, calSelectedDate: ui.calSelectedDate,
-        calYear: ui.calYear, calMonth: ui.calMonth
+        calYear: ui.calYear, calMonth: ui.calMonth, showDuties: ui.showDuties
       }));
     }catch(e){}
   }
@@ -930,6 +939,7 @@
       if(typeof saved.calSelectedDate !== "undefined") ui.calSelectedDate = saved.calSelectedDate;
       if(typeof saved.calYear === "number") ui.calYear = saved.calYear;
       if(typeof saved.calMonth === "number") ui.calMonth = saved.calMonth;
+      if(typeof saved.showDuties === "boolean") ui.showDuties = saved.showDuties;
     }catch(e){}
   }
 
@@ -1024,7 +1034,7 @@
     dealerBonusEnabled: true,
     showSetLog: true,
     endSetPanelOpen: false,
-    showDuties: false
+    showDuties: true
   };
   restoreUiFromSession();
 
@@ -1209,7 +1219,7 @@
       base: isNaN(base) ? 0 : Math.max(0, base),
       tai: isNaN(tai) ? 0 : Math.max(0, tai),
       selfDrawMode: ui.newGameSelfDrawMode,
-      status: "active", sets: [firstSet], duties: {record:null, music:null, photo:null},
+      status: "active", sets: [firstSet], duties: {record: me.name, music:null, photo:null},
       createdAt: Date.now(), endedAt: null
     };
     var newState = deepClone(state);
@@ -1771,6 +1781,19 @@
     });
   }
 
+  // 牌桌固定畫成菱形（中間留空模擬桌面），「我」永遠在最下面；下家在右邊、
+  // 對家在最上面、上家在左邊——跟著座位陣列（seatOrder）目前的順序轉，
+  // 換位／換莊家改變座位陣列時，這裡會自動重新算，門風本身不受影響
+  // （門風還是照 WINDS[原始索引] 算，只有畫面上的擺放位置變了）。
+  function diamondSlots(seatOrder, me){
+    var myIdx = me ? seatOrder.indexOf(me.name) : -1;
+    var rotated = myIdx === -1 ? seatOrder.slice() : seatOrder.slice(myIdx).concat(seatOrder.slice(0, myIdx));
+    var slotNames = ["slot-bottom", "slot-right", "slot-top", "slot-left"];
+    var slotOf = {};
+    rotated.forEach(function(name, i){ slotOf[name] = slotNames[i]; });
+    return slotOf;
+  }
+
   function renderActiveSet(game, set){
     var setIdx = game.sets.indexOf(set);
     document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
@@ -1788,9 +1811,10 @@
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
     var me = meRoster();
+    var slotOf = diamondSlots(set.seatOrder, me);
     set.seatOrder.forEach(function(name, idx){
       var card = document.createElement("div");
-      card.className = "gesture-card" + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
+      card.className = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
       card.setAttribute("data-player", name);
 
       var badge = document.createElement("button");
