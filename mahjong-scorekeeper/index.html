@@ -479,10 +479,9 @@
     </div>
     <div id="backupExportPanel" class="card" style="display:none;">
       <h2>📤 匯出備份</h2>
-      <p class="hint-text">按「複製到剪貼簿」把下面內容複製起來，貼到記事本、雲端筆記或傳給自己保存；也可以試試「下載檔案」直接存成檔案。</p>
+      <p class="hint-text">按「複製到剪貼簿」把下面內容複製起來，貼到記事本、雲端筆記或傳給自己保存。</p>
       <textarea id="backupExportText" class="backup-textarea" readonly></textarea>
       <button type="button" class="btn btn-primary btn-block" id="copyBackupBtn" style="margin-top:10px;">📋 複製到剪貼簿</button>
-      <button type="button" class="btn btn-outline btn-block" id="downloadBackupBtn" style="margin-top:8px;">💾 下載檔案</button>
       <button type="button" class="btn btn-outline btn-block" id="closeExportPanelBtn" style="margin-top:8px;">關閉</button>
     </div>
     <div id="backupImportPanel" class="card" style="display:none;">
@@ -749,7 +748,6 @@
   var cloudReady = false;
   var isReadOnly = false;
   var syncing = false;
-  var downloadsNs = null; // "downloads" capability, used by 資料備份's 下載檔案 button
 
   function buildFullHtml(newState){
     var styleText = document.getElementById("app-style").textContent;
@@ -1971,22 +1969,19 @@
   });
 
   // ================= 資料備份 =================
-  // 不依賴雲端 artifact 或訂閱狀態的手動備份：匯出用「複製到剪貼簿」為主、
-  // 檔案下載為輔（Artifact 檢視器有時會擋掉頁面自己觸發的下載），匯入則
-  // 用原生檔案選取（FileReader 讀檔一定能用）搭配貼上文字兩種方式。
+  // 不依賴雲端 artifact 或訂閱狀態的手動備份：匯出用「複製到剪貼簿」，
+  // 匯入則用原生檔案選取（FileReader 讀檔一定能用）搭配貼上文字兩種方式。
+  // （原本還有一個「下載檔案」按鈕用 downloads capability 存檔，但宣告了
+  // downloads capability 之後 Artifact 就無法用「知道連結的人」公開分享，
+  // 為了讓大家能直接分享連結一起用，這裡拿掉了，備份改成只靠複製到剪貼簿。）
   function closeBackupPanels(){
     document.getElementById("backupExportPanel").style.display = "none";
     document.getElementById("backupImportPanel").style.display = "none";
-  }
-  function updateBackupDownloadVisibility(){
-    var btn = document.getElementById("downloadBackupBtn");
-    if(btn) btn.style.display = downloadsNs ? "" : "none";
   }
   document.getElementById("exportBackupBtn").addEventListener("click", function(){
     document.getElementById("backupExportText").value = JSON.stringify(state, null, 2);
     closeBackupPanels();
     document.getElementById("backupExportPanel").style.display = "block";
-    updateBackupDownloadVisibility();
   });
   document.getElementById("closeExportPanelBtn").addEventListener("click", closeBackupPanels);
   document.getElementById("copyBackupBtn").addEventListener("click", function(){
@@ -2004,16 +1999,6 @@
     }else{
       fallbackCopy();
     }
-  });
-  document.getElementById("downloadBackupBtn").addEventListener("click", function(){
-    if(!downloadsNs){ showToast("這個環境不支援下載檔案，請改用上面的「複製到剪貼簿」。"); return; }
-    var json = document.getElementById("backupExportText").value;
-    downloadsNs.save({ filename: "麻將算帳本備份_" + todayISO() + ".json", data: json }).then(function(){
-      showToast("已儲存檔案！");
-    }, function(err){
-      if(err && err.code === "declined") return;
-      showToast("下載失敗，請改用上面的「複製到剪貼簿」。");
-    });
   });
 
   document.getElementById("importBackupBtn").addEventListener("click", function(){
@@ -2522,10 +2507,6 @@
       artifactNs = ns;
       cloudReady = !!ns;
       setCloudBadge();
-    });
-    window.claude.use("downloads").then(function(ns){
-      downloadsNs = ns;
-      updateBackupDownloadVisibility();
     });
   }
 })();
