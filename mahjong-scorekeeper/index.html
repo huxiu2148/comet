@@ -383,6 +383,20 @@
         <div id="setLogList" style="display:none; margin-top:8px;"></div>
       </div>
 
+      <div class="card">
+        <h2>🎬 今天的分工 <button type="button" class="link-btn" id="toggleDutiesBtn" style="margin-left:auto;">展開</button></h2>
+        <div id="dutiesSummaryLine" class="hint-text" style="margin:0;"></div>
+        <div id="dutiesBody" style="display:none;">
+          <p class="hint-text">點名字指派，再點一次可以取消。</p>
+          <div class="section-label">📝 記錄</div>
+          <div class="chip-row" id="dutyRecordChips"></div>
+          <div class="section-label">🎵 播音樂</div>
+          <div class="chip-row" id="dutyMusicChips"></div>
+          <div class="section-label">📷 拍照</div>
+          <div class="chip-row" id="dutyPhotoChips"></div>
+        </div>
+      </div>
+
       <div id="endSetPanel" class="card" style="display:none;">
         <h2>🏁 這將打完</h2>
         <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
@@ -672,6 +686,12 @@
     }else{
       sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
     }
+    var rawDuties = (g.duties && typeof g.duties === "object") ? g.duties : {};
+    var duties = {};
+    ["record","music","photo"].forEach(function(key){
+      var v = rawDuties[key];
+      duties[key] = (typeof v === "string" && players.indexOf(v) !== -1) ? v : null;
+    });
     return {
       id: g.id || genId("g"),
       date: (typeof g.date === "string" && g.date) ? g.date : todayISO(),
@@ -679,7 +699,7 @@
       venue: typeof g.venue === "string" ? g.venue : "",
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       status: g.status === "ended" ? "ended" : "active",
-      sets: sets,
+      sets: sets, duties: duties,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null
@@ -1003,7 +1023,8 @@
     swapSelected: null,
     dealerBonusEnabled: true,
     showSetLog: true,
-    endSetPanelOpen: false
+    endSetPanelOpen: false,
+    showDuties: false
   };
   restoreUiFromSession();
 
@@ -1188,7 +1209,8 @@
       base: isNaN(base) ? 0 : Math.max(0, base),
       tai: isNaN(tai) ? 0 : Math.max(0, tai),
       selfDrawMode: ui.newGameSelfDrawMode,
-      status: "active", sets: [firstSet], createdAt: Date.now(), endedAt: null
+      status: "active", sets: [firstSet], duties: {record:null, music:null, photo:null},
+      createdAt: Date.now(), endedAt: null
     };
     var newState = deepClone(state);
     newState.games.push(newGame);
@@ -1331,6 +1353,7 @@
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
         hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
       }],
+      duties: {record:null, music:null, photo:null},
       manualSetsCount: setsCount,
       createdAt: Date.now(), endedAt: Date.now()
     };
@@ -1618,6 +1641,7 @@
   document.getElementById("swapModeBtn").addEventListener("click", function(){ ui.swapMode = !ui.swapMode; ui.swapSelected = null; renderGameTab(); });
   document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
   document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
+  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
 
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
@@ -1708,6 +1732,45 @@
     }
   }
 
+  var DUTY_LABELS = { record: "📝 記錄", music: "🎵 音樂", photo: "📷 拍照" };
+  function dutiesSummaryText(duties){
+    if(!duties) return "";
+    var parts = [];
+    Object.keys(DUTY_LABELS).forEach(function(key){
+      if(duties[key]) parts.push(DUTY_LABELS[key]+' '+escapeHtml(duties[key]));
+    });
+    return parts.join('　');
+  }
+  var DUTY_CHIP_IDS = { record: "dutyRecordChips", music: "dutyMusicChips", photo: "dutyPhotoChips" };
+  function assignDuty(gameId, key, name){
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
+    if(!ng) return;
+    if(!ng.duties) ng.duties = {record:null, music:null, photo:null};
+    ng.duties[key] = (ng.duties[key] === name) ? null : name;
+    commitState(newState);
+  }
+  function renderDuties(game){
+    var duties = game.duties || {record:null, music:null, photo:null};
+    document.getElementById("toggleDutiesBtn").textContent = ui.showDuties ? "收起" : "展開";
+    document.getElementById("dutiesBody").style.display = ui.showDuties ? "block" : "none";
+    var summaryText = dutiesSummaryText(duties);
+    document.getElementById("dutiesSummaryLine").innerHTML = summaryText || "還沒有人負責，點「展開」指派。";
+    Object.keys(DUTY_CHIP_IDS).forEach(function(key){
+      var el = document.getElementById(DUTY_CHIP_IDS[key]);
+      el.innerHTML = "";
+      game.players.forEach(function(name){
+        var b = document.createElement("button");
+        b.type = "button";
+        var selected = duties[key] === name;
+        b.className = "chip" + (selected ? " chip-selected" : "");
+        b.textContent = name;
+        b.addEventListener("click", function(){ assignDuty(game.id, key, name); });
+        el.appendChild(b);
+      });
+    });
+  }
+
   function renderActiveSet(game, set){
     var setIdx = game.sets.indexOf(set);
     document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
@@ -1717,6 +1780,7 @@
     var gameHandCount = allHandsOf(game).length;
     document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
 
+    renderDuties(game);
     renderTaiVal();
     renderTaiTags();
 
@@ -2284,6 +2348,14 @@
         return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
       }).join('　') + '<br>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
       detail.appendChild(summaryEl);
+
+      var dutiesText = dutiesSummaryText(g.duties);
+      if(dutiesText){
+        var dutiesEl = document.createElement("div");
+        dutiesEl.style.marginTop = "4px";
+        dutiesEl.innerHTML = dutiesText;
+        detail.appendChild(dutiesEl);
+      }
 
       if(g.sets.length > 1){
         var setsList = document.createElement("div");
