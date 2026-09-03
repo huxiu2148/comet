@@ -1376,11 +1376,9 @@
   });
 
   // ================= 本局：進行中的將 =================
-  function computeDealerBonus(set, winnerName){
-    var dealerName = set.seatOrder[set.dealerIndex];
+  function computeDealerBonus(set){
     if(!ui.dealerBonusEnabled) return 0;
-    // 莊家自己自摸時，第一手（還沒連莊）沒有拉莊台可拿；連莊之後自摸，跟閒家自摸一樣算拉莊台。
-    if(winnerName === dealerName && set.streak === 0) return 0;
+    // 莊家本來就有 1 台莊家台，連莊之後每多連一次再加 2 台（連一拉一＝3台、連二拉二＝5台…）。
     return 2*set.streak + 1;
   }
 
@@ -1390,7 +1388,7 @@
     // 或莊家自己放槍出去時才跟莊家有關，這兩種情況拉莊台一樣要算，其他人對打的放槍則無關。
     var dealerInvolved = method === "self" ||
       (method === "discard" && (winnerName === dealerName || loserName === dealerName));
-    var bonus = dealerInvolved ? computeDealerBonus(set, winnerName) : 0;
+    var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
     var effectiveTai = taiInput + bonus;
     var amount = game.base + effectiveTai * game.tai;
     var deltas = {};
