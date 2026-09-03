@@ -245,6 +245,12 @@
   .gesture-card.flash-lose{ animation: flashlose .5s ease; }
   @keyframes flashwin{ 0%{ background: var(--win); } 100%{ background: var(--cream); } }
   @keyframes flashlose{ 0%{ background: var(--lose); } 100%{ background: var(--cream); } }
+  .gesture-card.pending-winner{ border-color: var(--win); border-width:2.5px; box-shadow: 0 0 0 2px rgba(30,138,60,.25); }
+  .gesture-card.pending-loser{ border-color: var(--lose); border-width:2.5px; box-shadow: 0 0 0 2px rgba(192,57,43,.25); }
+
+  .pending-preview{
+    margin-top:12px; padding:12px; border:1.5px dashed var(--gold); border-radius:14px; background:var(--gold-light);
+  }
 
   /* custom confirm/prompt/alert — native dialogs are unreliable inside the
      Artifact viewer's sandboxed iframe, so everything goes through this. */
@@ -375,13 +381,22 @@
 
         <div class="gesture-grid" id="gestureGrid" style="margin-top:14px;"></div>
 
+        <div id="pendingPreview" class="pending-preview" style="display:none;">
+          <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
+          <div id="pendingPreviewDetail"></div>
+          <div class="undo-row" style="margin-top:10px; margin-bottom:0;">
+            <button type="button" class="btn btn-outline" id="cancelPendingBtn">↩️ 取消</button>
+            <button type="button" class="btn btn-primary" id="confirmPendingBtn">✅ 確認記錄</button>
+          </div>
+        </div>
+
         <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:12px;">🌊 流局（沒人胡牌，莊家連莊）</button>
 
         <div class="toggle-row">
           <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
           <button type="button" class="btn btn-outline" id="dealerBonusBtn">自摸莊家台 ✓</button>
         </div>
-        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家</p>
+        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家。選好後可以再調整台數，畫面上會先預覽金額，按「確認記錄」才會真的記上。</p>
 
         <div class="undo-row" style="margin-top:6px;">
           <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
@@ -1083,7 +1098,8 @@
     showSetLog: true,
     endSetPanelOpen: false,
     showDuties: true,
-    taiSortMode: loadTaiSortMode()
+    taiSortMode: loadTaiSortMode(),
+    pendingHand: null
   };
   restoreUiFromSession();
 
@@ -1279,7 +1295,7 @@
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
     ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
-    ui.showSetLog = true; ui.endSetPanelOpen = false;
+    ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     commitState(newState);
   });
 
@@ -1499,7 +1515,7 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = [];
+    ui.tai = 0; ui.taiTags = []; ui.pendingHand = null;
     commitState(newState);
   }
 
@@ -1521,6 +1537,7 @@
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
     if(isReadOnly) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     var record = buildDrawRecord(set);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -1542,15 +1559,40 @@
     return String(s).replace(/[^a-zA-Z0-9_ -￿-]/g, "\\$&");
   }
 
+  // 固定在畫面最下面的分頁列會蓋住捲動位置剛好落在最下面的內容；預覽
+  // 剛跳出來時把「確認記錄」按鈕捲到分頁列上方，才不會被擋住點不到。
+  function ensurePendingPreviewVisible(){
+    var panel = document.getElementById("pendingPreview");
+    if(!panel || panel.style.display === "none") return;
+    var rect = panel.getBoundingClientRect();
+    var tabbar = document.querySelector(".tabbar");
+    var clearance = (tabbar ? tabbar.getBoundingClientRect().height : 60) + 16;
+    var overflow = rect.bottom - (window.innerHeight - clearance);
+    if(overflow > 0) window.scrollBy({ top: overflow, behavior: "smooth" });
+  }
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
-    commitHand(name, "self", null);
+    ui.pendingHand = { method: "self", winnerName: name, loserName: null };
+    renderGameTab();
+    ensurePendingPreviewVisible();
     flashCard(name, "flash-win");
   }
   function recordDiscardGesture(winnerName, loserName){
-    commitHand(winnerName, "discard", loserName);
+    ui.pendingHand = { method: "discard", winnerName: winnerName, loserName: loserName };
+    renderGameTab();
+    ensurePendingPreviewVisible();
     flashCard(winnerName, "flash-win");
     flashCard(loserName, "flash-lose");
+  }
+  function commitPendingHand(){
+    var p = ui.pendingHand;
+    if(!p) return;
+    ui.pendingHand = null;
+    commitHand(p.winnerName, p.method, p.loserName);
+  }
+  function cancelPendingHand(){
+    ui.pendingHand = null;
+    renderGameTab();
   }
 
   function setDealerGesture(name){
@@ -1706,9 +1748,13 @@
   document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
   document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
 
+  document.getElementById("confirmPendingBtn").addEventListener("click", function(){ commitPendingHand(); });
+  document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
+
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     showConfirm("確定要刪除最後一筆紀錄嗎？", function(){
       var newState = deepClone(state);
       var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -1719,7 +1765,10 @@
     });
   });
 
-  document.getElementById("endSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = true; renderGameTab(); });
+  document.getElementById("endSetBtn").addEventListener("click", function(){
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    ui.endSetPanelOpen = true; renderGameTab();
+  });
   document.getElementById("continueSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = false; renderGameTab(); });
 
   document.getElementById("newSetBtn").addEventListener("click", function(){
@@ -1735,6 +1784,7 @@
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = [];
+    ui.pendingHand = null;
     commitState(newState);
   });
 
@@ -1847,6 +1897,34 @@
     return slotOf;
   }
 
+  // 選好胡誰的銃／自摸之後先不記上，只算出這手的預覽金額，等使用者確認
+  // （可能還要再調整台數）才真的寫進紀錄——buildHandRecord 是純函式，
+  // 這裡呼叫只是拿計算結果來顯示，不會動到實際的 state。
+  function renderPendingPreview(game, set){
+    var panel = document.getElementById("pendingPreview");
+    var p = ui.pendingHand;
+    if(!p){ panel.style.display = "none"; return; }
+    panel.style.display = "block";
+    var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels());
+    var bonusText = record.dealerBonusTai > 0 ? "（含拉莊台 +"+record.dealerBonusTai+"台）" : "";
+    var detail;
+    if(p.method === "discard"){
+      detail = escapeHtml(p.loserName) + ' <span class="minus">-'+record.amount+'</span> → ' +
+               escapeHtml(p.winnerName) + ' <span class="plus">+'+record.amount+'</span>';
+    }else{
+      var parts = [];
+      Object.keys(record.deltas).forEach(function(n){
+        if(n === p.winnerName) return;
+        parts.push(escapeHtml(n)+' <span class="minus">-'+(-record.deltas[n])+'</span>');
+      });
+      detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
+    }
+    var methodLabel = p.method === "self" ? "自摸" : ("胡"+escapeHtml(p.loserName)+"的銃");
+    var headLine = escapeHtml(p.winnerName) + '・' + methodLabel + '・' + record.tai + '台' + bonusText;
+    document.getElementById("pendingPreviewDetail").innerHTML =
+      '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
+  }
+
   function renderActiveSet(game, set){
     var setIdx = game.sets.indexOf(set);
     document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
@@ -1865,9 +1943,15 @@
     grid.innerHTML = "";
     var me = meRoster();
     var slotOf = diamondSlots(set.seatOrder, me);
+    var pending = ui.pendingHand;
     set.seatOrder.forEach(function(name, idx){
       var card = document.createElement("div");
-      card.className = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
+      var cardCls = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
+      if(pending){
+        if(pending.winnerName === name) cardCls += " pending-winner";
+        if(pending.loserName === name) cardCls += " pending-loser";
+      }
+      card.className = cardCls;
       card.setAttribute("data-player", name);
 
       var badge = document.createElement("button");
@@ -1902,6 +1986,8 @@
       attachCardGestures(card, name);
       grid.appendChild(card);
     });
+
+    renderPendingPreview(game, set);
 
     document.getElementById("swapModeBtn").classList.toggle("selected", ui.swapMode);
     document.getElementById("swapModeBtn").textContent = ui.swapMode ? "🔁 換位中" : "🔁 換位";
