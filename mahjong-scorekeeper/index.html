@@ -2278,19 +2278,30 @@
   }
 
   // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
-  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。
+  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。同一天如果
+  // 打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。
   function computeDrinkTreatCounts(endedGames){
-    var counts = {};
+    var byDate = {};
     endedGames.forEach(function(g){
-      var totals = computeGameTotals(g);
-      var min = null;
-      g.players.forEach(function(n){
-        var v = totals[n] || 0;
-        if(min === null || v < min) min = v;
+      (byDate[g.date] = byDate[g.date] || []).push(g);
+    });
+    var counts = {};
+    Object.keys(byDate).forEach(function(date){
+      var dayLosers = {};
+      byDate[date].forEach(function(g){
+        var totals = computeGameTotals(g);
+        var min = null;
+        g.players.forEach(function(n){
+          var v = totals[n] || 0;
+          if(min === null || v < min) min = v;
+        });
+        if(min === null || min >= 0) return; // 這場沒人真的輸錢
+        g.players.forEach(function(n){
+          if((totals[n]||0) === min) dayLosers[n] = true;
+        });
       });
-      if(min === null || min >= 0) return; // 這場沒人真的輸錢
-      g.players.forEach(function(n){
-        if((totals[n]||0) === min) counts[n] = (counts[n]||0) + 1;
+      Object.keys(dayLosers).forEach(function(n){
+        counts[n] = (counts[n]||0) + 1;
       });
     });
     return counts;
@@ -2326,7 +2337,7 @@
     var drinkCounts = computeDrinkTreatCounts(endedGames);
     var drinkNames = Object.keys(drinkCounts).sort(function(a,b){ return drinkCounts[b]-drinkCounts[a]; });
     var drinkSection = drinkNames.length ?
-      ('<div class="stat-summary" style="margin-top:14px;">🍹 請飲料次數（每場最輸的人請客）</div>' +
+      ('<div class="stat-summary" style="margin-top:14px;">🍹 請飲料次數（每天最輸的人請客，同一天算一次）</div>' +
        '<div class="stat-list">' + drinkNames.map(function(n){
          return '<div class="stat-row"><div class="stat-name">'+escapeHtml(n)+'</div>' +
            '<div class="stat-amt">🍹 '+drinkCounts[n]+' 次</div></div>';
