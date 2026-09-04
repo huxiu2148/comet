@@ -1117,6 +1117,7 @@
     taiTags: [],
     swapMode: false,
     swapSelected: null,
+    swapSeatOrder: null,
     dealerBonusEnabled: true,
     showSetLog: true,
     endSetPanelOpen: false,
@@ -1317,7 +1318,7 @@
     newState.defaultTai = newGame.tai;
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
-    ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.dealerBonusEnabled = true;
+    ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
     ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     commitState(newState);
   });
@@ -1561,6 +1562,7 @@
     var set = activeSet(game); if(!set) return;
     if(isReadOnly) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var record = buildDrawRecord(set);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -1622,6 +1624,7 @@
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
     if(isReadOnly) return;
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var idx = set.seatOrder.indexOf(name);
     if(idx === -1 || idx === set.dealerIndex) return;
     var newState = deepClone(state);
@@ -1632,47 +1635,39 @@
     commitState(newState);
   }
 
+  // 換位模式下，點兩張卡片互換或用清單的 ▲▼ 調整，都只是先在本地暫存
+  // （ui.swapSeatOrder）調整順序，畫面立刻反映出來，但不會馬上發布到雲端、
+  // 整頁重新整理——再點一次「換位」結束時才會一次寫進去，使用者才不會
+  // 每動一下位置就被強制重整、跳動畫面。
   function handleSwapTap(name){
-    var game = activeGame(); if(!game) return;
-    var set = activeSet(game); if(!set) return;
+    if(!ui.swapSeatOrder) return;
     if(ui.swapSelected === null){ ui.swapSelected = name; renderGameTab(); return; }
     if(ui.swapSelected === name){ ui.swapSelected = null; renderGameTab(); return; }
     var a = ui.swapSelected, b = name;
     ui.swapSelected = null;
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-    var order = ns.seatOrder.slice();
+    var order = ui.swapSeatOrder.slice();
     var ia = order.indexOf(a), ib = order.indexOf(b);
     if(ia===-1 || ib===-1){ renderGameTab(); return; }
     var tmp = order[ia]; order[ia] = order[ib]; order[ib] = tmp;
-    ns.seatOrder = order;
-    commitState(newState);
+    ui.swapSeatOrder = order;
+    renderGameTab();
   }
 
-  // 換位模式下，除了直接點兩張卡片互換，也可以用清單上的 ▲▼ 把任何一位
-  // 移到指定的東南西北位置——跟點卡互換是同一份 seatOrder，兩種操作互通。
   function swapActiveSeatIdx(i, j){
-    var game = activeGame(); if(!game) return;
-    var set = activeSet(game); if(!set) return;
-    if(isReadOnly) return;
-    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-    var order = ns.seatOrder.slice();
+    if(!ui.swapSeatOrder) return;
+    var order = ui.swapSeatOrder.slice();
     var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
-    ns.seatOrder = order;
-    commitState(newState);
+    ui.swapSeatOrder = order;
+    renderGameTab();
   }
 
   function renderSwapSeatList(set){
     var container = document.getElementById("activeSeatList");
-    if(!ui.swapMode){ container.style.display = "none"; container.innerHTML = ""; return; }
+    if(!ui.swapMode || !ui.swapSeatOrder){ container.style.display = "none"; container.innerHTML = ""; return; }
     container.style.display = "block";
     container.innerHTML = "";
     var me = meRoster();
-    set.seatOrder.forEach(function(name, idx){
+    ui.swapSeatOrder.forEach(function(name, idx){
       var row = document.createElement("div");
       row.className = "seat-row" + (ui.swapSelected === name ? " seat-row-selected" : "");
       var badge = document.createElement("span");
@@ -1816,7 +1811,34 @@
     renderGameTab();
   });
 
-  document.getElementById("swapModeBtn").addEventListener("click", function(){ ui.swapMode = !ui.swapMode; ui.swapSelected = null; renderGameTab(); });
+  // 進入換位模式時把目前座位存一份到 ui.swapSeatOrder 當暫存草稿；換位中的
+  // 調整都只改這份草稿（見 handleSwapTap／swapActiveSeatIdx），不會馬上發布。
+  // 再點一次「換位」結束時，如果草稿真的跟原本不同，才一次寫進去、發布一次。
+  document.getElementById("swapModeBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(!ui.swapMode){
+      if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+      ui.swapMode = true;
+      ui.swapSelected = null;
+      ui.swapSeatOrder = set.seatOrder.slice();
+      renderGameTab();
+      return;
+    }
+    ui.swapMode = false;
+    ui.swapSelected = null;
+    var newOrder = ui.swapSeatOrder;
+    ui.swapSeatOrder = null;
+    if(newOrder && JSON.stringify(newOrder) !== JSON.stringify(set.seatOrder)){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.seatOrder = newOrder;
+      commitState(newState);
+    }else{
+      renderGameTab();
+    }
+  });
   document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
   document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
   document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
@@ -1828,6 +1850,7 @@
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     showConfirm("確定要刪除最後一筆紀錄嗎？", function(){
       var newState = deepClone(state);
       var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -1840,6 +1863,7 @@
 
   document.getElementById("endSetBtn").addEventListener("click", function(){
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     ui.endSetPanelOpen = true; renderGameTab();
   });
   document.getElementById("continueSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = false; renderGameTab(); });
@@ -1856,7 +1880,7 @@
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
-    ui.swapMode = false; ui.swapSelected = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = [];
+    ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = [];
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2015,9 +2039,12 @@
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
     var me = meRoster();
-    var slotOf = diamondSlots(set.seatOrder, me);
+    // 換位中顯示的是本地暫存的草稿順序（ui.swapSeatOrder），還沒發布；
+    // 一般情況下顯示的才是實際已記錄的座位（set.seatOrder）。
+    var displayOrder = (ui.swapMode && ui.swapSeatOrder) ? ui.swapSeatOrder : set.seatOrder;
+    var slotOf = diamondSlots(displayOrder, me);
     var pending = ui.pendingHand;
-    set.seatOrder.forEach(function(name, idx){
+    displayOrder.forEach(function(name, idx){
       var card = document.createElement("div");
       var cardCls = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
       if(pending){
