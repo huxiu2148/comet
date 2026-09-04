@@ -612,7 +612,7 @@
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
-      <li>「自摸莊家台」開關：開著的話，自摸會自動幫莊家加上莊家台／連莊拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）；放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
     </ul>
 
@@ -1127,11 +1127,20 @@
     var who = "胡牌（"+escapeHtml(winnerName)+"）";
     return method === "self" ? who : (who+"・放槍（"+escapeHtml(loserName)+"）");
   }
-  // 把台型標籤跟拉莊台加成合併成同一組括號說明，例如「（自摸、含拉莊台 +5台）」，
+  // 自摸的拉莊台加成，莊家自己自摸贏、跟別人自摸打斷莊家連莊，意義不一樣：
+  // 莊家自摸時這是贏家自己多贏的台數，三家都照這個台數多付；別人自摸時
+  // 這其實是莊家單獨要多付的錢（賠連莊被打斷），不是贏家胡牌的台數變大，
+  // 另外兩家還是照原本台數付。所以文字要分開講，不能都寫「含拉莊台」，
+  // 不然會讓人以為這手牌本身就值這麼多台。
+  function dealerBonusPhrase(bonusTai, dealerIsWinner){
+    if(bonusTai <= 0) return null;
+    return dealerIsWinner ? ("含拉莊台 +"+bonusTai+"台") : ("莊家多付拉莊台 +"+bonusTai+"台");
+  }
+  // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
   // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
-  function tagsAndBonusParen(tags, bonusTai){
+  function tagsAndBonusParen(tags, bonusPhrase){
     var parts = (tags || []).map(escapeHtml).slice();
-    if(bonusTai > 0) parts.push("含拉莊台 +"+bonusTai+"台");
+    if(bonusPhrase) parts.push(bonusPhrase);
     return parts.length ? ("（"+parts.join("、")+"）") : "";
   }
   function activeGame(){
@@ -2060,7 +2069,7 @@
           });
           detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
         }
-        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, h.dealerBonusTai);
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName));
       }
       item.innerHTML =
         '<div class="log-head">'+headLine+'</div>' +
@@ -2142,7 +2151,7 @@
       });
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
-    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, record.dealerBonusTai);
+    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName));
     document.getElementById("pendingPreviewDetail").innerHTML =
       '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
   }
