@@ -258,6 +258,10 @@
     position:fixed; inset:0; background:rgba(30,15,10,.55); z-index:200;
     display:flex; align-items:center; justify-content:center; padding:24px;
   }
+  /* the confirm/prompt/alert modal can be triggered from inside another
+     modal (e.g. 結束整場並結算 confirmation on top of 這將打完) — always
+     paint it above other .modal-overlay instances, regardless of DOM order. */
+  #modalOverlay{ z-index:205; }
   .modal-box{
     background:#fff; border-radius:16px; padding:20px; max-width:320px; width:100%;
     border:2px solid var(--gold); box-shadow:0 10px 30px rgba(0,0,0,.3);
@@ -421,13 +425,6 @@
         </div>
       </div>
 
-      <div id="endSetPanel" class="card" style="display:none;">
-        <h2>🏁 這將打完</h2>
-        <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
-        <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（重新抓位）</button>
-        <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
-      </div>
-
       <div id="pastSetsCard" class="card" style="display:none;">
         <h2>📜 本局已結束的將</h2>
         <p class="hint-text">記錯的整將可以在這裡整將刪除；目前正在記錄的這將請用上面的「刪除上一筆」。</p>
@@ -556,6 +553,14 @@
       <button type="button" class="btn btn-outline" id="modalCancelBtn">取消</button>
       <button type="button" class="btn btn-primary" id="modalConfirmBtn">確定</button>
     </div>
+  </div>
+</div>
+<div id="endSetModalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-message" style="font-weight:700; color:var(--red-dark); margin-bottom:16px;">🏁 這將打完</div>
+    <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
+    <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（重新抓位）</button>
+    <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
   </div>
 </div>
 <div id="toast" class="toast" style="display:none;"></div>
@@ -2000,8 +2005,6 @@
     document.getElementById("setLogList").style.display = ui.showSetLog ? "block" : "none";
     if(ui.showSetLog) renderSetLog(set);
 
-    document.getElementById("endSetPanel").style.display = ui.endSetPanelOpen ? "block" : "none";
-
     renderPastSets(game);
   }
 
@@ -2050,6 +2053,11 @@
 
   function renderGameTab(){
     var game = activeGame();
+    // 這個彈出視窗獨立掛在畫面最外層（不是本局卡片的子元素），這樣才能蓋住
+    // 整個畫面而不是被卡進捲動內容裡；因此開關狀態要在這裡統一同步，
+    // 不能只靠 renderActiveSet（沒有進行中的牌局時它根本不會被呼叫，
+    // 視窗會卡住蓋住整個畫面點不到東西）。
+    document.getElementById("endSetModalOverlay").style.display = (game && ui.endSetPanelOpen) ? "flex" : "none";
     var showBackfill = !game && ui.backfillFormOpen;
     document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
     document.getElementById("backfillPanel").style.display = showBackfill ? "block" : "none";
