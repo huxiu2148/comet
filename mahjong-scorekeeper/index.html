@@ -2667,6 +2667,7 @@
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
     var drawCount=0;
     var maxWin=null, maxDealIn=null; // {amt, detail}
+    var tagFreq = {}; // 台型標籤 -> 這位玩家胡牌時用到這個台型的次數
     var venueMap = {}; // name -> {count, winCount, loseCount, drawCount, netAmt}
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
@@ -2689,6 +2690,7 @@
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
+          (h.tags || []).forEach(function(label){ tagFreq[label] = (tagFreq[label] || 0) + 1; });
           // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
           // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
           // 排「單手最大」才準。下面第二行的台型拆解只是說明這手怎麼
@@ -2746,6 +2748,17 @@
                card("非莊時", nonDealerHands, nonDealerNet);
     var extremeRows = extremeCard("單手最大胡牌", maxWin) + extremeCard("單手最大放槍", maxDealIn);
 
+    // 常胡台型：算這位玩家胡牌時每個台型標籤各出現幾次，依次數排序，
+    // 讓人一眼看出自己（或對手）最常靠什麼台型贏——只算標籤，不是台數，
+    // 同一手裡疊了好幾種台型就各自累計一次。
+    var tagFreqNames = Object.keys(tagFreq).sort(function(a,b){ return tagFreq[b]-tagFreq[a]; });
+    var tagFreqRows = tagFreqNames.map(function(label){
+      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(label)+'</div>' +
+        '<div class="stat-amt">'+tagFreq[label]+' 次</div></div>';
+    }).join('');
+    var tagFreqSection = tagFreqNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">常胡台型</div><div class="stat-list">'+tagFreqRows+'</div>') : '';
+
     var venueNames = Object.keys(venueMap);
     var MIN_VENUE_GAMES = 2; // 場次太少的地點排除在「最高」評選外，避免單場就跳出100%
     var bestVenue=null, worstVenue=null;
@@ -2785,6 +2798,7 @@
     return '<div class="stat-summary">「'+escapeHtml(targetName)+'」整體表現・共 '+totalHands+' 手</div><div class="stat-list">'+overallRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>' +
+      tagFreqSection +
       venueSection;
   }
 
