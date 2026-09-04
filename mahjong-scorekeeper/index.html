@@ -960,34 +960,36 @@
   }
 
   function commitState(newState){
-    if(cloudReady && !isReadOnly && artifactNs){
-      syncing = true; setCloudBadge();
-      var html;
-      try{ html = buildFullHtml(newState); }
-      catch(e){ syncing=false; applyLocally(newState); setCloudBadge(); return; }
-      stashUiForReload();
-      artifactNs.publish(html).then(function(){
-        syncing = false;
-        applyLocally(newState);
+    // 按下去要馬上有反應，不等雲端同步的網路來回——先在本機套用、立刻
+    // 重繪，雲端同步只影響右上角的同步狀態圓標。真的沒有寫入權限（唯讀
+    // 檢視）才需要把剛剛先套用的變更復原；一般的網路失敗則保留在本機，
+    // 下一步操作會再一起帶著重試。
+    var previousState = state;
+    applyLocally(newState);
+    if(!cloudReady || isReadOnly || !artifactNs) return;
+    syncing = true; setCloudBadge();
+    var html;
+    try{ html = buildFullHtml(newState); }
+    catch(e){ syncing = false; setCloudBadge(); return; }
+    stashUiForReload();
+    artifactNs.publish(html).then(function(){
+      syncing = false;
+      setCloudBadge();
+    }, function(err){
+      syncing = false;
+      var code = err && err.code;
+      if(code === "conflict"){ setCloudBadge(); return; }
+      if(code === "not_writer" || code === "not_granted" || code === "not_declared" ||
+         code === "capability_disabled" || code === "capability_removed"){
+        isReadOnly = true;
+        applyLocally(previousState);
         setCloudBadge();
-      }, function(err){
-        syncing = false;
-        var code = err && err.code;
-        if(code === "conflict"){ setCloudBadge(); return; }
-        if(code === "not_writer" || code === "not_granted" || code === "not_declared" ||
-           code === "capability_disabled" || code === "capability_removed"){
-          isReadOnly = true;
-          setCloudBadge();
-          showAlert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
-          return;
-        }
-        applyLocally(newState);
-        setCloudBadge();
-        showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
-      });
-    }else{
-      applyLocally(newState);
-    }
+        showAlert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
+        return;
+      }
+      setCloudBadge();
+      showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+    });
   }
 
   // ---------- custom confirm/prompt/alert/toast ----------
