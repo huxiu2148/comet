@@ -2638,6 +2638,27 @@
     return '<div class="stat-summary">「'+escapeHtml(targetName)+'」各門風總輸贏（依手數）</div><div class="stat-list">'+rows+'</div>';
   }
 
+  // 「單手最大胡牌／放槍」底下列出那手實際疊了哪些台型、各自幾台，
+  // 方便回顧怎麼贏／怎麼放槍的，不是只留一個總台數。各台型台數查
+  // TAI_TAGS；連莊台照那手當時的連莊數（h.streak）現算，跟記錄當下
+  // 用的算法一致，不能用固定值。手動用「其他台」加減、沒對到任何
+  // 台型標籤的部分，就顯示成「其他台」。
+  function handTaiBreakdownText(h){
+    var parts = [];
+    var tagSum = 0;
+    (h.tags || []).forEach(function(label){
+      var tag = TAI_TAGS.filter(function(t){ return t.label === label; })[0];
+      var val = tag ? (tag.key === "lianzhuang" ? 2*h.streak : tag.value) : 0;
+      tagSum += val;
+      parts.push(escapeHtml(label)+"+"+val);
+    });
+    var other = h.tai - tagSum;
+    if(other !== 0) parts.push("其他台"+(other>0?"+":"")+other);
+    var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
+    if(bonusPhrase) parts.push(bonusPhrase);
+    return parts.join("、");
+  }
+
   function renderAnalysisHtml(endedGames, targetName){
     if(!targetName) return '<div class="empty-hint">名單裡還沒有人，先到「名單」新增牌友。</div>';
     if(!endedGames.length) return '<div class="empty-hint">還沒有結束的牌局。打完幾場之後，這裡會告訴你贏在哪、輸在哪。</div>';
@@ -2670,17 +2691,19 @@
           else{ discardWinCount++; discardWinAmt+=myDelta; }
           // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
           // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
-          // 排「單手最大」才準，所以說明文字也不放台數，避免看起來
-          // 像是照台數在排。
+          // 排「單手最大」才準。下面第二行的台型拆解只是說明這手怎麼
+          // 贏的，不是拿來排名的依據。
           if(!maxWin || myDelta > maxWin.amt){
             var winWhat = h.method === "self" ? '自摸' : '放槍（'+escapeHtml(h.loserName)+'）';
-            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat };
+            var winBreakdown = handTaiBreakdownText(h);
+            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat + (winBreakdown ? '<br>'+winBreakdown : '') };
           }
         }else{
           if(h.method === "discard" && h.loserName === targetName){
             gotDiscardedCount++; gotDiscardedAmt+=myDelta;
             if(!maxDealIn || myDelta < maxDealIn.amt){
-              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) };
+              var dealInBreakdown = handTaiBreakdownText(h);
+              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) + (dealInBreakdown ? '<br>'+dealInBreakdown : '') };
             }
           }
           else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
