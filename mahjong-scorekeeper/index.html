@@ -395,7 +395,9 @@
       </div>
 
       <div class="card">
-        <div class="section-label">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
+        <div class="gesture-grid" id="gestureGrid"></div>
+
+        <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
         <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。</p>
         <div class="chip-row" id="taiTagRow"></div>
         <div class="stepper">
@@ -403,8 +405,6 @@
           <div class="val" id="taiVal">0<small>其他台</small></div>
           <button type="button" id="taiPlus">＋</button>
         </div>
-
-        <div class="gesture-grid" id="gestureGrid" style="margin-top:14px;"></div>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
@@ -2097,7 +2097,7 @@
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
     var methodLabel = p.method === "self" ? "自摸" : ("放槍（"+escapeHtml(p.loserName)+"）");
-    var headLine = escapeHtml(p.winnerName) + '・' + methodLabel + '・' + record.tai + '台' + bonusText;
+    var headLine = "胡牌（"+escapeHtml(p.winnerName)+"）" + methodLabel + '・' + record.tai + '台' + bonusText;
     document.getElementById("pendingPreviewDetail").innerHTML =
       '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
   }
