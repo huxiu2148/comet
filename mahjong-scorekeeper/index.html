@@ -56,6 +56,12 @@
   .hint-text{ font-size:.76rem; color: var(--ink-soft); margin:0 0 10px; line-height:1.5; }
 
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  /* 日期＋時間並排在窄手機螢幕上，iOS 原生的時間選擇器塞進一半寬度會被
+     擠壓變形（右側看起來特別緊繃），所以窄螢幕改成上下疊放，各自都有
+     全寬可以正常顯示。 */
+  @media (max-width: 420px){
+    .dt-row{ grid-template-columns: 1fr; }
+  }
   label.field{ display:block; font-size:.76rem; color: var(--ink-soft); margin-bottom:4px; font-weight:600; }
   input[type=text], input[type=number], input[type=date], input[type=time]{
     width:100%; padding:10px 12px; font-size:.95rem; border:1px solid var(--border); border-radius: 10px;
@@ -325,7 +331,7 @@
     <div id="newGamePanel" class="card">
       <h2>🀄 開新牌局</h2>
       <div class="section-label">日期與時間</div>
-      <div class="grid2">
+      <div class="grid2 dt-row">
         <input type="date" id="ngDate">
         <input type="time" id="ngTime">
       </div>
@@ -369,7 +375,7 @@
       <h2>📝 補記過去的牌局</h2>
       <p class="hint-text">沒有逐手紀錄也沒關係，只要輸入這場最後每個人輸贏多少錢，一樣會算進戰績、月曆與歷史牌局（門風、分析等逐手統計不會計入這場，因為沒有逐手資料）。</p>
       <div class="section-label">日期與時間</div>
-      <div class="grid2">
+      <div class="grid2 dt-row">
         <input type="date" id="bfDate">
         <input type="time" id="bfTime">
       </div>
