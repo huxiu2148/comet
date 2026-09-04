@@ -1072,6 +1072,13 @@
   // that matter (active tab etc.) right before publishing, and restore
   // them on the next load — otherwise every action from a non-本局 tab
   // bounces the viewer back to 本局, which reads as broken.
+  // commitState() only stashes at the moment it starts publishing, but the
+  // actual reload can land well after that (network round-trip) — if the
+  // viewer switches tabs in between, that later reload would restore the
+  // stale tab captured back when publish() was called and bounce them back
+  // to wherever they were before. So every navigation (tab bar, sub-tabs,
+  // calendar) re-stashes immediately too, keeping the snapshot always
+  // current no matter when a pending publish's reload actually arrives.
   var UI_SESSION_KEY = "twmj_ui_session_v1";
   var pendingScrollRestore = null;
   function stashUiForReload(){
@@ -1250,6 +1257,7 @@
     tabButtons[tbi].addEventListener("click", function(e){
       ui.tab = e.currentTarget.getAttribute("data-tab");
       updateTabVisibility();
+      stashUiForReload();
     });
   }
 
@@ -1981,7 +1989,7 @@
   });
   document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
   document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
-  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
+  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); stashUiForReload(); });
 
   document.getElementById("confirmPendingBtn").addEventListener("click", function(){ commitPendingHand(); });
   document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
@@ -2514,6 +2522,7 @@
     subBtns[sbi].addEventListener("click", function(e){
       ui.statsSub = e.currentTarget.getAttribute("data-sub");
       renderStatsTab();
+      stashUiForReload();
     });
   }
 
@@ -2925,10 +2934,12 @@
   document.getElementById("calPrev").addEventListener("click", function(){
     ui.calMonth--; if(ui.calMonth<0){ ui.calMonth=11; ui.calYear--; }
     renderCalendarTab();
+    stashUiForReload();
   });
   document.getElementById("calNext").addEventListener("click", function(){
     ui.calMonth++; if(ui.calMonth>11){ ui.calMonth=0; ui.calYear++; }
     renderCalendarTab();
+    stashUiForReload();
   });
 
   function renderCalDay(){
@@ -2974,6 +2985,7 @@
       ui.tab = "game";
       updateTabVisibility();
       renderAll();
+      stashUiForReload();
     });
     contentEl.appendChild(addBtn);
   }
@@ -3059,6 +3071,7 @@
         cell.addEventListener("click", function(){
           ui.calSelectedDate = isoCapture;
           renderCalendarTab();
+          stashUiForReload();
         });
       })(iso);
 
