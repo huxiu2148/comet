@@ -475,7 +475,8 @@
   <section id="tab-calendar" class="tab-page">
     <div class="card">
       <h2>📅 月曆</h2>
-      <p class="hint-text">日期下面是那天「我」的盈虧（綠贏紅輸），點日期看紀錄或補記一場。</p>
+      <p class="hint-text">日期下面是那天選中的人的盈虧（綠贏紅輸），點日期看紀錄或補記一場。</p>
+      <div class="chip-row" id="calTargetChips"></div>
       <div class="cal-head">
         <button type="button" class="btn btn-outline cal-nav" id="calPrev">‹</button>
         <div class="cal-title" id="calTitle">—</div>
@@ -611,7 +612,7 @@
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
-      <li>「自摸莊家台」開關：開著的話，自摸會自動幫莊家加上莊家台／連莊拉莊台；放槍不會自動加，要自己手動點「莊家」「連莊」台型。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動幫莊家加上莊家台／連莊拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）；放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
     </ul>
 
@@ -1118,6 +1119,21 @@
     var label = n <= 10 ? cn[n-1] : n;
     return "連" + label;
   }
+  // 本手預覽跟已記錄的本手清單都用這個組出「贏家怎麼贏的」文字，
+  // 兩處文字才會長得一樣，不會一邊寫「贏家 X」一邊寫「胡牌（X）」。自摸
+  // 不在這裡另外寫「自摸」，因為「自摸」本身就是台型標籤之一（觸發手勢
+  // 時會自動加選），會跟其他台型一起出現在後面的括號裡，不用寫兩次。
+  function winMethodLabel(method, winnerName, loserName){
+    var who = "胡牌（"+escapeHtml(winnerName)+"）";
+    return method === "self" ? who : (who+"・放槍（"+escapeHtml(loserName)+"）");
+  }
+  // 把台型標籤跟拉莊台加成合併成同一組括號說明，例如「（自摸、含拉莊台 +5台）」，
+  // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
+  function tagsAndBonusParen(tags, bonusTai){
+    var parts = (tags || []).map(escapeHtml).slice();
+    if(bonusTai > 0) parts.push("含拉莊台 +"+bonusTai+"台");
+    return parts.length ? ("（"+parts.join("、")+"）") : "";
+  }
   function activeGame(){
     if(!state.activeGameId) return null;
     var g = null;
@@ -1181,6 +1197,7 @@
     tab: "game",
     statsSub: "longterm",
     statsTargetName: null,
+    calTargetName: null,
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     calSelectedDate: null,
@@ -1879,15 +1896,32 @@
     document.getElementById("taiVal").innerHTML = ui.tai + "<small>其他台</small>";
     document.getElementById("taiTotalText").textContent = computeTotalTai();
   }
+  // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
+  // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
+  // 標籤，就會把同一份拉莊台多算一次。所以自摸、且開關開著時，這兩個
+  // 標籤要鎖起來（順便把可能殘留的選取清掉），只有放槍胡牌才需要手動點。
+  function dealerTagsLocked(){
+    return !!(ui.pendingHand && ui.pendingHand.method === "self" && ui.dealerBonusEnabled);
+  }
   function renderTaiTags(){
     var el = document.getElementById("taiTagRow");
     el.innerHTML = "";
+    var locked = dealerTagsLocked();
     sortedTaiTags().forEach(function(tag){
+      var isDealerTag = (tag.key === "zhuangjia" || tag.key === "lianzhuang");
+      var disabled = locked && isDealerTag;
+      if(disabled){
+        var stray = ui.taiTags.indexOf(tag.key);
+        if(stray !== -1) ui.taiTags.splice(stray, 1);
+      }
       var b = document.createElement("button");
       var active = ui.taiTags.indexOf(tag.key) !== -1;
       b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
       b.textContent = tag.label + "+" + tagValue(tag);
+      b.disabled = disabled;
+      if(disabled) b.title = "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
       b.addEventListener("click", function(){
+        if(disabled) return;
         var idx = ui.taiTags.indexOf(tag.key);
         if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
         renderGameTab();
@@ -2009,11 +2043,10 @@
       var h = set.hands[i];
       var item = document.createElement("div");
       item.className = "log-item";
-      var bonusText = h.dealerBonusTai > 0 ? "（含拉莊台 +"+h.dealerBonusTai+"台）" : "";
-      var dealerStreakText = h.streak > 0 ? '（'+streakLabel(h.streak)+'）' : '';
+      var dealerPart = h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName));
       var headLine, detail;
       if(h.method === "draw"){
-        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・流局（沒人胡牌）';
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・流局（沒人胡牌）';
         detail = '不換錢，莊家連莊。';
       }else{
         if(h.method === "discard"){
@@ -2027,9 +2060,7 @@
           });
           detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
         }
-        var methodLabel = h.method === "self" ? "自摸" : ("放槍（"+escapeHtml(h.loserName)+"）");
-        var tagsText = (h.tags && h.tags.length) ? '（'+h.tags.map(escapeHtml).join('、')+'）' : '';
-        headLine = '第'+(i+1)+'手・莊家 '+escapeHtml(h.dealerName)+dealerStreakText+'・贏家 '+escapeHtml(h.winnerName)+'・'+methodLabel+'・'+h.tai+'台'+tagsText+bonusText;
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, h.dealerBonusTai);
       }
       item.innerHTML =
         '<div class="log-head">'+headLine+'</div>' +
@@ -2099,7 +2130,6 @@
     if(!p){ panel.style.display = "none"; return; }
     panel.style.display = "block";
     var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels());
-    var bonusText = record.dealerBonusTai > 0 ? "（含拉莊台 +"+record.dealerBonusTai+"台）" : "";
     var detail;
     if(p.method === "discard"){
       detail = escapeHtml(p.loserName) + ' <span class="minus">-'+record.amount+'</span> → ' +
@@ -2112,8 +2142,7 @@
       });
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
-    var methodLabel = p.method === "self" ? "自摸" : ("放槍（"+escapeHtml(p.loserName)+"）");
-    var headLine = "胡牌（"+escapeHtml(p.winnerName)+"）" + methodLabel + '・' + record.tai + '台' + bonusText;
+    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, record.dealerBonusTai);
     document.getElementById("pendingPreviewDetail").innerHTML =
       '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
   }
@@ -2896,6 +2925,25 @@
     contentEl.appendChild(addBtn);
   }
 
+  function currentCalTarget(){
+    if(ui.calTargetName && statsTargetCandidates().indexOf(ui.calTargetName) !== -1) return ui.calTargetName;
+    var me = meRoster();
+    return me ? me.name : (statsTargetCandidates()[0] || null);
+  }
+  function renderCalTargetChips(){
+    var el = document.getElementById("calTargetChips");
+    el.innerHTML = "";
+    var target = currentCalTarget();
+    statsTargetCandidates().forEach(function(name){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (name === target ? " chip-selected" : "");
+      b.textContent = name;
+      b.addEventListener("click", function(){ ui.calTargetName = name; renderCalendarTab(); });
+      el.appendChild(b);
+    });
+  }
+
   function renderCalendarTab(){
     var y = ui.calYear, m = ui.calMonth;
     document.getElementById("calTitle").textContent = y+"年"+(m+1)+"月";
@@ -2903,7 +2951,8 @@
     var startWeekday = first.getDay();
     var daysInMonth = new Date(y, m+1, 0).getDate();
     var daysInPrevMonth = new Date(y, m, 0).getDate();
-    var me = meRoster();
+    renderCalTargetChips();
+    var target = currentCalTarget();
 
     var byDate = {};
     state.games.forEach(function(g){
@@ -2939,10 +2988,10 @@
         monthGamesCount += games.length;
         games.forEach(function(g){ monthHands += allHandsOf(g).length; });
       }
-      if(games.length && me){
+      if(games.length && target){
         var dayNet = 0; var found = false;
         games.forEach(function(g){
-          if(g.players.indexOf(me.name) !== -1){ found = true; dayNet += (computeGameTotals(g)[me.name]||0); }
+          if(g.players.indexOf(target) !== -1){ found = true; dayNet += (computeGameTotals(g)[target]||0); }
         });
         if(found){
           var amtEl = document.createElement("div");
@@ -2964,8 +3013,8 @@
     }
 
     document.getElementById("calSummary").innerHTML =
-      '本月場次 <b>'+monthGamesCount+'</b> ・ 本月將數 <b>'+monthHands+'</b> ・ 本月我的輸贏 <b>' +
-      (me ? (monthNetKnown ? ((monthNet>0?'+':'')+monthNet) : '—') : '（尚未設定「我」）') + '</b>';
+      '本月場次 <b>'+monthGamesCount+'</b> ・ 本月將數 <b>'+monthHands+'</b> ・ 本月「'+(target?escapeHtml(target):'－')+'」的輸贏 <b>' +
+      (target ? (monthNetKnown ? ((monthNet>0?'+':'')+monthNet) : '—') : '（名單裡還沒有人）') + '</b>';
 
     renderCalDay();
   }
