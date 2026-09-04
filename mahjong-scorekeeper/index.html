@@ -403,7 +403,8 @@
           <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
           <button type="button" class="btn btn-outline" id="dealerBonusBtn">自摸莊家台 ✓</button>
         </div>
-        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家。選好後可以再調整台數，畫面上會先預覽金額，按「確認記錄」才會真的記上。</p>
+        <div id="activeSeatList" style="display:none; margin-top:8px;"></div>
+        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家。換位時可以直接點兩張卡片互換，或用下面清單的 ▲▼ 指定東南西北分別是誰。選好後可以再調整台數，畫面上會先預覽金額，按「確認記錄」才會真的記上。</p>
 
         <div class="undo-row" style="margin-top:6px;">
           <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
@@ -1649,6 +1650,56 @@
     commitState(newState);
   }
 
+  // 換位模式下，除了直接點兩張卡片互換，也可以用清單上的 ▲▼ 把任何一位
+  // 移到指定的東南西北位置——跟點卡互換是同一份 seatOrder，兩種操作互通。
+  function swapActiveSeatIdx(i, j){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(isReadOnly) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    var order = ns.seatOrder.slice();
+    var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    ns.seatOrder = order;
+    commitState(newState);
+  }
+
+  function renderSwapSeatList(set){
+    var container = document.getElementById("activeSeatList");
+    if(!ui.swapMode){ container.style.display = "none"; container.innerHTML = ""; return; }
+    container.style.display = "block";
+    container.innerHTML = "";
+    var me = meRoster();
+    set.seatOrder.forEach(function(name, idx){
+      var row = document.createElement("div");
+      row.className = "seat-row" + (ui.swapSelected === name ? " seat-row-selected" : "");
+      var badge = document.createElement("span");
+      badge.className = "wind-chip" + (idx === set.dealerIndex ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      var nameEl = document.createElement("span");
+      nameEl.className = "seat-name";
+      nameEl.textContent = name;
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
+      }
+      var upBtn = document.createElement("button");
+      upBtn.type = "button"; upBtn.className = "seat-arrow"; upBtn.textContent = "▲"; upBtn.disabled = idx === 0;
+      upBtn.addEventListener("click", function(e){ e.stopPropagation(); swapActiveSeatIdx(idx, idx-1); });
+      var downBtn = document.createElement("button");
+      downBtn.type = "button"; downBtn.className = "seat-arrow"; downBtn.textContent = "▼"; downBtn.disabled = idx === 3;
+      downBtn.addEventListener("click", function(e){ e.stopPropagation(); swapActiveSeatIdx(idx, idx+1); });
+
+      row.appendChild(badge);
+      row.appendChild(nameEl);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+      container.appendChild(row);
+    });
+  }
+
   // ---- gesture recognition: triple-tap = self-draw, press+drag onto another card = discard ----
   var DRAG_THRESHOLD = 12;
   var TAP_WINDOW = 700;
@@ -2013,6 +2064,7 @@
 
     document.getElementById("swapModeBtn").classList.toggle("selected", ui.swapMode);
     document.getElementById("swapModeBtn").textContent = ui.swapMode ? "🔁 換位中" : "🔁 換位";
+    renderSwapSeatList(set);
     document.getElementById("dealerBonusBtn").classList.toggle("selected", ui.dealerBonusEnabled);
     document.getElementById("dealerBonusBtn").textContent = "自摸莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
 
