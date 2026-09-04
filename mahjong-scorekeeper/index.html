@@ -2277,6 +2277,25 @@
     });
   }
 
+  // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
+  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。
+  function computeDrinkTreatCounts(endedGames){
+    var counts = {};
+    endedGames.forEach(function(g){
+      var totals = computeGameTotals(g);
+      var min = null;
+      g.players.forEach(function(n){
+        var v = totals[n] || 0;
+        if(min === null || v < min) min = v;
+      });
+      if(min === null || min >= 0) return; // 這場沒人真的輸錢
+      g.players.forEach(function(n){
+        if((totals[n]||0) === min) counts[n] = (counts[n]||0) + 1;
+      });
+    });
+    return counts;
+  }
+
   function renderLongTermHtml(endedGames){
     if(!endedGames.length){
       return '<div class="empty-hint">還沒有結束的牌局。<br>在「本局」開一場牌局，結束後統計會出現在這裡。</div>';
@@ -2303,8 +2322,18 @@
         '<div class="stat-mid">'+d.games+' 場</div>' +
         '<div class="stat-amt '+cls+'">'+sign+d.net+'<small>平均 '+(avg>=0?'+':'')+avg+'/場</small></div></div>';
     }).join("");
+
+    var drinkCounts = computeDrinkTreatCounts(endedGames);
+    var drinkNames = Object.keys(drinkCounts).sort(function(a,b){ return drinkCounts[b]-drinkCounts[a]; });
+    var drinkSection = drinkNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">🍹 請飲料次數（每場最輸的人請客）</div>' +
+       '<div class="stat-list">' + drinkNames.map(function(n){
+         return '<div class="stat-row"><div class="stat-name">'+escapeHtml(n)+'</div>' +
+           '<div class="stat-amt">🍹 '+drinkCounts[n]+' 次</div></div>';
+       }).join('') + '</div>') : '';
+
     return '<div class="stat-summary">總場次 <b>'+endedGames.length+'</b> ・ 總手數 <b>'+totalHands+'</b></div>' +
-      '<div class="stat-list">'+rows+'</div>';
+      '<div class="stat-list">'+rows+'</div>' + drinkSection;
   }
 
   function statsTargetCandidates(){
