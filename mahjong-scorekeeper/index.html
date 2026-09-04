@@ -326,7 +326,7 @@
 
       <div id="ngSeatBlock" style="display:none;">
         <div class="section-label">抓位門風 <button type="button" class="link-btn" id="ngReshuffleBtn">🔀 重新抓位</button></div>
-        <p class="hint-text">已隨機抓位，坐東的那位是第一位莊家（開局後還能改）。點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
+        <p class="hint-text">已照選人順序排好座位，坐東的那位是第一位莊家（開局後還能改）。想隨機排可以按上面「重新抓位」；也可以點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
         <button type="button" class="btn btn-outline btn-block" id="ngSwapModeBtn" style="margin-bottom:8px;">🔁 點兩人互換：關閉</button>
         <div id="ngSeatList"></div>
       </div>
@@ -563,7 +563,7 @@
   <div class="modal-box">
     <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:16px;">🏁 這將打完</div>
     <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
-    <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（重新抓位）</button>
+    <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（沿用座位）</button>
     <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
   </div>
 </div>
@@ -1189,7 +1189,9 @@
     var seatBlock = document.getElementById("ngSeatBlock");
     if(ui.newGame.opponents.length === 3){
       seatBlock.style.display = "block";
-      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = shuffle([me.name].concat(ui.newGame.opponents));
+      // 預設不隨機洗牌，照選人的順序排（我最先選、排最前面，就坐東當第一位莊家）；
+      // 想要隨機排的話可以按「重新抓位」。
+      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = [me.name].concat(ui.newGame.opponents);
       renderNgSeatList();
     }else{
       seatBlock.style.display = "none";
@@ -1875,8 +1877,10 @@
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.status = "ended"; ns.endedAt = Date.now();
+    // 預設不隨機重新抓位，沿用這將結束時的座位（東還是原本那位，當新的第一位莊家）；
+    // 想換座位可以在新的一將裡用「換位」調整。
     ng.sets.push({
-      id: genId("s"), seatOrder: shuffle(ng.players), dealerIndex: 0, streak: 0,
+      id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
