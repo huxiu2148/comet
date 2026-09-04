@@ -273,6 +273,24 @@
   .modal-actions{ display:flex; gap:10px; }
   .modal-actions .btn{ flex:1; padding:12px; min-height:auto; }
   #modalInput{ margin-bottom:14px; }
+  .help-overlay{
+    position:fixed; inset:0; background: var(--bg); z-index:220;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .help-header{
+    position:sticky; top:0; background: var(--bg); z-index:2;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:16px; border-bottom:1px solid var(--border);
+  }
+  .help-header h2{ margin:0; font-size:1.02rem; }
+  .help-header .btn{ padding:8px 14px; min-height:auto; }
+  .help-body{ padding:16px; padding-bottom:48px; max-width:520px; margin:0 auto; }
+  .help-body h3{ font-size:.95rem; margin:24px 0 8px; color:var(--ink); }
+  .help-body h3:first-child{ margin-top:0; }
+  .help-body p{ font-size:.85rem; color:var(--ink-soft); line-height:1.75; margin:0 0 10px; }
+  .help-body ul{ margin:0 0 10px; padding-left:20px; }
+  .help-body li{ font-size:.85rem; color:var(--ink-soft); line-height:1.75; margin-bottom:5px; }
+  .help-body b{ color:var(--ink); font-weight:600; }
   .toast{
     position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
     background: var(--accent-dark); color:#fff; padding:10px 18px; border-radius:999px;
@@ -497,6 +515,11 @@
   <!-- ============ 設定 ============ -->
   <section id="tab-settings" class="tab-page">
     <div class="card">
+      <h2>📖 使用說明</h2>
+      <p class="hint-text">第一次用、或忘記怎麼操作，都可以看這裡。</p>
+      <button type="button" class="btn btn-outline btn-block" id="openHelpBtn">📖 打開使用說明</button>
+    </div>
+    <div class="card">
       <h2>⚙️ 預設底台</h2>
       <p class="hint-text">開新牌局時會預先帶入這裡的數字，仍可在開局時個別調整。</p>
       <div class="grid2">
@@ -565,6 +588,59 @@
     <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
     <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（沿用座位）</button>
     <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
+  </div>
+</div>
+<div id="helpOverlay" class="help-overlay" style="display:none;">
+  <div class="help-header">
+    <h2>📖 使用說明</h2>
+    <button type="button" class="btn btn-outline" id="closeHelpBtn">關閉</button>
+  </div>
+  <div class="help-body">
+    <h3>🎬 開新牌局</h3>
+    <ul>
+      <li>先到「名單」分頁標好誰是「我」，開局才能自動幫你入座。</li>
+      <li>選 3 位對手、設定底／台，就能按「開局」。</li>
+      <li>座位預設照選人的順序排，第一個選的（通常是「我」）坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
+      <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
+    </ul>
+
+    <h3>🀄 記錄一手</h3>
+    <ul>
+      <li><b>放槍</b>：長按胡牌者的卡片，拖曳到放槍者的卡片上放開。</li>
+      <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
+      <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
+      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
+      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動幫莊家加上莊家台／連莊拉莊台；放槍不會自動加，要自己手動點「莊家」「連莊」台型。</li>
+      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
+    </ul>
+
+    <h3>🔁 換位</h3>
+    <ul>
+      <li>牌局進行中，任何時候都可以按「換位」進入換位模式：點兩張卡片可以互換位置，或用清單的 ▲▼ 一格一格調整，也能直接指定東南西北分別是誰。</li>
+      <li>換位中畫面只是先在本機調整、還沒存檔，調好之後要再按一次「換位」結束，才會真的記錄下來、同步到雲端。換位模式沒結束前，沒辦法記錄新的一手、刪除上一筆或結束這將。</li>
+      <li>「這將打完」之後選「再開一將」，預設會沿用上一將結束時的座位（不會重新洗牌），想換座位就在新的一將裡按「換位」調整。</li>
+    </ul>
+
+    <h3>🏁 這將打完</h3>
+    <ul>
+      <li><b>還沒打完，回去繼續記</b>：不小心點到時可以取消。</li>
+      <li><b>再開一將（沿用座位）</b>：座位延續上一將結束時的樣子，莊家從東家重新算起。</li>
+      <li><b>結束整場並結算</b>：整場牌局結束，之後只能查看不能再記錄，會算進戰績、月曆與請客紀錄。</li>
+    </ul>
+
+    <h3>📊 戰績・📅 月曆</h3>
+    <ul>
+      <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析幾個子分頁，都只統計已經結束的牌局。</li>
+      <li>「月曆」看每天「我」的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
+      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果同一天打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。</li>
+    </ul>
+
+    <h3>👥 名單・⚙️ 設定</h3>
+    <ul>
+      <li>「名單」分頁點 ⭐ 標成常用，開局選人時會排在最前面；標「我」的那位是你自己，用在開局自動入座、門風／月曆／分析統計。</li>
+      <li>「設定」分頁可以改預設底台、看雲端同步狀態、匯出／還原備份（建議自己存一份，不依賴雲端），或清空所有資料重新開始。</li>
+    </ul>
   </div>
 </div>
 <div id="toast" class="toast" style="display:none;"></div>
@@ -1998,7 +2074,7 @@
     return slotOf;
   }
 
-  // 選好胡誰的銃／自摸之後先不記上，只算出這手的預覽金額，等使用者確認
+  // 選好放槍還是自摸之後先不記上，只算出這手的預覽金額，等使用者確認
   // （可能還要再調整台數）才真的寫進紀錄——buildHandRecord 是純函式，
   // 這裡呼叫只是拿計算結果來顯示，不會動到實際的 state。
   function renderPendingPreview(game, set){
@@ -2020,7 +2096,7 @@
       });
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
-    var methodLabel = p.method === "self" ? "自摸" : ("胡"+escapeHtml(p.loserName)+"的銃");
+    var methodLabel = p.method === "self" ? "自摸" : ("放槍（"+escapeHtml(p.loserName)+"）");
     var headLine = escapeHtml(p.winnerName) + '・' + methodLabel + '・' + record.tai + '台' + bonusText;
     document.getElementById("pendingPreviewDetail").innerHTML =
       '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
@@ -2302,6 +2378,13 @@
       commitState(defaultState());
     });
   });
+  document.getElementById("openHelpBtn").addEventListener("click", function(){
+    document.getElementById("helpOverlay").style.display = "block";
+    document.getElementById("helpOverlay").scrollTop = 0;
+  });
+  document.getElementById("closeHelpBtn").addEventListener("click", function(){
+    document.getElementById("helpOverlay").style.display = "none";
+  });
 
   // ================= 資料備份 =================
   // 不依賴雲端 artifact 或訂閱狀態的手動備份：匯出用「複製到剪貼簿」，
@@ -2532,7 +2615,7 @@
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
           if(!maxWin || myDelta > maxWin.amt){
-            var winWhat = h.method === "self" ? '自摸・'+h.effectiveTai+'台' : '胡'+escapeHtml(h.loserName)+'的銃・'+h.effectiveTai+'台';
+            var winWhat = h.method === "self" ? '自摸・'+h.effectiveTai+'台' : '放槍（'+escapeHtml(h.loserName)+'）・'+h.effectiveTai+'台';
             maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat };
           }
         }else{
