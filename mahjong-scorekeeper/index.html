@@ -2668,15 +2668,19 @@
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
+          // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
+          // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
+          // 排「單手最大」才準，所以說明文字也不放台數，避免看起來
+          // 像是照台數在排。
           if(!maxWin || myDelta > maxWin.amt){
-            var winWhat = h.method === "self" ? '自摸・'+h.effectiveTai+'台' : '放槍（'+escapeHtml(h.loserName)+'）・'+h.effectiveTai+'台';
+            var winWhat = h.method === "self" ? '自摸' : '放槍（'+escapeHtml(h.loserName)+'）';
             maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat };
           }
         }else{
           if(h.method === "discard" && h.loserName === targetName){
             gotDiscardedCount++; gotDiscardedAmt+=myDelta;
             if(!maxDealIn || myDelta < maxDealIn.amt){
-              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName)+'・'+h.effectiveTai+'台' };
+              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) };
             }
           }
           else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
