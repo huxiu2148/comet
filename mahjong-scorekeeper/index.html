@@ -58,8 +58,9 @@
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
   /* 日期＋時間並排在窄手機螢幕上，iOS 原生的時間選擇器塞進一半寬度會被
      擠壓變形（右側看起來特別緊繃），所以窄螢幕改成上下疊放，各自都有
-     全寬可以正常顯示。 */
-  @media (max-width: 420px){
+     全寬可以正常顯示。斷點要蓋過大尺寸手機（例如 iPhone Pro Max 系列
+     邏輯寬度約 428～430px），不然那些手機還是會維持並排、看起來還是擠。 */
+  @media (max-width: 480px){
     .dt-row{ grid-template-columns: 1fr; }
   }
   label.field{ display:block; font-size:.76rem; color: var(--ink-soft); margin-bottom:4px; font-weight:600; }
