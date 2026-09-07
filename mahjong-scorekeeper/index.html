@@ -681,6 +681,12 @@
 
   var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
+  // 分工預設輪流順序：拍照跟播音樂每次開局都自動指派下一位，記錄固定
+  // 都是徐。仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次
+  // 開局的輪流順序（順序只在按下「開局」的當下才往前推進一格）。
+  var PHOTO_ROTATION_NAMES = ["徐","綺","儒","榕"];
+  var MUSIC_ROTATION_NAMES = ["綺","儒","徐"];
+  var DEFAULT_RECORD_NAME = "徐";
   var WINDS = ["東","南","西","北"];
   var TAI_TAGS = [
     { key: "zhuangjia", label: "莊家", value: 1 },
@@ -766,7 +772,8 @@
       games: [],
       activeGameId: null,
       defaultBase: 100,
-      defaultTai: 20
+      defaultTai: 20,
+      dutyRotation: { photoIdx: 0, musicIdx: 0 }
     };
   }
 
@@ -924,6 +931,11 @@
     if(!ag || ag.status !== "active") s.activeGameId = null;
     s.defaultBase = typeof parsed.defaultBase === "number" ? parsed.defaultBase : 100;
     s.defaultTai = typeof parsed.defaultTai === "number" ? parsed.defaultTai : 20;
+    var rawRotation = (parsed.dutyRotation && typeof parsed.dutyRotation === "object") ? parsed.dutyRotation : {};
+    s.dutyRotation = {
+      photoIdx: typeof rawRotation.photoIdx === "number" ? rawRotation.photoIdx : 0,
+      musicIdx: typeof rawRotation.musicIdx === "number" ? rawRotation.musicIdx : 0
+    };
     return s;
   }
 
@@ -1443,17 +1455,24 @@
       id: genId("s"), seatOrder: ui.newGame.seatOrder.slice(), dealerIndex: 0, streak: 0,
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     };
+    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+    var photoName = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+    var musicName = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
     var newGame = {
       id: genId("g"), date: date, time: time, venue: venue, players: players,
       base: isNaN(base) ? 0 : Math.max(0, base),
       tai: isNaN(tai) ? 0 : Math.max(0, tai),
       selfDrawMode: ui.newGameSelfDrawMode,
-      status: "active", sets: [firstSet], duties: {record: me.name, music:null, photo:null},
+      status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
       createdAt: Date.now(), endedAt: null
     };
     var newState = deepClone(state);
     newState.games.push(newGame);
     newState.activeGameId = newGame.id;
+    newState.dutyRotation = {
+      photoIdx: (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length,
+      musicIdx: (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length
+    };
     newState.defaultBase = newGame.base;
     newState.defaultTai = newGame.tai;
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
