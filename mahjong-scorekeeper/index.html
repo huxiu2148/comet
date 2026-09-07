@@ -118,6 +118,8 @@
 
   .undo-row{ display:flex; gap:10px; margin-bottom:10px; }
   .undo-row .btn{ flex:1; }
+  .stepper-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .stepper-row .stepper{ flex:1; }
   .toggle-row{ display:flex; gap:10px; margin-top:12px; }
   .toggle-row .btn{ flex:1; padding:10px; min-height:auto; font-size:.82rem; }
 
@@ -422,12 +424,19 @@
         <div class="gesture-grid" id="gestureGrid"></div>
 
         <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
-        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。</p>
+        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
         <div class="chip-row" id="taiTagRow"></div>
-        <div class="stepper">
-          <button type="button" id="taiMinus">－</button>
-          <div class="val" id="taiVal">0<small>其他台</small></div>
-          <button type="button" id="taiPlus">＋</button>
+        <div class="stepper-row">
+          <div class="stepper">
+            <button type="button" id="taiMinus">－</button>
+            <div class="val" id="taiVal">0<small>其他台</small></div>
+            <button type="button" id="taiPlus">＋</button>
+          </div>
+          <div class="stepper">
+            <button type="button" id="huaMinus">－</button>
+            <div class="val" id="huaVal">0<small>花牌</small></div>
+            <button type="button" id="huaPlus">＋</button>
+          </div>
         </div>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
@@ -637,6 +646,7 @@
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
+      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
     </ul>
 
@@ -691,7 +701,9 @@
   var TAI_TAGS = [
     { key: "zhuangjia", label: "莊家", value: 1 },
     { key: "lianzhuang", label: "連莊", value: 1 },
-    { key: "zhongfabai", label: "中發白", value: 1 },
+    { key: "zhong", label: "中", value: 1 },
+    { key: "fa", label: "發", value: 1 },
+    { key: "bai", label: "白", value: 1 },
     { key: "sananke", label: "三暗刻", value: 2 },
     { key: "sianke", label: "四暗刻", value: 5 },
     { key: "wuanke", label: "五暗刻", value: 8 },
@@ -713,7 +725,8 @@
     { key: "zimo", label: "自摸", value: 1 },
     { key: "menqing", label: "門清", value: 1 },
     { key: "menqingzimo", label: "門清自摸", value: 3 },
-    { key: "fengpai", label: "風牌", value: 1 },
+    { key: "zifeng", label: "自風", value: 1 },
+    { key: "quanfeng", label: "圈風", value: 1 },
     { key: "huapai", label: "花牌", value: 1 },
     { key: "haidi", label: "海底撈月", value: 1 },
     { key: "gangshang", label: "槓上開花", value: 1 },
@@ -740,8 +753,11 @@
     });
     return freq;
   }
+  // 花牌可能同一手有好幾張（不是有/沒有的二選一），改用底下獨立的 +/-
+  // 計數器記錄，不放進這排可以點選的台型 chip 裡，避免跟一般「點了就
+  // 算過一次」的台型混在一起、只能點一次。
   function sortedTaiTags(){
-    var entries = TAI_TAGS.map(function(t, i){ return { tag: t, idx: i }; });
+    var entries = TAI_TAGS.filter(function(t){ return t.key !== "huapai"; }).map(function(t, i){ return { tag: t, idx: i }; });
     if(ui.taiSortMode === "freq"){
       var freq = computeTagFrequency();
       entries.sort(function(a, b){
@@ -1184,8 +1200,23 @@
   }
   // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
   // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
+  // 像花牌這種同一手可能出現好幾次的台型，tags 陣列裡會重複放好幾個
+  // 同樣的標籤（例如三張花就是 ["花牌","花牌","花牌"]），這裡先合併算
+  // 出現幾次，顯示成「花牌×3」而不是重複寫三次「花牌」。
+  function groupTagCounts(tags){
+    var counts = {}, order = [];
+    (tags || []).forEach(function(label){
+      if(!(label in counts)){ counts[label] = 0; order.push(label); }
+      counts[label]++;
+    });
+    return { counts: counts, order: order };
+  }
   function tagsAndBonusParen(tags, bonusPhrase){
-    var parts = (tags || []).map(escapeHtml).slice();
+    var grouped = groupTagCounts(tags);
+    var parts = grouped.order.map(function(label){
+      var c = grouped.counts[label];
+      return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
+    });
     if(bonusPhrase) parts.push(bonusPhrase);
     return parts.length ? ("（"+parts.join("、")+"）") : "";
   }
@@ -1264,6 +1295,7 @@
     backfill: { opponents: [] },
     tai: 0,
     taiTags: [],
+    huaCount: 0,
     swapMode: false,
     swapSelected: null,
     swapSeatOrder: null,
@@ -1477,7 +1509,7 @@
     newState.defaultTai = newGame.tai;
     if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
     ui.newGameFormReady = false;
-    ui.tai = 0; ui.taiTags = []; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
     ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     commitState(newState);
   });
@@ -1688,19 +1720,28 @@
     };
   }
 
+  function huapaiTag(){
+    return TAI_TAGS.filter(function(t){ return t.key === "huapai"; })[0];
+  }
   function computeTotalTai(){
     var sum = ui.tai;
     ui.taiTags.forEach(function(key){
       var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
       if(tag) sum += tagValue(tag);
     });
+    sum += ui.huaCount * huapaiTag().value;
     return sum;
   }
   function taiTagLabels(){
-    return ui.taiTags.map(function(key){
+    var labels = ui.taiTags.map(function(key){
       var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
       return tag ? tag.label : key;
     });
+    // 花牌可能同一手有好幾張，重複放進標籤陣列裡（不是只放一次），
+    // 這樣「單手最大胡牌」的台型拆解跟「常胡台型」次數統計才會照實際
+    // 張數算，不會把好幾張花牌當成只中了一次。
+    for(var i=0;i<ui.huaCount;i++) labels.push(huapaiTag().label);
+    return labels;
   }
 
   function commitHand(winnerName, method, loserName){
@@ -1713,7 +1754,7 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.pendingHand = null;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null;
     commitState(newState);
   }
 
@@ -1959,6 +2000,9 @@
     document.getElementById("taiVal").innerHTML = ui.tai + "<small>其他台</small>";
     document.getElementById("taiTotalText").textContent = computeTotalTai();
   }
+  function renderHuaVal(){
+    document.getElementById("huaVal").innerHTML = ui.huaCount + "<small>花牌</small>";
+  }
   // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
   // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
   // 標籤，就會把同一份拉莊台多算一次。所以自摸、且開關開著時，這兩個
@@ -1996,6 +2040,8 @@
   }
   document.getElementById("taiMinus").addEventListener("click", function(){ ui.tai = Math.max(0, ui.tai-1); renderGameTab(); });
   document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
+  document.getElementById("huaMinus").addEventListener("click", function(){ ui.huaCount = Math.max(0, ui.huaCount-1); renderGameTab(); });
+  document.getElementById("huaPlus").addEventListener("click", function(){ ui.huaCount = Math.min(8, ui.huaCount+1); renderGameTab(); });
   document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
     ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
     saveTaiSortMode(ui.taiSortMode);
@@ -2073,7 +2119,7 @@
       hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
-    ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = [];
+    ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2221,6 +2267,7 @@
 
     renderDuties(game);
     renderTaiVal();
+    renderHuaVal();
     renderTaiTags();
 
     var setTotals = computeSetTotals(set);
@@ -2701,11 +2748,14 @@
   function handTaiBreakdownText(h){
     var parts = [];
     var tagSum = 0;
-    (h.tags || []).forEach(function(label){
+    var grouped = groupTagCounts(h.tags);
+    grouped.order.forEach(function(label){
       var tag = TAI_TAGS.filter(function(t){ return t.label === label; })[0];
-      var val = tag ? (tag.key === "lianzhuang" ? 2*h.streak : tag.value) : 0;
+      var perVal = tag ? (tag.key === "lianzhuang" ? 2*h.streak : tag.value) : 0;
+      var count = grouped.counts[label];
+      var val = perVal * count;
       tagSum += val;
-      parts.push(escapeHtml(label)+"+"+val);
+      parts.push(escapeHtml(label) + (count > 1 ? ("×"+count) : "") + "+" + val);
     });
     var other = h.tai - tagSum;
     if(other !== 0) parts.push("其他台"+(other>0?"+":"")+other);
