@@ -415,7 +415,7 @@
 
     <div id="activeGamePanel" style="display:none;">
       <div class="card">
-        <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span></h2>
+        <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span><button type="button" class="link-btn danger" id="cancelGameBtn">🗑️ 取消牌局</button></h2>
         <div class="game-meta" id="gameMetaLine1"></div>
         <div class="game-meta" id="gameMetaLine2"></div>
       </div>
@@ -663,6 +663,7 @@
       <li><b>再開一將（沿用座位）</b>：座位延續上一將結束時的樣子，莊家從東家重新算起。</li>
       <li><b>結束整場並結算</b>：整場牌局結束，之後只能查看不能再記錄，會算進戰績、月曆與請客紀錄。</li>
     </ul>
+    <p class="hint-text">如果是不小心點到「開局」或只是想測試，可以按牌局卡片右上角的「🗑️ 取消牌局」，會直接把這場牌局刪掉、不會列入戰績（跟「結束整場並結算」不一樣，那個會保留紀錄）。</p>
 
     <h3>📊 戰績・📅 月曆</h3>
     <ul>
@@ -2138,6 +2139,29 @@
       newState.activeGameId = null;
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       commitState(newState);
+    });
+  });
+
+  // 開局按下去當下就已經把分工輪值往前推進一格（見 startGameBtn），如果
+  // 這場整個取消，輪值也要跟著退回去，不然下次開局會多跳一位、輪值就亂了。
+  document.getElementById("cancelGameBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    showConfirm("確定要取消這整場牌局嗎？不會列入戰績，牌局資料會直接刪除，且無法復原。", function(){
+      var newState = deepClone(state);
+      newState.games = newState.games.filter(function(g){ return g.id !== game.id; });
+      newState.activeGameId = null;
+      var rot = newState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      newState.dutyRotation = {
+        photoIdx: (rot.photoIdx - 1 + PHOTO_ROTATION_NAMES.length) % PHOTO_ROTATION_NAMES.length,
+        musicIdx: (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length
+      };
+      ui.newGameFormReady = false; ui.endSetPanelOpen = false;
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
+      ui.pendingHand = null;
+      commitState(newState);
+      showToast("已取消這場牌局。");
     });
   });
 
