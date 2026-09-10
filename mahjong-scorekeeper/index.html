@@ -141,12 +141,10 @@
   .cloud-badge.local{ background: var(--accent-soft); color: var(--ink-soft); }
   .cloud-badge.synced{ background: var(--win); color:#fff; }
   .cloud-badge.syncing{ background: var(--accent-soft); color: var(--ink); }
-  .cloud-badge.readonly{ background:#5b6b8c; color:#fff; }
   .cloud-badge-lg{ display:inline-block; font-size:.82rem; font-weight:700; padding:6px 14px; border-radius:999px; margin-bottom:8px; }
   .cloud-badge-lg.local{ background: var(--accent-soft); color: var(--ink-soft); }
   .cloud-badge-lg.synced{ background: var(--win); color:#fff; }
   .cloud-badge-lg.syncing{ background: var(--accent-soft); color: var(--ink); }
-  .cloud-badge-lg.readonly{ background:#5b6b8c; color:#fff; }
 
   .tab-page{ display:none; }
   .tab-page.active{ display:block; }
@@ -281,8 +279,8 @@
     margin-top:12px; padding:12px; border:1px dashed var(--border); border-radius:14px; background: var(--accent-soft);
   }
 
-  /* custom confirm/prompt/alert — native dialogs are unreliable inside the
-     Artifact viewer's sandboxed iframe, so everything goes through this. */
+  /* custom confirm/prompt/alert so the dialog styling matches the rest of
+     the app instead of the browser's plain native confirm/alert boxes. */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(30,29,26,.5); z-index:200;
     display:flex; align-items:center; justify-content:center; padding:24px;
@@ -689,13 +687,31 @@
 </div>
 <div id="toast" class="toast" style="display:none;"></div>
 </div>
-<script id="initial-state" type="application/json">{}</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script id="app-script">
 (function(){
   "use strict";
-  // Captured before any render touches the DOM, so this always holds the
-  // pristine empty shell — the same shell every published version starts from.
-  var BODY_SHELL_HTML = document.getElementById("app-shell").outerHTML;
+
+  // Firebase 專案的用戶端設定值——這些不是密鑰，是給瀏覽器端 SDK 用的
+  // 公開識別碼，真正擋住陌生人讀寫的是 Realtime Database 的安全規則
+  // （要求 auth != null）搭配匿名登入。
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDZG4zl9RRXS5qeAmbDzfYkeJ_4AQEzIJw",
+    authDomain: "mahjong-f70cf.firebaseapp.com",
+    databaseURL: "https://mahjong-f70cf-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "mahjong-f70cf",
+    storageBucket: "mahjong-f70cf.firebasestorage.app",
+    messagingSenderId: "779962030974",
+    appId: "1:779962030974:web:ea61621378ae745e91712f",
+    measurementId: "G-00XGV9KDRX"
+  };
+  var STATE_PATH = "mahjong/state";
+  // 從 Claude Artifact 版本搬過來時的既有牌局資料，只有在 Firebase 資料庫
+  // 完全還是空的（專案剛建立、第一次真的有人打開）時才會寫進去當起始值，
+  // 之後 Firebase 裡的資料就是唯一真相，不會再用到這份種子。
+  var SEED_STATE = {"roster":[{"id":"r0","name":"徐","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0}};
 
   var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
@@ -963,13 +979,6 @@
     return s;
   }
 
-  function readEmbeddedState(){
-    try{
-      var el = document.getElementById("initial-state");
-      if(!el || !el.textContent) return null;
-      return normalizeState(JSON.parse(el.textContent));
-    }catch(e){ return null; }
-  }
   function loadLocal(){
     try{
       var raw = localStorage.getItem(STORAGE_KEY);
@@ -981,28 +990,19 @@
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }catch(e){}
   }
 
-  var state = readEmbeddedState() || loadLocal() || defaultState();
+  // localStorage 只是離線快取，先拿來畫第一畫面不用等網路；真正的資料
+  // 來源是 Firebase，連上之後 attachStateListener 收到的值會覆蓋這裡。
+  var state = loadLocal() || defaultState();
 
-  // ---------- cloud sync (Artifact "artifact" capability) ----------
-  var artifactNs = null;
-  var cloudReady = false;
-  var isReadOnly = false;
+  // ---------- cloud sync (Firebase Realtime Database) ----------
+  var db = null;
+  var cloudReady = false; // 已連上 Firebase、且至少收過一次資料
   var syncing = false;
-
-  function buildFullHtml(newState){
-    var styleText = document.getElementById("app-style").textContent;
-    var scriptText = document.getElementById("app-script").textContent;
-    var stateJson = JSON.stringify(newState).replace(/</g, "\\u003c");
-    return "<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover\">\n<title>麻將算帳本</title>\n<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n<meta name=\"mobile-web-app-capable\" content=\"yes\">\n<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\">\n<meta name=\"apple-mobile-web-app-title\" content=\"麻將算帳本\">\n<meta name=\"theme-color\" content=\"#f5f4f1\">\n<style id=\"app-style\">" +
-      styleText + "</style>\n</head>\n<body>\n" + BODY_SHELL_HTML +
-      "\n<script id=\"initial-state\" type=\"application/json\">" + stateJson + "<\/script>\n<script id=\"app-script\">" +
-      scriptText + "<\/script>\n</body>\n</html>";
-  }
 
   function setCloudBadge(){
     var text, cls, hint;
-    if(!cloudReady){ text="💾 本機模式"; cls="local"; hint="這個分頁不是透過已發布的 Claude Artifact 網址開啟，資料只存在這台裝置的瀏覽器裡。"; }
-    else if(isReadOnly){ text="👀 唯讀檢視"; cls="readonly"; hint="你目前只有檢視權限，無法記錄或修改，請向頁面擁有者索取編輯權限。"; }
+    if(typeof firebase === "undefined"){ text="💾 本機模式"; cls="local"; hint="連不上雲端資料庫（可能網路問題或擋住了 Firebase），資料只存在這台裝置的瀏覽器裡。"; }
+    else if(!cloudReady){ text="☁️ 連線中…"; cls="syncing"; hint="正在連線雲端資料庫…"; }
     else if(syncing){ text="☁️ 同步中…"; cls="syncing"; hint="正在把最新資料同步到雲端…"; }
     else{ text="☁️ 雲端已同步"; cls="synced"; hint="資料已同步到雲端，任何裝置打開同一個網址都會看到最新內容。"; }
     var el = document.getElementById("cloudBadge");
@@ -1021,42 +1021,55 @@
 
   function commitState(newState){
     // 按下去要馬上有反應，不等雲端同步的網路來回——先在本機套用、立刻
-    // 重繪，雲端同步只影響右上角的同步狀態圓標。真的沒有寫入權限（唯讀
-    // 檢視）才需要把剛剛先套用的變更復原；一般的網路失敗則保留在本機，
+    // 重繪，雲端同步只影響右上角的同步狀態圓標；網路失敗則保留在本機，
     // 下一步操作會再一起帶著重試。
-    var previousState = state;
     applyLocally(newState);
-    if(!cloudReady || isReadOnly || !artifactNs) return;
+    if(!db || !cloudReady) return;
     syncing = true; setCloudBadge();
-    var html;
-    try{ html = buildFullHtml(newState); }
-    catch(e){ syncing = false; setCloudBadge(); return; }
-    stashUiForReload();
-    artifactNs.publish(html).then(function(){
+    db.ref(STATE_PATH).set(newState).then(function(){
       syncing = false;
       setCloudBadge();
-    }, function(err){
+    }).catch(function(){
       syncing = false;
-      var code = err && err.code;
-      if(code === "conflict"){ setCloudBadge(); return; }
-      if(code === "not_writer" || code === "not_granted" || code === "not_declared" ||
-         code === "capability_disabled" || code === "capability_removed"){
-        isReadOnly = true;
-        applyLocally(previousState);
-        setCloudBadge();
-        showAlert("目前是唯讀檢視，無法記錄或修改。請向頁面擁有者索取編輯權限。");
-        return;
-      }
       setCloudBadge();
       showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
     });
   }
 
+  // 第一次連上、資料庫還完全是空的（全新專案）時，用這份內建的種子資料
+  // 當起始值寫進去，避免每個人打開都看到空白的名單跟牌局。之後就完全
+  // 由 Firebase 裡的資料當唯一真相，這份種子只在「從來沒人寫過」時用一次。
+  function attachStateListener(){
+    db.ref(STATE_PATH).on("value", function(snapshot){
+      var val = snapshot.val();
+      if(val === null){
+        db.ref(STATE_PATH).set(SEED_STATE);
+        return; // 這個 set 完成後，同一個監聽器會再收到一次剛寫入的值
+      }
+      var normalized = normalizeState(val);
+      if(normalized){ state = normalized; saveLocal(state); renderAll(); }
+      cloudReady = true;
+      setCloudBadge();
+    }, function(){
+      setCloudBadge();
+    });
+  }
+
+  function initFirebase(){
+    if(typeof firebase === "undefined"){ setCloudBadge(); return; }
+    try{ firebase.initializeApp(FIREBASE_CONFIG); }
+    catch(e){ setCloudBadge(); return; }
+    db = firebase.database();
+    // 用匿名登入擋掉完全陌生人隨便寫入（資料庫規則要求 auth != null），
+    // 對使用者來說不需要任何登入畫面，第一次打開就自動處理好。
+    firebase.auth().onAuthStateChanged(function(user){
+      if(user) attachStateListener();
+    });
+    firebase.auth().signInAnonymously().catch(function(){ setCloudBadge(); });
+    setCloudBadge();
+  }
+
   // ---------- custom confirm/prompt/alert/toast ----------
-  // Native window.confirm/prompt/alert are silently blocked (return
-  // false/null instantly, no dialog shown) inside the Artifact viewer's
-  // sandboxed iframe, which made every confirm-gated button look totally
-  // unresponsive. Everything routes through these instead.
   function closeModal(){
     document.getElementById("modalOverlay").style.display = "none";
     document.getElementById("modalInput").style.display = "none";
@@ -1124,57 +1137,6 @@
     el.style.display = "block";
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function(){ el.style.display = "none"; }, 2800);
-  }
-
-  // ---------- ui state that must survive a cloud-publish reload ----------
-  // A successful artifact publish reloads this view (platform behavior),
-  // wiping the in-memory `ui` object. Stash the bits of navigation state
-  // that matter (active tab etc.) right before publishing, and restore
-  // them on the next load — otherwise every action from a non-本局 tab
-  // bounces the viewer back to 本局, which reads as broken.
-  // commitState() only stashes at the moment it starts publishing, but the
-  // actual reload can land well after that (network round-trip) — if the
-  // viewer switches tabs in between, that later reload would restore the
-  // stale tab captured back when publish() was called and bounce them back
-  // to wherever they were before. So every navigation (tab bar, sub-tabs,
-  // calendar) re-stashes immediately too, keeping the snapshot always
-  // current no matter when a pending publish's reload actually arrives.
-  var UI_SESSION_KEY = "twmj_ui_session_v1";
-  var pendingScrollRestore = null;
-  function stashUiForReload(){
-    try{
-      sessionStorage.setItem(UI_SESSION_KEY, JSON.stringify({
-        tab: ui.tab, statsSub: ui.statsSub, calSelectedDate: ui.calSelectedDate,
-        calYear: ui.calYear, calMonth: ui.calMonth, showDuties: ui.showDuties,
-        scrollY: window.scrollY
-      }));
-    }catch(e){}
-  }
-  function restoreUiFromSession(){
-    try{
-      var raw = sessionStorage.getItem(UI_SESSION_KEY);
-      if(!raw) return;
-      sessionStorage.removeItem(UI_SESSION_KEY);
-      var saved = JSON.parse(raw);
-      if(saved.tab) ui.tab = saved.tab;
-      if(saved.statsSub) ui.statsSub = saved.statsSub;
-      if(typeof saved.calSelectedDate !== "undefined") ui.calSelectedDate = saved.calSelectedDate;
-      if(typeof saved.calYear === "number") ui.calYear = saved.calYear;
-      if(typeof saved.calMonth === "number") ui.calMonth = saved.calMonth;
-      if(typeof saved.showDuties === "boolean") ui.showDuties = saved.showDuties;
-      if(typeof saved.scrollY === "number") pendingScrollRestore = saved.scrollY;
-    }catch(e){}
-  }
-  // 雲端發布後整個畫面會重新載入（平台行為），瀏覽器預設會把捲動位置
-  // 重置到最上面。等首次畫面畫完之後再把記錄下來的捲動位置還原，
-  // 使用者才不會覺得每點一下就被跳回最上方。
-  function restoreScrollIfPending(){
-    if(pendingScrollRestore === null) return;
-    var y = pendingScrollRestore;
-    pendingScrollRestore = null;
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){ window.scrollTo(0, y); });
-    });
   }
 
   // ---------- shared helpers ----------
@@ -1314,7 +1276,6 @@
     taiSortMode: loadTaiSortMode(),
     pendingHand: null
   };
-  restoreUiFromSession();
 
   // ================= TAB NAVIGATION =================
   function updateTabVisibility(){
@@ -1333,7 +1294,6 @@
     tabButtons[tbi].addEventListener("click", function(e){
       ui.tab = e.currentTarget.getAttribute("data-tab");
       updateTabVisibility();
-      stashUiForReload();
     });
   }
 
@@ -1755,7 +1715,6 @@
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
-    if(isReadOnly) return;
     var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels());
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -1783,7 +1742,6 @@
   function commitDraw(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
-    if(isReadOnly) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var record = buildDrawRecord(set);
@@ -1846,7 +1804,6 @@
   function setDealerGesture(name){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
-    if(isReadOnly) return;
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var idx = set.seatOrder.indexOf(name);
     if(idx === -1 || idx === set.dealerIndex) return;
@@ -1926,7 +1883,6 @@
   function attachCardGestures(cardEl, playerName){
     var drag = null;
     cardEl.addEventListener("pointerdown", function(e){
-      if(isReadOnly) return;
       drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId };
       try{ cardEl.setPointerCapture(e.pointerId); }catch(err){}
     });
@@ -1953,7 +1909,6 @@
       cardEl.style.zIndex = "";
       clearDropHighlights();
       drag = null;
-      if(isReadOnly) return;
       if(moved){
         var target = findDropTargetAt(startClientX, startClientY, cardEl);
         if(target && target !== playerName){
@@ -2086,7 +2041,7 @@
   });
   document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
   document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
-  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); stashUiForReload(); });
+  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
 
   document.getElementById("confirmPendingBtn").addEventListener("click", function(){ commitPendingHand(); });
   document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
@@ -2573,11 +2528,9 @@
   });
 
   // ================= 資料備份 =================
-  // 不依賴雲端 artifact 或訂閱狀態的手動備份：匯出用「複製到剪貼簿」，
-  // 匯入則用原生檔案選取（FileReader 讀檔一定能用）搭配貼上文字兩種方式。
-  // （原本還有一個「下載檔案」按鈕用 downloads capability 存檔，但宣告了
-  // downloads capability 之後 Artifact 就無法用「知道連結的人」公開分享，
-  // 為了讓大家能直接分享連結一起用，這裡拿掉了，備份改成只靠複製到剪貼簿。）
+  // 不依賴雲端資料庫的手動備份：匯出用「複製到剪貼簿」，匯入則用原生
+  // 檔案選取（FileReader 讀檔一定能用）搭配貼上文字兩種方式，就算 Firebase
+  // 掛了或想搬到別的地方，也還有這份保險。
   function closeBackupPanels(){
     document.getElementById("backupExportPanel").style.display = "none";
     document.getElementById("backupImportPanel").style.display = "none";
@@ -2643,7 +2596,6 @@
     subBtns[sbi].addEventListener("click", function(e){
       ui.statsSub = e.currentTarget.getAttribute("data-sub");
       renderStatsTab();
-      stashUiForReload();
     });
   }
 
@@ -3058,12 +3010,10 @@
   document.getElementById("calPrev").addEventListener("click", function(){
     ui.calMonth--; if(ui.calMonth<0){ ui.calMonth=11; ui.calYear--; }
     renderCalendarTab();
-    stashUiForReload();
   });
   document.getElementById("calNext").addEventListener("click", function(){
     ui.calMonth++; if(ui.calMonth>11){ ui.calMonth=0; ui.calYear++; }
     renderCalendarTab();
-    stashUiForReload();
   });
 
   function renderCalDay(){
@@ -3109,7 +3059,6 @@
       ui.tab = "game";
       updateTabVisibility();
       renderAll();
-      stashUiForReload();
     });
     contentEl.appendChild(addBtn);
   }
@@ -3195,7 +3144,6 @@
         cell.addEventListener("click", function(){
           ui.calSelectedDate = isoCapture;
           renderCalendarTab();
-          stashUiForReload();
         });
       })(iso);
 
@@ -3222,15 +3170,7 @@
 
   updateTabVisibility();
   renderAll();
-  restoreScrollIfPending();
-
-  if(window.claude && typeof window.claude.use === "function"){
-    window.claude.use("artifact").then(function(ns){
-      artifactNs = ns;
-      cloudReady = !!ns;
-      setCloudBadge();
-    });
-  }
+  initFirebase();
 })();
 
 </script>
