@@ -77,11 +77,6 @@
     width:100%; padding:10px 12px; font-size:.95rem; border:1px solid var(--border); border-radius: 10px;
     background: var(--bg); color: var(--ink);
   }
-  /* iOS 原生的日期／時間選擇器不會把裡面的文字撐滿整個輸入框寬度，
-     疊成一整排全寬之後，文字靠左、右邊會留下一大片看起來像切一半的
-     空白背景。限制最大寬度讓框本身貼合內容，右邊留白就變成正常的頁面
-     背景，而不是輸入框裡面奇怪的空洞。 */
-  input[type=date], input[type=time]{ max-width: 220px; }
   input:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
 
   .apply-btn{ margin-top:12px; width:100%; }
