@@ -655,7 +655,7 @@
 
     <h3>🎬 今天的分工</h3>
     <ul>
-      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是徐；拍照照固定順序輪流（徐→綺→儒→榕→徐…）；播音樂也照固定順序輪流（綺→儒→徐→綺…，榕不會輪到）。</li>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
       <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
     </ul>
@@ -728,16 +728,16 @@
   // 從 Claude Artifact 版本搬過來時的既有牌局資料，只有在 Firebase 資料庫
   // 完全還是空的（專案剛建立、第一次真的有人打開）時才會寫進去當起始值，
   // 之後 Firebase 裡的資料就是唯一真相，不會再用到這份種子。
-  var SEED_STATE = {"roster":[{"id":"r0","name":"徐","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0}};
+  var SEED_STATE = {"roster":[{"id":"r0","name":"彗","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0}};
 
   var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
   // 分工預設輪流順序：拍照跟播音樂每次開局都自動指派下一位，記錄固定
-  // 都是徐。仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次
+  // 都是彗。仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次
   // 開局的輪流順序（順序只在按下「開局」的當下才往前推進一格）。
-  var PHOTO_ROTATION_NAMES = ["徐","綺","儒","榕"];
-  var MUSIC_ROTATION_NAMES = ["綺","儒","徐"];
-  var DEFAULT_RECORD_NAME = "徐";
+  var PHOTO_ROTATION_NAMES = ["彗","綺","儒","榕"];
+  var MUSIC_ROTATION_NAMES = ["綺","儒","彗"];
+  var DEFAULT_RECORD_NAME = "彗";
   var WINDS = ["東","南","西","北"];
   var TAI_TAGS = [
     { key: "zhuangjia", label: "莊家", value: 1 },
@@ -855,6 +855,41 @@
     return a;
   }
   function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  // 改名時，名字是用字串直接存在各種歷史紀錄裡（不是用固定的 id 關聯），
+  // 所以單改 roster 上的名字不會連動改到歷史牌局；這裡把「這個名字出現過
+  // 的每個地方」都掃過一輪，包含每一手的莊家/胡牌/放槍者、每輪座位、
+  // 每一局的分工，讓改名後舊紀錄也會跟著顯示新名字。
+  function renameNameEverywhere(baseState, oldName, newName){
+    var ns = deepClone(baseState);
+    function swapArr(arr){
+      if(!arr) return;
+      for(var i=0;i<arr.length;i++){ if(arr[i] === oldName) arr[i] = newName; }
+    }
+    (ns.roster || []).forEach(function(r){ if(r.name === oldName) r.name = newName; });
+    (ns.games || []).forEach(function(g){
+      swapArr(g.players);
+      if(g.duties){
+        ["record","music","photo"].forEach(function(k){
+          if(g.duties[k] === oldName) g.duties[k] = newName;
+        });
+      }
+      (g.sets || []).forEach(function(s){
+        swapArr(s.seatOrder);
+        (s.hands || []).forEach(function(h){
+          if(h.dealerName === oldName) h.dealerName = newName;
+          if(h.winnerName === oldName) h.winnerName = newName;
+          if(h.loserName === oldName) h.loserName = newName;
+          swapArr(h.seatOrderAtHand);
+          if(h.deltas && Object.prototype.hasOwnProperty.call(h.deltas, oldName)){
+            h.deltas[newName] = h.deltas[oldName];
+            delete h.deltas[oldName];
+          }
+        });
+      });
+    });
+    return ns;
+  }
 
   // ---------- normalize / migrate ----------
   function syncDealerFromHands(set){
@@ -1468,35 +1503,92 @@
     var base = parseInt(document.getElementById("ngBase").value, 10);
     var tai = parseInt(document.getElementById("ngTai").value, 10);
     var players = [me.name].concat(ui.newGame.opponents);
-    var firstSet = {
-      id: genId("s"), seatOrder: ui.newGame.seatOrder.slice(), dealerIndex: 0, streak: 0,
-      hands: [], status: "active", createdAt: Date.now(), endedAt: null
-    };
-    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
-    var photoName = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
-    var musicName = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
-    var newGame = {
-      id: genId("g"), date: date, time: time, venue: venue, players: players,
-      base: isNaN(base) ? 0 : Math.max(0, base),
-      tai: isNaN(tai) ? 0 : Math.max(0, tai),
-      selfDrawMode: ui.newGameSelfDrawMode,
-      status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
-      createdAt: Date.now(), endedAt: null
-    };
-    var newState = deepClone(state);
-    newState.games.push(newGame);
-    newState.activeGameId = newGame.id;
-    newState.dutyRotation = {
-      photoIdx: (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length,
-      musicIdx: (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length
-    };
-    newState.defaultBase = newGame.base;
-    newState.defaultTai = newGame.tai;
-    if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
-    ui.newGameFormReady = false;
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
-    ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
-    commitState(newState);
+    var seatOrderSnapshot = ui.newGame.seatOrder.slice();
+    var selfDrawMode = ui.newGameSelfDrawMode;
+    var baseVal = isNaN(base) ? 0 : Math.max(0, base);
+    var taiVal = isNaN(tai) ? 0 : Math.max(0, tai);
+
+    // 根據「當下」的狀態組出開局後的新狀態；用在 Firebase transaction 重試
+    // 時，baseState 會是伺服器當下最新的資料。如果那個當下已經有別人開好
+    // 局了，回傳 undefined 表示放棄這次開局——注意不能回傳 null，
+    // Firebase transaction 會把 null 當成「把整個資料清空」處理。
+    function buildStartedState(baseState){
+      if(baseState.activeGameId){
+        var already = null;
+        for(var i=0;i<baseState.games.length;i++){ if(baseState.games[i].id === baseState.activeGameId){ already = baseState.games[i]; break; } }
+        if(already && already.status === "active") return undefined;
+      }
+      var rotation = baseState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      var photoName = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+      var musicName = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+      var firstSet = {
+        id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
+        hands: [], status: "active", createdAt: Date.now(), endedAt: null
+      };
+      var newGame = {
+        id: genId("g"), date: date, time: time, venue: venue, players: players,
+        base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode,
+        status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
+        createdAt: Date.now(), endedAt: null
+      };
+      var ns = deepClone(baseState);
+      ns.games.push(newGame);
+      ns.activeGameId = newGame.id;
+      ns.dutyRotation = {
+        photoIdx: (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length,
+        musicIdx: (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length
+      };
+      ns.defaultBase = newGame.base;
+      ns.defaultTai = newGame.tai;
+      if(venue && ns.venues.indexOf(venue) === -1) ns.venues.push(venue);
+      return ns;
+    }
+
+    function resetNewGameUi(){
+      ui.newGameFormReady = false;
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
+      ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
+    }
+
+    if(db && cloudReady){
+      // 用 Firebase 的 transaction 而不是平常的 commitState()：兩人幾乎同時
+      // 按「開局」時，先寫進伺服器的那個人會成功；晚一步的那個人的更新函式
+      // 重跑時會看到 activeGameId 已經有人設好了，於是放棄這次開局，並顯示
+      // 提示、直接帶去看已經開好的那一局，而不是把對方剛開的局覆蓋掉。
+      syncing = true; setCloudBadge();
+      db.ref(STATE_PATH).transaction(function(current){
+        if(!current) return current;
+        return buildStartedState(current);
+      }, function(error, committed, snapshot){
+        syncing = false; setCloudBadge();
+        if(error){
+          showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+          var fallback = buildStartedState(state);
+          if(fallback){ resetNewGameUi(); commitState(fallback); }
+          return;
+        }
+        var finalVal = snapshot ? snapshot.val() : null;
+        var normalized = finalVal ? normalizeState(finalVal) : null;
+        if(!normalized) return;
+        if(committed){
+          resetNewGameUi();
+          applyLocally(normalized);
+        }else{
+          resetNewGameUi();
+          applyLocally(normalized);
+          showAlert("已經有人開局了，帶你去看目前進行中的牌局。", function(){
+            ui.tab = "game";
+            updateTabVisibility();
+            renderAll();
+          });
+        }
+      }, false);
+    }else{
+      var newState = buildStartedState(state);
+      if(!newState) return;
+      resetNewGameUi();
+      commitState(newState);
+    }
   });
 
   // ================= 本局：補記過去的牌局 =================
@@ -2446,12 +2538,10 @@
       var renameBtn = document.createElement("button");
       renameBtn.type = "button"; renameBtn.className = "link-btn"; renameBtn.textContent = "改名";
       renameBtn.addEventListener("click", function(){
-        showPrompt("修改名字", r.name, function(newName){
+        showPrompt("修改名字（會一併修改所有歷史牌局紀錄）", r.name, function(newName){
           newName = newName.trim();
-          if(!newName) return;
-          var ns = deepClone(state);
-          var rr = ns.roster.filter(function(x){ return x.id === r.id; })[0];
-          if(rr) rr.name = newName;
+          if(!newName || newName === r.name) return;
+          var ns = renameNameEverywhere(state, r.name, newName);
           commitState(ns);
         });
       });
