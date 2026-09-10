@@ -313,7 +313,8 @@
   .help-header{
     position:sticky; top:0; background: var(--bg); z-index:2;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:16px; border-bottom:1px solid var(--border);
+    padding:16px; padding-top:calc(16px + env(safe-area-inset-top));
+    border-bottom:1px solid var(--border);
   }
   .help-header h2{ margin:0; font-size:1.02rem; }
   .help-header .btn{ padding:8px 14px; min-height:auto; }
@@ -637,6 +638,13 @@
     <button type="button" class="btn btn-outline" id="closeHelpBtn">關閉</button>
   </div>
   <div class="help-body">
+    <h3>📲 加入主畫面</h3>
+    <ul>
+      <li>iPhone：用 Safari 打開這個網址，點下方分享鈕（方框加箭頭）→「加入主畫面」→「新增」。</li>
+      <li>Android：用 Chrome 打開這個網址，點右上角選單（三個點）→「新增至主畫面」或「安裝應用程式」。</li>
+      <li>加好之後從主畫面點圖示打開，會像一般 App 一樣沒有網址列。如果之前加過舊圖示，記得先刪除再重新加一次才會是最新的。</li>
+    </ul>
+
     <h3>🎬 開新牌局</h3>
     <ul>
       <li>先到「名單」分頁標好誰是「我」，開局才能自動幫你入座。</li>
