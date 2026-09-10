@@ -65,6 +65,10 @@
   .hint-text{ font-size:.76rem; color: var(--ink-soft); margin:0 0 10px; line-height:1.5; }
 
   .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  /* grid 項目預設 min-width 是 auto（撐到內容本來的大小），iOS 原生日期
+     ／時間選擇器的內容最小寬度可能比欄位可用寬度還寬，沒有這行會直接
+     撐爆格子、超出卡片與螢幕邊界，而不是乖乖縮到 100% 寬度內。 */
+  .grid2 > *{ min-width:0; }
   /* 日期＋時間並排在窄手機螢幕上，iOS 原生的時間選擇器塞進一半寬度會被
      擠壓變形（右側看起來特別緊繃），所以窄螢幕改成上下疊放，各自都有
      全寬可以正常顯示。斷點要蓋過大尺寸手機（例如 iPhone Pro Max 系列
