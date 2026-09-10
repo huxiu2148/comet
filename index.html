@@ -83,8 +83,13 @@
   }
   /* iOS 原生的日期／時間選擇器預設會把裡面的文字置中，跟其他文字輸入框
      靠左對齊不一樣，兩者並排時會覺得日期時間「塞得比較滿」、場地卻留白，
-     即使寬度其實一樣。強制靠左讓視覺一致。 */
+     即使寬度其實一樣。輸入框本身的 text-align 對 WebKit 的日期/時間
+     控制項沒有用，實際顯示文字是在瀏覽器內部的 shadow DOM 裡，要用
+     ::-webkit-date-and-time-value 這個專屬的偽元素才能改到它的對齊方式。 */
   input[type=date], input[type=time]{ text-align:left; }
+  input[type=date]::-webkit-date-and-time-value, input[type=time]::-webkit-date-and-time-value{
+    text-align:left;
+  }
   input:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
 
   .apply-btn{ margin-top:12px; width:100%; }
