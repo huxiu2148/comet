@@ -1,0 +1,13 @@
+{
+  "hosting": {
+    "site": "mahjong",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "mahjong-scorekeeper/**",
+      "README.md"
+    ]
+  }
+}
