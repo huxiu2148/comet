@@ -81,6 +81,10 @@
     width:100%; padding:10px 12px; font-size:.95rem; border:1px solid var(--border); border-radius: 10px;
     background: var(--bg); color: var(--ink);
   }
+  /* iOS 原生的日期／時間選擇器預設會把裡面的文字置中，跟其他文字輸入框
+     靠左對齊不一樣，兩者並排時會覺得日期時間「塞得比較滿」、場地卻留白，
+     即使寬度其實一樣。強制靠左讓視覺一致。 */
+  input[type=date], input[type=time]{ text-align:left; }
   input:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
 
   .apply-btn{ margin-top:12px; width:100%; }
