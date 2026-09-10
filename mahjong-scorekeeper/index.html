@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>麻將算帳本</title>
+<title>決戰西風</title>
 <!-- 讓「加到主畫面」開啟時像獨立 App 一樣沒有網址列／瀏覽器介面，
      而不是普通的 Safari 分頁。這些 meta 只在加入主畫面「當下」讀取一次，
      所以已經加過的舊圖示要先移除、重新加一次才會生效。 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="麻將算帳本">
+<meta name="apple-mobile-web-app-title" content="決戰西風">
 <meta name="theme-color" content="#f5f4f1">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-32.png">
@@ -330,7 +330,7 @@
 <div class="wrap">
 
   <header class="topbar">
-    <h1>🀄 麻將算帳本</h1>
+    <h1>🀄 決戰西風</h1>
     <p>清楚記錄每一手，輸贏一目瞭然</p>
     <div class="cloud-badge local" id="cloudBadge">💾 本機模式</div>
   </header>
@@ -2583,7 +2583,7 @@
     try{ parsed = JSON.parse(raw); }
     catch(e){ showToast("內容不是有效的 JSON，請確認貼的是完整備份內容。"); return; }
     var restored = normalizeState(parsed);
-    if(!restored){ showToast("這份內容看起來不是麻將算帳本的備份格式。"); return; }
+    if(!restored){ showToast("這份內容看起來不是決戰西風的備份格式。"); return; }
     showConfirm("確定要還原這份備份嗎？目前所有牌局、名單與設定都會被覆蓋，且無法復原。", function(){
       closeBackupPanels();
       ui.newGameFormReady = false;
