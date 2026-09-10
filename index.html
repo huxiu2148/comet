@@ -36,6 +36,12 @@
     font-family: "PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     color: var(--ink);
     -webkit-tap-highlight-color: transparent;
+    /* iOS Safari 的彈性回彈捲動（rubber-band）在頁面內容比螢幕短、不用
+       捲動時特別容易發生（例如戰績分頁只有少數幾場牌局）：輕輕一碰畫面
+       就會整頁彈一下，這時候 position:fixed 的底部分頁列會跟著暫時往上
+       位移、下面露出一截空白，直到彈回原位。關掉回彈就不會有這個現象，
+       跟其他內容比較長、原本就不太會被彈到的分頁看起來才會一致。 */
+    overscroll-behavior-y: none;
   }
   .wrap{ max-width: 560px; margin: 0 auto; padding: 0 12px calc(84px + env(safe-area-inset-bottom)); }
 
