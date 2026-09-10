@@ -1,63 +1,3178 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>COMET | 訂單查詢系統</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #1e293b; /* 配合妳後台的深藍色 */
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    .container {
-      text-align: center;
-    }
-    .logo {
-      font-size: 2.5rem;
-      font-weight: bold;
-      letter-spacing: 2px;
-      margin-bottom: 10px;
-    }
-    .loader {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #3b82f6;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    p { opacity: 0.8; font-size: 0.9rem; }
-  </style>
-  
-  <script>
-    // ⬇️ 請將下方的引號內容替換成妳 GAS 的「正式部署網址」
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwEyNEMfdbHflnI4eT3SO6B4-w7474FNGPHYOLCSetavKvXOeMS5ELHQD-EWr6-y32HYQ/exec";
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>麻將算帳本</title>
+<!-- 讓「加到主畫面」開啟時像獨立 App 一樣沒有網址列／瀏覽器介面，
+     而不是普通的 Safari 分頁。這些 meta 只在加入主畫面「當下」讀取一次，
+     所以已經加過的舊圖示要先移除、重新加一次才會生效。 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="麻將算帳本">
+<meta name="theme-color" content="#f5f4f1">
+<style id="app-style">
+  :root{
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --border: #e6e3dc;
+    --ink: #2b2a27;
+    --ink-soft: #7a776d;
+    --ink-faint: #aca999;
+    --accent: #33322d;
+    --accent-dark: #1f1e1b;
+    --accent-soft: #ecebe3;
+    --win: #3a7d5c;
+    --lose: #b1503e;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    font-family: "PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 0 12px calc(84px + env(safe-area-inset-bottom)); }
 
-    window.onload = function() {
-      // 延遲 0.5 秒跳轉，讓使用者看到系統名稱，增加品牌感
-      setTimeout(() => {
-        window.location.href = GAS_URL;
-      }, 500);
-    };
-  </script>
+  /* 從主畫面圖示開啟（沒有瀏覽器網址列／狀態列）時，畫面最上面就直接是
+     系統狀態列（時間、電量），標題要往下讓開安全區域，不然會被蓋住；
+     一般在 Safari 分頁裡開 env(safe-area-inset-top) 是 0，不影響原本樣子。 */
+  header.topbar{ text-align:center; padding: calc(22px + env(safe-area-inset-top)) 10px 14px; color: var(--ink); }
+  header.topbar h1{ margin:0; font-size: 1.15rem; font-weight:700; letter-spacing: .5px; }
+  header.topbar p{ margin:4px 0 0; font-size:.76rem; color: var(--ink-soft); }
+
+  .card{
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 14px 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(30,28,24,.05);
+  }
+  .card h2{ margin: 0 0 10px; font-size: .95rem; font-weight:700; color: var(--ink); display:flex; align-items:center; gap:6px; }
+  .card h2 .badge{
+    margin-left:auto; font-size:.7rem; background: var(--accent-soft); color: var(--ink-soft);
+    padding: 3px 8px; border-radius: 999px; font-weight: 600;
+  }
+
+  .hint-text{ font-size:.76rem; color: var(--ink-soft); margin:0 0 10px; line-height:1.5; }
+
+  .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  /* 日期＋時間並排在窄手機螢幕上，iOS 原生的時間選擇器塞進一半寬度會被
+     擠壓變形（右側看起來特別緊繃），所以窄螢幕改成上下疊放，各自都有
+     全寬可以正常顯示。斷點要蓋過大尺寸手機（例如 iPhone Pro Max 系列
+     邏輯寬度約 428～430px），不然那些手機還是會維持並排、看起來還是擠。 */
+  @media (max-width: 480px){
+    .dt-row{ grid-template-columns: 1fr; }
+  }
+  label.field{ display:block; font-size:.76rem; color: var(--ink-soft); margin-bottom:4px; font-weight:600; }
+  input[type=text], input[type=number], input[type=date], input[type=time]{
+    width:100%; padding:10px 12px; font-size:.95rem; border:1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--ink);
+  }
+  /* iOS 原生的日期／時間選擇器不會把裡面的文字撐滿整個輸入框寬度，
+     疊成一整排全寬之後，文字靠左、右邊會留下一大片看起來像切一半的
+     空白背景。限制最大寬度讓框本身貼合內容，右邊留白就變成正常的頁面
+     背景，而不是輸入框裡面奇怪的空洞。 */
+  input[type=date], input[type=time]{ max-width: 220px; }
+  input:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .apply-btn{ margin-top:12px; width:100%; }
+
+  .backup-textarea{
+    width:100%; min-height:140px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:.72rem; padding:10px; border:1px solid var(--border); border-radius:10px;
+    background: var(--bg); color: var(--ink); resize:vertical; box-sizing:border-box;
+  }
+
+  .btn{
+    border:none; border-radius: 12px; cursor:pointer; font-weight:700; font-size:.92rem;
+    padding: 13px 10px; min-height: 48px; transition: transform .05s ease, box-shadow .15s ease;
+    -webkit-user-select:none; user-select:none;
+  }
+  .btn:active{ transform: scale(.97); }
+  .btn-primary{ background: var(--accent); color:#fff; }
+  .btn-danger-outline{ background: var(--surface); color: var(--lose); border:1px solid var(--lose); }
+  .btn-outline{ background: var(--surface); color: var(--ink); border:1px solid var(--border); }
+  .btn-outline.selected{ background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .btn-block{ width:100%; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .method-row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .method-btn{
+    border:1px solid var(--border); background: var(--surface); color: var(--ink);
+    border-radius:12px; padding:15px 4px; font-size:.98rem; font-weight:700; cursor:pointer;
+  }
+  .method-btn.selected{ background: var(--accent-soft); border-color: var(--accent); }
+
+  .stepper{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--bg); border:1px solid var(--border); border-radius: 12px; padding: 6px;
+  }
+  .stepper button{
+    width:44px; height:44px; border-radius:10px; border:none;
+    background: var(--accent); color:#fff; font-size:1.3rem; font-weight:700; cursor:pointer;
+  }
+  .stepper .val{ flex:1; text-align:center; font-size:1.2rem; font-weight:800; color: var(--ink); }
+  .stepper .val small{ display:block; font-size:.68rem; color: var(--ink-soft); font-weight:600; }
+
+  .section-label{ font-size:.78rem; color: var(--ink-soft); font-weight:700; margin: 12px 0 6px; display:flex; align-items:center; gap:8px; }
+
+  .undo-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .undo-row .btn{ flex:1; }
+  .stepper-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .stepper-row .stepper{ flex:1; }
+  .toggle-row{ display:flex; gap:10px; margin-top:12px; }
+  .toggle-row .btn{ flex:1; padding:10px; min-height:auto; font-size:.82rem; }
+
+  .log-item{ border-bottom: 1px solid var(--border); padding: 10px 0; font-size:.83rem; }
+  .log-item:last-child{ border-bottom:none; }
+  .log-head{ font-weight:700; color: var(--ink); margin-bottom:4px; }
+  .log-detail{ color: var(--ink-soft); line-height:1.5; }
+  .log-detail .plus{ color: var(--win); font-weight:700; }
+  .log-detail .minus{ color: var(--lose); font-weight:700; }
+  .expand-hint{ float:right; color: var(--ink-faint); }
+  .empty-hint{ text-align:center; color: var(--ink-faint); padding: 14px 0; font-size:.83rem; }
+
+  .footer-note{ text-align:center; font-size:.72rem; color: var(--ink-faint); margin-top:10px; }
+
+  .cloud-badge{
+    display:inline-block; margin-top:8px; font-size:.7rem; font-weight:700;
+    padding:4px 12px; border-radius:999px; letter-spacing:.3px;
+  }
+  .cloud-badge.local{ background: var(--accent-soft); color: var(--ink-soft); }
+  .cloud-badge.synced{ background: var(--win); color:#fff; }
+  .cloud-badge.syncing{ background: var(--accent-soft); color: var(--ink); }
+  .cloud-badge-lg{ display:inline-block; font-size:.82rem; font-weight:700; padding:6px 14px; border-radius:999px; margin-bottom:8px; }
+  .cloud-badge-lg.local{ background: var(--accent-soft); color: var(--ink-soft); }
+  .cloud-badge-lg.synced{ background: var(--win); color:#fff; }
+  .cloud-badge-lg.syncing{ background: var(--accent-soft); color: var(--ink); }
+
+  .tab-page{ display:none; }
+  .tab-page.active{ display:block; }
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    display:flex; background: var(--surface); border-top:1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,.04);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab-btn{
+    flex:1; border:none; background:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:8px 2px 10px; font-size:.64rem; color: var(--ink-faint); font-weight:700;
+  }
+  .tab-btn .tab-icon{ font-size:1.2rem; }
+  .tab-btn.active{ color: var(--accent); }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .chip{
+    border:1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius:999px; padding:6px 12px; font-size:.78rem; font-weight:600; cursor:pointer;
+  }
+  .chip-selected{ background: var(--accent); border-color: var(--accent); color:#fff; }
+  .chip:disabled{ opacity:.35; cursor:not-allowed; }
+
+  .add-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .add-row input{ flex:1; }
+  .add-row .btn{ padding:10px 16px; min-height:auto; }
+
+  .roster-row{ display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding:10px 0; }
+  .roster-row:last-child{ border-bottom:none; }
+  .roster-star{ border:none; background:none; font-size:1.15rem; color: var(--ink-faint); cursor:pointer; padding:0; }
+  .roster-star.active{ color: var(--ink); }
+  .roster-name{ flex:1; font-weight:700; font-size:.92rem; display:flex; align-items:center; gap:6px; }
+  .me-badge{ font-size:.63rem; background: var(--win); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700; }
+  .roster-actions{ display:flex; gap:10px; }
+  .link-btn{ border:none; background:none; color: var(--ink); font-size:.78rem; font-weight:700; cursor:pointer; padding:4px; }
+  .link-btn.danger{ color: var(--lose); }
+
+  .subtab-row{ display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px; }
+  .subtab-btn{
+    border:1px solid var(--border); background: var(--surface); color: var(--ink-soft);
+    border-radius:999px; padding:8px 14px; font-size:.8rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0;
+  }
+  .subtab-btn.selected{ background: var(--accent); border-color: var(--accent); color:#fff; }
+
+  .stat-summary{ font-size:.82rem; color: var(--ink-soft); margin-bottom:10px; font-weight:600; }
+  .stat-list{ display:flex; flex-direction:column; }
+  .stat-row{ display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding:9px 0; font-size:.88rem; }
+  .stat-row:last-child{ border-bottom:none; }
+  .stat-name{ flex:1; font-weight:700; }
+  .stat-mid{ color: var(--ink-soft); font-size:.76rem; }
+  .stat-amt{ font-weight:800; font-variant-numeric: tabular-nums; text-align:right; min-width:64px; }
+  .stat-amt small{ display:block; font-size:.6rem; font-weight:600; color: var(--ink-soft); }
+  .stat-amt.win{ color: var(--win); }
+  .stat-amt.lose{ color: var(--lose); }
+  .stat-amt.zero{ color: var(--ink-faint); }
+  .stat-row2{ border-bottom:1px solid var(--border); padding:9px 0; font-size:.88rem; }
+  .stat-row2:last-child{ border-bottom:none; }
+  .stat-row2-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stat-row2 .stat-mid{ margin-top:3px; }
+
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cal-nav{ padding:8px 16px; min-height:auto; }
+  .cal-title{ font-weight:700; color: var(--ink); font-size:1rem; }
+  .cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:.7rem; color: var(--ink-soft); font-weight:700; margin-bottom:4px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-cell{
+    border:1px solid var(--border); background: var(--bg); border-radius:8px;
+    min-height:52px; padding:4px 2px; cursor:pointer; display:flex; flex-direction:column; align-items:center;
+  }
+  .cal-cell.other-month{ opacity:.35; }
+  .cal-cell.selected{ border-color: var(--accent); border-width:2px; background: var(--surface); }
+  .cal-daynum{ font-size:.76rem; font-weight:700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .cal-amt{ font-size:.64rem; font-weight:800; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .cal-amt.win{ color: var(--win); }
+  .cal-amt.lose{ color: var(--lose); }
+  .cal-amt.zero{ color: var(--ink-faint); }
+  .cal-summary{ margin-top:10px; font-size:.8rem; color: var(--ink-soft); text-align:center; }
+
+  .game-meta{ margin-top:6px; font-size:.74rem; color: var(--ink-soft); text-align:center; }
+
+  /* seat draw list (new game) */
+  .seat-row{
+    display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding:10px 0; border-radius:8px;
+  }
+  .seat-row:last-child{ border-bottom:none; }
+  .seat-row-selected{ background: var(--accent-soft); }
+  .seat-name{ flex:1; font-weight:700; font-size:.92rem; display:flex; align-items:center; gap:6px; }
+  .seat-arrow{
+    width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background: var(--surface); cursor:pointer; font-size:.88rem;
+  }
+  .seat-arrow:disabled{ opacity:.3; cursor:not-allowed; }
+  .wind-chip{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--border);
+    background: var(--surface); color: var(--ink); font-weight:800; font-size:.82rem;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .wind-dealer{ background: var(--accent); border-color: var(--accent); color:#fff; }
+
+  /* gesture cards — arranged in a diamond around an empty center (the
+     table), matching real seating: 我 always at the bottom. */
+  .gesture-grid{
+    display:grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto;
+    gap:10px; align-items:stretch;
+  }
+  .gesture-card{
+    border-radius:14px; padding:10px 8px; text-align:center; background: var(--bg);
+    border:1px solid var(--border); position:relative; touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none;
+    transition: box-shadow .15s ease;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .gesture-card.slot-top{ grid-column:2; grid-row:1; }
+  .gesture-card.slot-right{ grid-column:3; grid-row:2; }
+  .gesture-card.slot-bottom{ grid-column:2; grid-row:3; }
+  .gesture-card.slot-left{ grid-column:1; grid-row:2; }
+  .gesture-card .name{ font-size:.83rem; font-weight:700; color: var(--ink-soft); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:4px; }
+  .gesture-card .amt{ font-size:1.1rem; font-weight:800; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .gesture-card .amt.win{ color: var(--win); }
+  .gesture-card .amt.lose{ color: var(--lose); }
+  .gesture-card .amt.zero{ color: var(--ink-faint); }
+  .gesture-card .mini-stats{ font-size:.6rem; color: var(--ink-soft); margin-top:4px; }
+  .gesture-card.dragging{ box-shadow: 0 8px 18px rgba(0,0,0,.2); cursor:grabbing; }
+  .gesture-card.drop-hover{ background: var(--accent-soft); border-color: var(--accent); }
+  .gesture-card.flash-win{ animation: flashwin .5s ease; }
+  .gesture-card.flash-lose{ animation: flashlose .5s ease; }
+  @keyframes flashwin{ 0%{ background: var(--win); } 100%{ background: var(--bg); } }
+  @keyframes flashlose{ 0%{ background: var(--lose); } 100%{ background: var(--bg); } }
+  .gesture-card.pending-winner{ border-color: var(--win); border-width:2px; box-shadow: 0 0 0 2px rgba(58,125,92,.18); }
+  .gesture-card.pending-loser{ border-color: var(--lose); border-width:2px; box-shadow: 0 0 0 2px rgba(177,80,62,.18); }
+
+  .pending-preview{
+    margin-top:12px; padding:12px; border:1px dashed var(--border); border-radius:14px; background: var(--accent-soft);
+  }
+
+  /* custom confirm/prompt/alert so the dialog styling matches the rest of
+     the app instead of the browser's plain native confirm/alert boxes. */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(30,29,26,.5); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  /* the confirm/prompt/alert modal can be triggered from inside another
+     modal (e.g. 結束整場並結算 confirmation on top of 這將打完) — always
+     paint it above other .modal-overlay instances, regardless of DOM order. */
+  #modalOverlay{ z-index:205; }
+  .modal-box{
+    background: var(--surface); border-radius:16px; padding:20px; max-width:320px; width:100%;
+    border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.15);
+  }
+  .modal-message{ font-size:.92rem; color: var(--ink); margin-bottom:14px; line-height:1.6; white-space:pre-line; }
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions .btn{ flex:1; padding:12px; min-height:auto; }
+  #modalInput{ margin-bottom:14px; }
+  .help-overlay{
+    position:fixed; inset:0; background: var(--bg); z-index:220;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .help-header{
+    position:sticky; top:0; background: var(--bg); z-index:2;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:16px; border-bottom:1px solid var(--border);
+  }
+  .help-header h2{ margin:0; font-size:1.02rem; }
+  .help-header .btn{ padding:8px 14px; min-height:auto; }
+  .help-body{ padding:16px; padding-bottom:48px; max-width:520px; margin:0 auto; }
+  .help-body h3{ font-size:.95rem; margin:24px 0 8px; color:var(--ink); }
+  .help-body h3:first-child{ margin-top:0; }
+  .help-body p{ font-size:.85rem; color:var(--ink-soft); line-height:1.75; margin:0 0 10px; }
+  .help-body ul{ margin:0 0 10px; padding-left:20px; }
+  .help-body li{ font-size:.85rem; color:var(--ink-soft); line-height:1.75; margin-bottom:5px; }
+  .help-body b{ color:var(--ink); font-weight:600; }
+  .toast{
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
+    background: var(--accent-dark); color:#fff; padding:10px 18px; border-radius:999px;
+    font-size:.8rem; z-index:210; max-width:85vw; text-align:center; line-height:1.4;
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo">COMET</div>
-    <div class="loader"></div>
-    <p>正在安全連線至訂單系統...</p>
+<div id="app-shell">
+<div class="wrap">
+
+  <header class="topbar">
+    <h1>🀄 麻將算帳本</h1>
+    <p>清楚記錄每一手，輸贏一目瞭然</p>
+    <div class="cloud-badge local" id="cloudBadge">💾 本機模式</div>
+  </header>
+
+  <!-- ============ 本局 ============ -->
+  <section id="tab-game" class="tab-page active">
+    <div id="newGamePanel" class="card">
+      <h2>🀄 開新牌局</h2>
+      <div class="section-label">日期與時間</div>
+      <div class="grid2 dt-row">
+        <input type="date" id="ngDate">
+        <input type="time" id="ngTime">
+      </div>
+      <div class="section-label">場地</div>
+      <input type="text" id="ngVenue" placeholder="家裡客廳、雀莊名稱…">
+      <div class="chip-row" id="ngVenueChips"></div>
+      <div class="grid2">
+        <div><label class="field">底（元）</label><input type="number" id="ngBase" min="0" step="10"></div>
+        <div><label class="field">每台（元）</label><input type="number" id="ngTai" min="0" step="10"></div>
+      </div>
+      <div class="section-label">自摸算法</div>
+      <div class="method-row">
+        <button type="button" class="method-btn" id="ngModeFull">各付全額</button>
+        <button type="button" class="method-btn" id="ngModeSplit">三家均攤</button>
+      </div>
+
+      <div id="ngNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能開新牌局。</div>
+
+      <div id="ngOpponentPickBlock">
+        <div class="section-label">選 3 位對手 <span id="ngOppCount" class="badge">0/3</span></div>
+        <p class="hint-text">你自己會自動入座，只要選 3 位對手。要換人請到「名單」分頁改。</p>
+        <div class="chip-row" id="ngOpponentChips"></div>
+        <div class="add-row">
+          <input type="text" id="ngNewOpponentInput" placeholder="新增牌友名字" maxlength="8">
+          <button class="btn btn-outline" id="ngNewOpponentBtn">新增</button>
+        </div>
+      </div>
+
+      <div id="ngSeatBlock" style="display:none;">
+        <div class="section-label">抓位門風 <button type="button" class="link-btn" id="ngReshuffleBtn">🔀 重新抓位</button></div>
+        <p class="hint-text">已照選人順序排好座位，坐東的那位是第一位莊家（開局後還能改）。想隨機排可以按上面「重新抓位」；也可以點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
+        <button type="button" class="btn btn-outline btn-block" id="ngSwapModeBtn" style="margin-bottom:8px;">🔁 點兩人互換：關閉</button>
+        <div id="ngSeatList"></div>
+      </div>
+
+      <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
+      <button type="button" class="btn btn-outline btn-block" id="openBackfillBtn" style="margin-top:10px;">📝 補記過去的牌局（只有最終輸贏）</button>
+    </div>
+
+    <div id="backfillPanel" class="card" style="display:none;">
+      <h2>📝 補記過去的牌局</h2>
+      <p class="hint-text">沒有逐手紀錄也沒關係，只要輸入這場最後每個人輸贏多少錢，一樣會算進戰績、月曆與歷史牌局（門風、分析等逐手統計不會計入這場，因為沒有逐手資料）。</p>
+      <div class="section-label">日期與時間</div>
+      <div class="grid2 dt-row">
+        <input type="date" id="bfDate">
+        <input type="time" id="bfTime">
+      </div>
+      <div class="section-label">場地</div>
+      <input type="text" id="bfVenue" placeholder="家裡客廳、雀莊名稱…">
+      <div class="chip-row" id="bfVenueChips"></div>
+      <div class="section-label">打了幾將</div>
+      <input type="number" id="bfSetsCount" min="1" step="1" value="1">
+
+      <div id="bfNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能補記牌局。</div>
+
+      <div id="bfOpponentPickBlock">
+        <div class="section-label">選 3 位對手 <span id="bfOppCount" class="badge">0/3</span></div>
+        <p class="hint-text">你自己會自動列入，只要選 3 位對手。要加新的人請到「名單」分頁新增。</p>
+        <div class="chip-row" id="bfOpponentChips"></div>
+      </div>
+
+      <div id="bfAmountsBlock" style="display:none;">
+        <div class="section-label">每個人最後輸贏（元） <span id="bfSumBadge" class="badge">合計 0</span></div>
+        <p class="hint-text">正數是贏、負數是輸，四個人加起來要等於 0 才能送出。</p>
+        <div id="bfAmountsList"></div>
+      </div>
+
+      <div class="undo-row" style="margin-top:14px;">
+        <button type="button" class="btn btn-outline" id="bfCancelBtn">取消</button>
+        <button type="button" class="btn btn-primary" id="bfSubmitBtn" disabled>補記這場</button>
+      </div>
+    </div>
+
+    <div id="activeGamePanel" style="display:none;">
+      <div class="card">
+        <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span><button type="button" class="link-btn danger" id="cancelGameBtn">🗑️ 取消牌局</button></h2>
+        <div class="game-meta" id="gameMetaLine1"></div>
+        <div class="game-meta" id="gameMetaLine2"></div>
+      </div>
+
+      <div class="card">
+        <div class="gesture-grid" id="gestureGrid"></div>
+
+        <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
+        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
+        <div class="chip-row" id="taiTagRow"></div>
+        <div class="stepper-row">
+          <div class="stepper">
+            <button type="button" id="taiMinus">－</button>
+            <div class="val" id="taiVal">0<small>其他台</small></div>
+            <button type="button" id="taiPlus">＋</button>
+          </div>
+          <div class="stepper">
+            <button type="button" id="huaMinus">－</button>
+            <div class="val" id="huaVal">0<small>花牌</small></div>
+            <button type="button" id="huaPlus">＋</button>
+          </div>
+        </div>
+
+        <div id="pendingPreview" class="pending-preview" style="display:none;">
+          <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
+          <div id="pendingPreviewDetail"></div>
+          <div class="undo-row" style="margin-top:10px; margin-bottom:0;">
+            <button type="button" class="btn btn-outline" id="cancelPendingBtn">↩️ 取消</button>
+            <button type="button" class="btn btn-primary" id="confirmPendingBtn">✅ 確認記錄</button>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:12px;">🌊 流局（沒人胡牌，莊家連莊）</button>
+
+        <div class="toggle-row">
+          <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
+          <button type="button" class="btn btn-outline" id="dealerBonusBtn">自摸莊家台 ✓</button>
+        </div>
+        <div id="activeSeatList" style="display:none; margin-top:8px;"></div>
+        <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家。換位時可以直接點兩張卡片互換，或用下面清單的 ▲▼ 指定東南西北分別是誰。選好後可以再調整台數，畫面上會先預覽金額，按「確認記錄」才會真的記上。</p>
+
+        <div class="undo-row" style="margin-top:6px;">
+          <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
+          <button class="btn btn-danger-outline" id="endSetBtn">🏁 這將打完</button>
+        </div>
+
+        <button type="button" class="link-btn" id="toggleSetLogBtn" style="margin-top:8px;">顯示本手・還沒記</button>
+        <div id="setLogList" style="display:none; margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>🎬 今天的分工 <button type="button" class="link-btn" id="toggleDutiesBtn" style="margin-left:auto;">展開</button></h2>
+        <div id="dutiesSummaryLine" class="hint-text" style="margin:0;"></div>
+        <div id="dutiesBody" style="display:none;">
+          <p class="hint-text">點名字指派，再點一次可以取消。</p>
+          <div class="section-label">📝 記錄</div>
+          <div class="chip-row" id="dutyRecordChips"></div>
+          <div class="section-label">🎵 播音樂</div>
+          <div class="chip-row" id="dutyMusicChips"></div>
+          <div class="section-label">📷 拍照</div>
+          <div class="chip-row" id="dutyPhotoChips"></div>
+        </div>
+      </div>
+
+      <div id="pastSetsCard" class="card" style="display:none;">
+        <h2>📜 本局已結束的將</h2>
+        <p class="hint-text">記錯的整將可以在這裡整將刪除；目前正在記錄的這將請用上面的「刪除上一筆」。</p>
+        <div id="pastSetsList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 戰績 ============ -->
+  <section id="tab-stats" class="tab-page">
+    <div class="card">
+      <h2>📊 戰績</h2>
+      <p class="hint-text">只統計已結束的牌局。</p>
+      <div class="subtab-row" id="statsSubTabs">
+        <button type="button" class="subtab-btn" data-sub="longterm">長期統計</button>
+        <button type="button" class="subtab-btn" data-sub="wind">門風</button>
+        <button type="button" class="subtab-btn" data-sub="games">歷史牌局</button>
+        <button type="button" class="subtab-btn" data-sub="analysis">分析</button>
+      </div>
+      <div class="chip-row" id="statsTargetChips" style="display:none;"></div>
+      <div id="statsContent"></div>
+    </div>
+  </section>
+
+  <!-- ============ 月曆 ============ -->
+  <section id="tab-calendar" class="tab-page">
+    <div class="card">
+      <h2>📅 月曆</h2>
+      <p class="hint-text">日期下面是那天選中的人的盈虧（綠贏紅輸），點日期看紀錄或補記一場。</p>
+      <div class="chip-row" id="calTargetChips"></div>
+      <div class="cal-head">
+        <button type="button" class="btn btn-outline cal-nav" id="calPrev">‹</button>
+        <div class="cal-title" id="calTitle">—</div>
+        <button type="button" class="btn btn-outline cal-nav" id="calNext">›</button>
+      </div>
+      <div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-summary" id="calSummary"></div>
+    </div>
+    <div class="card">
+      <h2>📌 <span id="calDayTitle">選一個日期</span></h2>
+      <div id="calDayContent"></div>
+    </div>
+  </section>
+
+  <!-- ============ 名單 ============ -->
+  <section id="tab-roster" class="tab-page">
+    <div class="card">
+      <h2>👥 常用對手</h2>
+      <p class="hint-text">點 ⭐ 標成常用，開局選人時會排在最前面。標「我」的那位是你自己，用於開局自動入座與門風／月曆／分析統計。</p>
+      <div class="add-row">
+        <input type="text" id="rosterNameInput" placeholder="新增牌友名字" maxlength="8">
+        <button class="btn btn-primary" id="rosterAddBtn">新增</button>
+      </div>
+      <div id="rosterList"></div>
+    </div>
+    <div class="card">
+      <h2>📍 常用場地</h2>
+      <div class="add-row">
+        <input type="text" id="venueNameInput" placeholder="新增場地，例如 阿德家" maxlength="16">
+        <button class="btn btn-primary" id="venueAddBtn">新增</button>
+      </div>
+      <div id="venueList"></div>
+    </div>
+  </section>
+
+  <!-- ============ 設定 ============ -->
+  <section id="tab-settings" class="tab-page">
+    <div class="card">
+      <h2>📖 使用說明</h2>
+      <p class="hint-text">第一次用、或忘記怎麼操作，都可以看這裡。</p>
+      <button type="button" class="btn btn-outline btn-block" id="openHelpBtn">📖 打開使用說明</button>
+    </div>
+    <div class="card">
+      <h2>⚙️ 預設底台</h2>
+      <p class="hint-text">開新牌局時會預先帶入這裡的數字，仍可在開局時個別調整。</p>
+      <div class="grid2">
+        <div><label class="field">底（元）</label><input type="number" id="defBaseInput" min="0" step="10"></div>
+        <div><label class="field">每台（元）</label><input type="number" id="defTaiInput" min="0" step="10"></div>
+      </div>
+      <button class="btn btn-primary btn-block apply-btn" id="applyDefaultsBtn">💾 儲存預設值</button>
+    </div>
+    <div class="card">
+      <h2>☁️ 雲端狀態</h2>
+      <div class="cloud-badge-lg local" id="cloudBadgeLg">💾 本機模式</div>
+      <p class="hint-text" id="cloudHint"></p>
+    </div>
+    <div class="card">
+      <h2>💾 資料備份</h2>
+      <p class="hint-text">下載一份包含所有牌局、名單與設定的備份，自己存好（手機相簿、雲端硬碟、傳給自己都可以），之後不管發生什麼事都能還原，不依賴任何雲端服務或訂閱狀態。</p>
+      <button type="button" class="btn btn-outline btn-block" id="exportBackupBtn" style="margin-bottom:8px;">📤 匯出備份</button>
+      <button type="button" class="btn btn-outline btn-block" id="importBackupBtn">📥 還原備份</button>
+    </div>
+    <div id="backupExportPanel" class="card" style="display:none;">
+      <h2>📤 匯出備份</h2>
+      <p class="hint-text">按「複製到剪貼簿」把下面內容複製起來，貼到記事本、雲端筆記或傳給自己保存。</p>
+      <textarea id="backupExportText" class="backup-textarea" readonly></textarea>
+      <button type="button" class="btn btn-primary btn-block" id="copyBackupBtn" style="margin-top:10px;">📋 複製到剪貼簿</button>
+      <button type="button" class="btn btn-outline btn-block" id="closeExportPanelBtn" style="margin-top:8px;">關閉</button>
+    </div>
+    <div id="backupImportPanel" class="card" style="display:none;">
+      <h2>📥 還原備份</h2>
+      <p class="hint-text" style="color:var(--lose);">還原會直接覆蓋目前所有牌局、名單與設定，請先確認這是正確的備份內容。</p>
+      <input type="file" id="backupFileInput" accept="application/json,.json">
+      <p class="hint-text" style="margin-top:10px;">或直接把備份內容貼在這裡：</p>
+      <textarea id="backupImportText" class="backup-textarea"></textarea>
+      <button type="button" class="btn btn-danger-outline btn-block" id="restoreBackupBtn" style="margin-top:10px;">⚠️ 還原這份備份</button>
+      <button type="button" class="btn btn-outline btn-block" id="closeImportPanelBtn" style="margin-top:8px;">取消</button>
+    </div>
+    <div class="card">
+      <h2>⚠️ 危險操作</h2>
+      <button class="btn btn-danger-outline btn-block" id="resetAllBtn">🗑️ 清空所有牌局、名單與設定</button>
+    </div>
+  </section>
+
+  <div class="footer-note">祝手氣旺旺</div>
+</div>
+
+<nav class="tabbar">
+  <button type="button" class="tab-btn active" data-tab="game"><span class="tab-icon">🀄</span><span>本局</span></button>
+  <button type="button" class="tab-btn" data-tab="stats"><span class="tab-icon">📊</span><span>戰績</span></button>
+  <button type="button" class="tab-btn" data-tab="calendar"><span class="tab-icon">📅</span><span>月曆</span></button>
+  <button type="button" class="tab-btn" data-tab="roster"><span class="tab-icon">👥</span><span>名單</span></button>
+  <button type="button" class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
+</nav>
+
+<div id="modalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-message" id="modalMessage"></div>
+    <input type="text" id="modalInput" style="display:none;">
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" id="modalCancelBtn">取消</button>
+      <button type="button" class="btn btn-primary" id="modalConfirmBtn">確定</button>
+    </div>
   </div>
+</div>
+<div id="endSetModalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:16px;">🏁 這將打完</div>
+    <button class="btn btn-outline btn-block" id="continueSetBtn" style="margin-bottom:8px;">還沒打完，回去繼續記</button>
+    <button class="btn btn-primary btn-block" id="newSetBtn" style="margin-bottom:8px;">再開一將（沿用座位）</button>
+    <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
+  </div>
+</div>
+<div id="helpOverlay" class="help-overlay" style="display:none;">
+  <div class="help-header">
+    <h2>📖 使用說明</h2>
+    <button type="button" class="btn btn-outline" id="closeHelpBtn">關閉</button>
+  </div>
+  <div class="help-body">
+    <h3>🎬 開新牌局</h3>
+    <ul>
+      <li>先到「名單」分頁標好誰是「我」，開局才能自動幫你入座。</li>
+      <li>選 3 位對手、設定底／台，就能按「開局」。</li>
+      <li>座位預設照選人的順序排，第一個選的（通常是「我」）坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
+      <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
+    </ul>
+
+    <h3>🎬 今天的分工</h3>
+    <ul>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是徐；拍照照固定順序輪流（徐→綺→儒→榕→徐…）；播音樂也照固定順序輪流（綺→儒→徐→綺…，榕不會輪到）。</li>
+      <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
+      <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
+    </ul>
+
+    <h3>🀄 記錄一手</h3>
+    <ul>
+      <li><b>放槍</b>：長按胡牌者的卡片，拖曳到放槍者的卡片上放開。</li>
+      <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
+      <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
+      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
+      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
+      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台。</li>
+      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
+    </ul>
+
+    <h3>🔁 換位</h3>
+    <ul>
+      <li>牌局進行中，任何時候都可以按「換位」進入換位模式：點兩張卡片可以互換位置，或用清單的 ▲▼ 一格一格調整，也能直接指定東南西北分別是誰。</li>
+      <li>換位中畫面只是先在本機調整、還沒存檔，調好之後要再按一次「換位」結束，才會真的記錄下來、同步到雲端。換位模式沒結束前，沒辦法記錄新的一手、刪除上一筆或結束這將。</li>
+      <li>「這將打完」之後選「再開一將」，預設會沿用上一將結束時的座位（不會重新洗牌），想換座位就在新的一將裡按「換位」調整。</li>
+    </ul>
+
+    <h3>🏁 這將打完</h3>
+    <ul>
+      <li><b>還沒打完，回去繼續記</b>：不小心點到時可以取消。</li>
+      <li><b>再開一將（沿用座位）</b>：座位延續上一將結束時的樣子，莊家從東家重新算起。</li>
+      <li><b>結束整場並結算</b>：整場牌局結束，之後只能查看不能再記錄，會算進戰績、月曆與請客紀錄。</li>
+    </ul>
+    <p class="hint-text">如果是不小心點到「開局」或只是想測試，可以按牌局卡片右上角的「🗑️ 取消牌局」，會直接把這場牌局刪掉、不會列入戰績（跟「結束整場並結算」不一樣，那個會保留紀錄）。</p>
+
+    <h3>📊 戰績・📅 月曆</h3>
+    <ul>
+      <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析幾個子分頁，都只統計已經結束的牌局。</li>
+      <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序。</li>
+      <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
+      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果同一天打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。</li>
+    </ul>
+
+    <h3>👥 名單・⚙️ 設定</h3>
+    <ul>
+      <li>「名單」分頁點 ⭐ 標成常用，開局選人時會排在最前面；標「我」的那位是你自己，用在開局自動入座、門風／月曆／分析統計。</li>
+      <li>「設定」分頁可以改預設底台、看雲端同步狀態、匯出／還原備份（建議自己存一份，不依賴雲端），或清空所有資料重新開始。</li>
+    </ul>
+  </div>
+</div>
+<div id="toast" class="toast" style="display:none;"></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script id="app-script">
+(function(){
+  "use strict";
+
+  // Firebase 專案的用戶端設定值——這些不是密鑰，是給瀏覽器端 SDK 用的
+  // 公開識別碼，真正擋住陌生人讀寫的是 Realtime Database 的安全規則
+  // （要求 auth != null）搭配匿名登入。
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDZG4zl9RRXS5qeAmbDzfYkeJ_4AQEzIJw",
+    authDomain: "mahjong-f70cf.firebaseapp.com",
+    databaseURL: "https://mahjong-f70cf-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "mahjong-f70cf",
+    storageBucket: "mahjong-f70cf.firebasestorage.app",
+    messagingSenderId: "779962030974",
+    appId: "1:779962030974:web:ea61621378ae745e91712f",
+    measurementId: "G-00XGV9KDRX"
+  };
+  var STATE_PATH = "mahjong/state";
+  // 從 Claude Artifact 版本搬過來時的既有牌局資料，只有在 Firebase 資料庫
+  // 完全還是空的（專案剛建立、第一次真的有人打開）時才會寫進去當起始值，
+  // 之後 Firebase 裡的資料就是唯一真相，不會再用到這份種子。
+  var SEED_STATE = {"roster":[{"id":"r0","name":"徐","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["徐","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["徐","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"徐","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"徐":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["徐","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0}};
+
+  var STORAGE_KEY = "twmj_scorekeeper_v3";
+  var DEFAULT_NAMES = ["東","南","西","北"];
+  // 分工預設輪流順序：拍照跟播音樂每次開局都自動指派下一位，記錄固定
+  // 都是徐。仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次
+  // 開局的輪流順序（順序只在按下「開局」的當下才往前推進一格）。
+  var PHOTO_ROTATION_NAMES = ["徐","綺","儒","榕"];
+  var MUSIC_ROTATION_NAMES = ["綺","儒","徐"];
+  var DEFAULT_RECORD_NAME = "徐";
+  var WINDS = ["東","南","西","北"];
+  var TAI_TAGS = [
+    { key: "zhuangjia", label: "莊家", value: 1 },
+    { key: "lianzhuang", label: "連莊", value: 1 },
+    { key: "zhong", label: "中", value: 1 },
+    { key: "fa", label: "發", value: 1 },
+    { key: "bai", label: "白", value: 1 },
+    { key: "sananke", label: "三暗刻", value: 2 },
+    { key: "sianke", label: "四暗刻", value: 5 },
+    { key: "wuanke", label: "五暗刻", value: 8 },
+    { key: "quanqiu", label: "全求", value: 2 },
+    { key: "hunyise", label: "混一色", value: 4 },
+    { key: "qingyise", label: "清一色", value: 8 },
+    { key: "dasanyuan", label: "大三元", value: 8 },
+    { key: "xiaosanyuan", label: "小三元", value: 4 },
+    { key: "dasixi", label: "大四喜", value: 16 },
+    { key: "xiaosixi", label: "小四喜", value: 8 },
+    { key: "baxianguohai", label: "八仙過海", value: 8 },
+    { key: "pinghu", label: "平胡", value: 2 },
+    { key: "pengpenghu", label: "碰碰胡", value: 4 },
+    { key: "dihu", label: "地胡", value: 16 },
+    { key: "tianhu", label: "天胡", value: 24 },
+    { key: "duting", label: "獨聽", value: 1 },
+    { key: "diting", label: "地聽", value: 4 },
+    { key: "tianting", label: "天聽", value: 8 },
+    { key: "zimo", label: "自摸", value: 1 },
+    { key: "menqing", label: "門清", value: 1 },
+    { key: "menqingzimo", label: "門清自摸", value: 3 },
+    { key: "zifeng", label: "自風", value: 1 },
+    { key: "quanfeng", label: "圈風", value: 1 },
+    { key: "huapai", label: "花牌", value: 1 },
+    { key: "haidi", label: "海底撈月", value: 1 },
+    { key: "gangshang", label: "槓上開花", value: 1 },
+    { key: "qiangganghu", label: "搶槓胡", value: 1 }
+  ];
+  var TAI_SORT_KEY = "twmj_tai_sort_v1";
+  function loadTaiSortMode(){
+    try{
+      var v = localStorage.getItem(TAI_SORT_KEY);
+      return v === "freq" ? "freq" : "value";
+    }catch(e){ return "value"; }
+  }
+  function saveTaiSortMode(mode){
+    try{ localStorage.setItem(TAI_SORT_KEY, mode); }catch(e){}
+  }
+  function computeTagFrequency(){
+    var freq = {};
+    state.games.forEach(function(g){
+      g.sets.forEach(function(set){
+        set.hands.forEach(function(h){
+          (h.tags || []).forEach(function(label){ freq[label] = (freq[label] || 0) + 1; });
+        });
+      });
+    });
+    return freq;
+  }
+  // 花牌可能同一手有好幾張（不是有/沒有的二選一），改用底下獨立的 +/-
+  // 計數器記錄，不放進這排可以點選的台型 chip 裡，避免跟一般「點了就
+  // 算過一次」的台型混在一起、只能點一次。
+  function sortedTaiTags(){
+    var entries = TAI_TAGS.filter(function(t){ return t.key !== "huapai"; }).map(function(t, i){ return { tag: t, idx: i }; });
+    if(ui.taiSortMode === "freq"){
+      var freq = computeTagFrequency();
+      entries.sort(function(a, b){
+        var fa = freq[a.tag.label] || 0, fb = freq[b.tag.label] || 0;
+        if(fb !== fa) return fb - fa;
+        return a.idx - b.idx;
+      });
+    }else{
+      entries.sort(function(a, b){
+        var va = tagValue(a.tag), vb = tagValue(b.tag);
+        if(va !== vb) return va - vb;
+        return a.idx - b.idx;
+      });
+    }
+    return entries.map(function(e){ return e.tag; });
+  }
+
+  function genId(prefix){
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function defaultState(){
+    return {
+      roster: DEFAULT_NAMES.map(function(n, i){
+        return { id: "r"+i, name: n, favorite: true, isMe: false };
+      }),
+      venues: [],
+      games: [],
+      activeGameId: null,
+      defaultBase: 100,
+      defaultTai: 20,
+      dutyRotation: { photoIdx: 0, musicIdx: 0 }
+    };
+  }
+
+  function todayISO(){ return isoOf(new Date()); }
+  function isoOf(d){
+    var mm = String(d.getMonth()+1); if(mm.length<2) mm="0"+mm;
+    var dd = String(d.getDate()); if(dd.length<2) dd="0"+dd;
+    return d.getFullYear()+"-"+mm+"-"+dd;
+  }
+  function nowTimeStr(){
+    var d = new Date();
+    var hh = String(d.getHours()); if(hh.length<2) hh="0"+hh;
+    var mm = String(d.getMinutes()); if(mm.length<2) mm="0"+mm;
+    return hh+":"+mm;
+  }
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t=a[i]; a[i]=a[j]; a[j]=t;
+    }
+    return a;
+  }
+  function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  // ---------- normalize / migrate ----------
+  function syncDealerFromHands(set){
+    if(!set.hands.length){ set.dealerIndex = 0; set.streak = 0; return; }
+    var last = set.hands[set.hands.length-1];
+    // 流局（no winner）: dealer always stays and 連莊 continues, same as a dealer win
+    if(last.method === "draw" || last.winnerName === last.dealerName){
+      var di = set.seatOrder.indexOf(last.dealerName);
+      set.dealerIndex = di===-1?0:di;
+      set.streak = last.streak + 1;
+    }else{
+      var curIdx = set.seatOrder.indexOf(last.dealerName);
+      if(curIdx===-1) curIdx = 0;
+      set.dealerIndex = (curIdx+1)%4;
+      set.streak = 0;
+    }
+  }
+
+  function convertOldIndexHandsToNameHands(players, oldHands){
+    return oldHands.map(function(h){
+      var deltas = {};
+      players.forEach(function(n,i){ deltas[n] = (h.deltas && typeof h.deltas[i]==="number") ? h.deltas[i] : 0; });
+      return {
+        dealerName: players[h.dealerIndex] || players[0],
+        streak: typeof h.streak==="number" ? h.streak : 0,
+        winnerName: players[h.winnerIndex] || players[0],
+        method: h.method==="discard" ? "discard" : "self",
+        loserName: (h.method==="discard" && typeof h.loserIndex==="number") ? (players[h.loserIndex]||null) : null,
+        tai: typeof h.tai==="number" ? h.tai : 0,
+        dealerBonusTai: 0,
+        effectiveTai: typeof h.effectiveTai==="number" ? h.effectiveTai : (h.tai||0),
+        amount: typeof h.amount==="number" ? h.amount : 0,
+        deltas: deltas,
+        seatOrderAtHand: players.slice(),
+        ts: typeof h.ts==="number" ? h.ts : Date.now()
+      };
+    });
+  }
+
+  function normalizeSet(s, players){
+    if(!s || typeof s !== "object") return null;
+    var out = {
+      id: s.id || genId("s"),
+      seatOrder: (Array.isArray(s.seatOrder) && s.seatOrder.length===4) ? s.seatOrder : players.slice(),
+      dealerIndex: typeof s.dealerIndex==="number" ? s.dealerIndex : 0,
+      streak: typeof s.streak==="number" ? s.streak : 0,
+      hands: Array.isArray(s.hands) ? s.hands : [],
+      status: s.status==="ended" ? "ended" : "active",
+      createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
+      endedAt: typeof s.endedAt==="number" ? s.endedAt : null
+    };
+    return out;
+  }
+
+  function normalizeGame(g){
+    if(!g || typeof g !== "object") return null;
+    var players = (Array.isArray(g.players) && g.players.length===4) ? g.players : DEFAULT_NAMES.slice();
+    var base = typeof g.base==="number" ? g.base : 100;
+    var tai = typeof g.tai==="number" ? g.tai : 20;
+    var selfDrawMode = g.selfDrawMode==="split" ? "split" : "full";
+    var sets;
+    if(Array.isArray(g.sets) && g.sets.length){
+      sets = g.sets.map(function(s){ return normalizeSet(s, players); }).filter(function(s){ return !!s; });
+    }else if(Array.isArray(g.hands)){
+      var rawHands = g.hands;
+      var hands = (rawHands.length && typeof rawHands[0].winnerIndex === "number")
+        ? convertOldIndexHandsToNameHands(players, rawHands)
+        : rawHands;
+      var oneSet = {
+        id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
+        hands: hands, status: g.status==="ended" ? "ended" : "active",
+        createdAt: typeof g.createdAt==="number" ? g.createdAt : Date.now(),
+        endedAt: g.endedAt || null
+      };
+      syncDealerFromHands(oneSet);
+      sets = [oneSet];
+    }else{
+      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
+    }
+    var rawDuties = (g.duties && typeof g.duties === "object") ? g.duties : {};
+    var duties = {};
+    ["record","music","photo"].forEach(function(key){
+      var v = rawDuties[key];
+      duties[key] = (typeof v === "string" && players.indexOf(v) !== -1) ? v : null;
+    });
+    return {
+      id: g.id || genId("g"),
+      date: (typeof g.date === "string" && g.date) ? g.date : todayISO(),
+      time: typeof g.time === "string" ? g.time : "",
+      venue: typeof g.venue === "string" ? g.venue : "",
+      players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
+      status: g.status === "ended" ? "ended" : "active",
+      sets: sets, duties: duties,
+      manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
+      createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
+      endedAt: typeof g.endedAt === "number" ? g.endedAt : null
+    };
+  }
+
+  function normalizeState(parsed){
+    if(!parsed || typeof parsed !== "object") return null;
+    if(Array.isArray(parsed.history) && Array.isArray(parsed.players) && !Array.isArray(parsed.games)){
+      var migratedGame = normalizeGame({
+        players: parsed.players, base: parsed.base, tai: parsed.tai,
+        hands: parsed.history, status: "active"
+      });
+      var ds = defaultState();
+      ds.games = [migratedGame];
+      ds.activeGameId = migratedGame.id;
+      ds.defaultBase = migratedGame.base;
+      ds.defaultTai = migratedGame.tai;
+      return ds;
+    }
+    if(!Array.isArray(parsed.games)) return null;
+    var s = {};
+    s.roster = (Array.isArray(parsed.roster) && parsed.roster.length) ? parsed.roster.map(function(r){
+      return {
+        id: r.id || genId("r"),
+        name: (typeof r.name === "string" && r.name) ? r.name : "?",
+        favorite: !!r.favorite,
+        isMe: !!r.isMe
+      };
+    }) : defaultState().roster;
+    var meFound = false;
+    s.roster.forEach(function(r){ if(r.isMe){ if(meFound) r.isMe=false; else meFound=true; } });
+    s.venues = Array.isArray(parsed.venues) ? parsed.venues.filter(function(v){ return typeof v === "string" && v.trim(); }) : [];
+    s.games = parsed.games.map(normalizeGame).filter(function(g){ return !!g; });
+    s.activeGameId = typeof parsed.activeGameId === "string" ? parsed.activeGameId : null;
+    var ag = null;
+    for(var i=0;i<s.games.length;i++){ if(s.games[i].id === s.activeGameId){ ag = s.games[i]; break; } }
+    if(!ag || ag.status !== "active") s.activeGameId = null;
+    s.defaultBase = typeof parsed.defaultBase === "number" ? parsed.defaultBase : 100;
+    s.defaultTai = typeof parsed.defaultTai === "number" ? parsed.defaultTai : 20;
+    var rawRotation = (parsed.dutyRotation && typeof parsed.dutyRotation === "object") ? parsed.dutyRotation : {};
+    s.dutyRotation = {
+      photoIdx: typeof rawRotation.photoIdx === "number" ? rawRotation.photoIdx : 0,
+      musicIdx: typeof rawRotation.musicIdx === "number" ? rawRotation.musicIdx : 0
+    };
+    return s;
+  }
+
+  function loadLocal(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      return normalizeState(JSON.parse(raw));
+    }catch(e){ return null; }
+  }
+  function saveLocal(s){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }catch(e){}
+  }
+
+  // localStorage 只是離線快取，先拿來畫第一畫面不用等網路；真正的資料
+  // 來源是 Firebase，連上之後 attachStateListener 收到的值會覆蓋這裡。
+  var state = loadLocal() || defaultState();
+
+  // ---------- cloud sync (Firebase Realtime Database) ----------
+  var db = null;
+  var cloudReady = false; // 已連上 Firebase、且至少收過一次資料
+  var syncing = false;
+
+  function setCloudBadge(){
+    var text, cls, hint;
+    if(typeof firebase === "undefined"){ text="💾 本機模式"; cls="local"; hint="連不上雲端資料庫（可能網路問題或擋住了 Firebase），資料只存在這台裝置的瀏覽器裡。"; }
+    else if(!cloudReady){ text="☁️ 連線中…"; cls="syncing"; hint="正在連線雲端資料庫…"; }
+    else if(syncing){ text="☁️ 同步中…"; cls="syncing"; hint="正在把最新資料同步到雲端…"; }
+    else{ text="☁️ 雲端已同步"; cls="synced"; hint="資料已同步到雲端，任何裝置打開同一個網址都會看到最新內容。"; }
+    var el = document.getElementById("cloudBadge");
+    if(el){ el.textContent=text; el.className="cloud-badge "+cls; }
+    var elLg = document.getElementById("cloudBadgeLg");
+    if(elLg){ elLg.textContent=text; elLg.className="cloud-badge-lg "+cls; }
+    var hintEl = document.getElementById("cloudHint");
+    if(hintEl) hintEl.textContent = hint;
+  }
+
+  function applyLocally(newState){
+    state = newState;
+    saveLocal(state);
+    renderAll();
+  }
+
+  function commitState(newState){
+    // 按下去要馬上有反應，不等雲端同步的網路來回——先在本機套用、立刻
+    // 重繪，雲端同步只影響右上角的同步狀態圓標；網路失敗則保留在本機，
+    // 下一步操作會再一起帶著重試。
+    applyLocally(newState);
+    if(!db || !cloudReady) return;
+    syncing = true; setCloudBadge();
+    db.ref(STATE_PATH).set(newState).then(function(){
+      syncing = false;
+      setCloudBadge();
+    }).catch(function(){
+      syncing = false;
+      setCloudBadge();
+      showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+    });
+  }
+
+  // 第一次連上、資料庫還完全是空的（全新專案）時，用這份內建的種子資料
+  // 當起始值寫進去，避免每個人打開都看到空白的名單跟牌局。之後就完全
+  // 由 Firebase 裡的資料當唯一真相，這份種子只在「從來沒人寫過」時用一次。
+  function attachStateListener(){
+    db.ref(STATE_PATH).on("value", function(snapshot){
+      var val = snapshot.val();
+      if(val === null){
+        db.ref(STATE_PATH).set(SEED_STATE);
+        return; // 這個 set 完成後，同一個監聽器會再收到一次剛寫入的值
+      }
+      var normalized = normalizeState(val);
+      if(normalized){ state = normalized; saveLocal(state); renderAll(); }
+      cloudReady = true;
+      setCloudBadge();
+    }, function(){
+      setCloudBadge();
+    });
+  }
+
+  function initFirebase(){
+    if(typeof firebase === "undefined"){ setCloudBadge(); return; }
+    try{ firebase.initializeApp(FIREBASE_CONFIG); }
+    catch(e){ setCloudBadge(); return; }
+    db = firebase.database();
+    // 用匿名登入擋掉完全陌生人隨便寫入（資料庫規則要求 auth != null），
+    // 對使用者來說不需要任何登入畫面，第一次打開就自動處理好。
+    firebase.auth().onAuthStateChanged(function(user){
+      if(user) attachStateListener();
+    });
+    firebase.auth().signInAnonymously().catch(function(){ setCloudBadge(); });
+    setCloudBadge();
+  }
+
+  // ---------- custom confirm/prompt/alert/toast ----------
+  function closeModal(){
+    document.getElementById("modalOverlay").style.display = "none";
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "";
+  }
+  function showConfirm(message, onConfirm){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    var cancelBtn = document.getElementById("modalCancelBtn");
+    function onOk(){ cleanup(); onConfirm(); }
+    function onCancel(){ cleanup(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+    }
+    confirmBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+  }
+  function showPrompt(message, defaultValue, onSubmit){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    var input = document.getElementById("modalInput");
+    input.style.display = "block";
+    input.value = defaultValue || "";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    var cancelBtn = document.getElementById("modalCancelBtn");
+    function onOk(){ var v = input.value; cleanup(); onSubmit(v); }
+    function onCancel(){ cleanup(); }
+    function onKey(e){ if(e.key === "Enter") onOk(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      input.removeEventListener("keydown", onKey);
+    }
+    confirmBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    input.addEventListener("keydown", onKey);
+    setTimeout(function(){ input.focus(); }, 50);
+  }
+  function showAlert(message, onOk){
+    var overlay = document.getElementById("modalOverlay");
+    document.getElementById("modalMessage").textContent = message;
+    document.getElementById("modalInput").style.display = "none";
+    document.getElementById("modalCancelBtn").style.display = "none";
+    overlay.style.display = "flex";
+    var confirmBtn = document.getElementById("modalConfirmBtn");
+    function handler(){ cleanup(); if(onOk) onOk(); }
+    function cleanup(){
+      closeModal();
+      confirmBtn.removeEventListener("click", handler);
+    }
+    confirmBtn.addEventListener("click", handler);
+  }
+  var toastTimer = null;
+  function showToast(message){
+    var el = document.getElementById("toast");
+    el.textContent = message;
+    el.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.style.display = "none"; }, 2800);
+  }
+
+  // ---------- shared helpers ----------
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function streakLabel(n){
+    if(n <= 0) return "莊";
+    var cn = ["一","二","三","四","五","六","七","八","九","十"];
+    var label = n <= 10 ? cn[n-1] : n;
+    return "連" + label;
+  }
+  // 本手預覽跟已記錄的本手清單都用這個組出「贏家怎麼贏的」文字，
+  // 兩處文字才會長得一樣，不會一邊寫「贏家 X」一邊寫「胡牌（X）」。自摸
+  // 不在這裡另外寫「自摸」，因為「自摸」本身就是台型標籤之一（觸發手勢
+  // 時會自動加選），會跟其他台型一起出現在後面的括號裡，不用寫兩次。
+  function winMethodLabel(method, winnerName, loserName){
+    var who = "胡牌（"+escapeHtml(winnerName)+"）";
+    return method === "self" ? who : (who+"・放槍（"+escapeHtml(loserName)+"）");
+  }
+  // 自摸的拉莊台加成，莊家自己自摸贏、跟別人自摸打斷莊家連莊，意義不一樣：
+  // 莊家自摸時這是贏家自己多贏的台數，三家都照這個台數多付；別人自摸時
+  // 這其實是莊家單獨要多付的錢（賠連莊被打斷），不是贏家胡牌的台數變大，
+  // 另外兩家還是照原本台數付。所以文字要分開講，不能都寫「含拉莊台」，
+  // 不然會讓人以為這手牌本身就值這麼多台。
+  function dealerBonusPhrase(bonusTai, dealerIsWinner){
+    if(bonusTai <= 0) return null;
+    return dealerIsWinner ? ("含拉莊台 +"+bonusTai+"台") : ("莊家多付拉莊台 +"+bonusTai+"台");
+  }
+  // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
+  // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
+  // 像花牌這種同一手可能出現好幾次的台型，tags 陣列裡會重複放好幾個
+  // 同樣的標籤（例如三張花就是 ["花牌","花牌","花牌"]），這裡先合併算
+  // 出現幾次，顯示成「花牌×3」而不是重複寫三次「花牌」。
+  function groupTagCounts(tags){
+    var counts = {}, order = [];
+    (tags || []).forEach(function(label){
+      if(!(label in counts)){ counts[label] = 0; order.push(label); }
+      counts[label]++;
+    });
+    return { counts: counts, order: order };
+  }
+  function tagsAndBonusParen(tags, bonusPhrase){
+    var grouped = groupTagCounts(tags);
+    var parts = grouped.order.map(function(label){
+      var c = grouped.counts[label];
+      return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
+    });
+    if(bonusPhrase) parts.push(bonusPhrase);
+    return parts.length ? ("（"+parts.join("、")+"）") : "";
+  }
+  function activeGame(){
+    if(!state.activeGameId) return null;
+    var g = null;
+    for(var i=0;i<state.games.length;i++){ if(state.games[i].id === state.activeGameId){ g = state.games[i]; break; } }
+    return (g && g.status === "active") ? g : null;
+  }
+  function activeSet(game){
+    if(!game) return null;
+    for(var i=game.sets.length-1;i>=0;i--){ if(game.sets[i].status === "active") return game.sets[i]; }
+    return null;
+  }
+  function meRoster(){
+    for(var i=0;i<state.roster.length;i++){ if(state.roster[i].isMe) return state.roster[i]; }
+    return null;
+  }
+  function allHandsOf(game){
+    var out = [];
+    game.sets.forEach(function(set){ set.hands.forEach(function(h){ out.push(h); }); });
+    return out;
+  }
+  function computeSetTotals(set){
+    var totals = {};
+    set.seatOrder.forEach(function(n){ totals[n]=0; });
+    set.hands.forEach(function(h){
+      Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+    });
+    return totals;
+  }
+  function computeGameTotals(game){
+    var totals = {};
+    game.players.forEach(function(n){ totals[n]=0; });
+    game.sets.forEach(function(set){
+      set.hands.forEach(function(h){
+        Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+      });
+    });
+    return totals;
+  }
+  function computePlayerHandStats(set, name){
+    var s = {self:0, win:0, discard:0};
+    set.hands.forEach(function(h){
+      if(h.winnerName===name){ s.win++; if(h.method==="self") s.self++; }
+      if(h.method==="discard" && h.loserName===name) s.discard++;
+    });
+    return s;
+  }
+  function renderChipRow(containerId, items, onPick){
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    if(!items || !items.length) return;
+    items.forEach(function(text){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = text;
+      b.addEventListener("click", function(){ onPick(text); });
+      el.appendChild(b);
+    });
+  }
+
+  // ---------- ui-local (never persisted / published) state ----------
+  var ui = {
+    tab: "game",
+    statsSub: "longterm",
+    statsTargetName: null,
+    calTargetName: null,
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    calSelectedDate: null,
+    newGameFormReady: false,
+    newGameSelfDrawMode: "full",
+    newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null },
+    backfillFormOpen: false,
+    backfillFormReady: false,
+    backfill: { opponents: [] },
+    tai: 0,
+    taiTags: [],
+    huaCount: 0,
+    swapMode: false,
+    swapSelected: null,
+    swapSeatOrder: null,
+    dealerBonusEnabled: true,
+    showSetLog: true,
+    endSetPanelOpen: false,
+    showDuties: true,
+    taiSortMode: loadTaiSortMode(),
+    pendingHand: null
+  };
+
+  // ================= TAB NAVIGATION =================
+  function updateTabVisibility(){
+    var pages = { game:"tab-game", stats:"tab-stats", calendar:"tab-calendar", roster:"tab-roster", settings:"tab-settings" };
+    Object.keys(pages).forEach(function(key){
+      var el = document.getElementById(pages[key]);
+      if(el) el.classList.toggle("active", ui.tab === key);
+    });
+    var btns = document.querySelectorAll(".tab-btn");
+    for(var i=0;i<btns.length;i++){
+      btns[i].classList.toggle("active", btns[i].getAttribute("data-tab") === ui.tab);
+    }
+  }
+  var tabButtons = document.querySelectorAll(".tab-btn");
+  for(var tbi=0; tbi<tabButtons.length; tbi++){
+    tabButtons[tbi].addEventListener("click", function(e){
+      ui.tab = e.currentTarget.getAttribute("data-tab");
+      updateTabVisibility();
+    });
+  }
+
+  // ================= 本局：開新牌局 =================
+  function renderNewGameForm(){
+    var me = meRoster();
+    document.getElementById("ngNoMeWarning").style.display = me ? "none" : "block";
+    document.getElementById("ngOpponentPickBlock").style.display = me ? "block" : "none";
+    document.getElementById("startGameBtn").disabled = !me;
+
+    if(!ui.newGameFormReady){
+      document.getElementById("ngDate").value = ui.calSelectedDate || todayISO();
+      document.getElementById("ngTime").value = nowTimeStr();
+      document.getElementById("ngVenue").value = "";
+      document.getElementById("ngBase").value = state.defaultBase;
+      document.getElementById("ngTai").value = state.defaultTai;
+      ui.newGameSelfDrawMode = "full";
+      ui.newGame = { opponents: [], seatOrder: null, swapMode: false, swapSelected: null };
+      ui.newGameFormReady = true;
+    }
+    renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
+    document.getElementById("ngModeFull").classList.toggle("selected", ui.newGameSelfDrawMode !== "split");
+    document.getElementById("ngModeSplit").classList.toggle("selected", ui.newGameSelfDrawMode === "split");
+
+    if(!me){ document.getElementById("ngSeatBlock").style.display = "none"; return; }
+
+    var candidates = state.roster.filter(function(r){ return !r.isMe; });
+    candidates = candidates.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
+    var chipsEl = document.getElementById("ngOpponentChips");
+    chipsEl.innerHTML = "";
+    candidates.forEach(function(r){
+      var b = document.createElement("button");
+      b.type = "button";
+      var selected = ui.newGame.opponents.indexOf(r.name) !== -1;
+      b.className = "chip" + (selected ? " chip-selected" : "");
+      b.textContent = (r.favorite ? "★ " : "") + r.name;
+      if(!selected && ui.newGame.opponents.length >= 3) b.disabled = true;
+      b.addEventListener("click", function(){ toggleOpponent(r.name); });
+      chipsEl.appendChild(b);
+    });
+    document.getElementById("ngOppCount").textContent = ui.newGame.opponents.length + "/3";
+
+    var seatBlock = document.getElementById("ngSeatBlock");
+    if(ui.newGame.opponents.length === 3){
+      seatBlock.style.display = "block";
+      // 預設不隨機洗牌，照選人的順序排（我最先選、排最前面，就坐東當第一位莊家）；
+      // 想要隨機排的話可以按「重新抓位」。
+      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = [me.name].concat(ui.newGame.opponents);
+      renderNgSeatList();
+    }else{
+      seatBlock.style.display = "none";
+      ui.newGame.seatOrder = null;
+    }
+  }
+
+  function toggleOpponent(name){
+    var idx = ui.newGame.opponents.indexOf(name);
+    if(idx !== -1){ ui.newGame.opponents.splice(idx,1); }
+    else if(ui.newGame.opponents.length < 3){ ui.newGame.opponents.push(name); }
+    ui.newGame.seatOrder = null;
+    renderGameTab();
+  }
+
+  document.getElementById("ngNewOpponentBtn").addEventListener("click", function(){
+    var input = document.getElementById("ngNewOpponentInput");
+    var name = input.value.trim();
+    if(!name) return;
+    var exists = state.roster.some(function(r){ return r.name === name; });
+    var ns = deepClone(state);
+    if(!exists) ns.roster.push({ id: genId("r"), name: name, favorite:false, isMe:false });
+    input.value = "";
+    if(ui.newGame.opponents.length < 3 && ui.newGame.opponents.indexOf(name) === -1){
+      ui.newGame.opponents.push(name);
+      ui.newGame.seatOrder = null;
+    }
+    commitState(ns);
+  });
+
+  document.getElementById("ngReshuffleBtn").addEventListener("click", function(){
+    if(ui.newGame.opponents.length !== 3) return;
+    var me = meRoster();
+    ui.newGame.seatOrder = shuffle([me.name].concat(ui.newGame.opponents));
+    renderGameTab();
+  });
+
+  document.getElementById("ngSwapModeBtn").addEventListener("click", function(){
+    ui.newGame.swapMode = !ui.newGame.swapMode;
+    ui.newGame.swapSelected = null;
+    renderGameTab();
+  });
+
+  function renderNgSeatList(){
+    var el = document.getElementById("ngSeatList");
+    el.innerHTML = "";
+    document.getElementById("ngSwapModeBtn").textContent = "🔁 點兩人互換：" + (ui.newGame.swapMode ? "開啟" : "關閉");
+    document.getElementById("ngSwapModeBtn").classList.toggle("selected", ui.newGame.swapMode);
+    var me = meRoster();
+    ui.newGame.seatOrder.forEach(function(name, idx){
+      var row = document.createElement("div");
+      row.className = "seat-row" + (ui.newGame.swapSelected === name ? " seat-row-selected" : "");
+      var badge = document.createElement("span");
+      badge.className = "wind-chip" + (idx===0 ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      var nameEl = document.createElement("span");
+      nameEl.className = "seat-name";
+      nameEl.textContent = name;
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
+      }
+      var upBtn = document.createElement("button");
+      upBtn.type="button"; upBtn.className="seat-arrow"; upBtn.textContent="▲"; upBtn.disabled = idx===0;
+      upBtn.addEventListener("click", function(e){ e.stopPropagation(); swapSeatIdx(idx, idx-1); });
+      var downBtn = document.createElement("button");
+      downBtn.type="button"; downBtn.className="seat-arrow"; downBtn.textContent="▼"; downBtn.disabled = idx===3;
+      downBtn.addEventListener("click", function(e){ e.stopPropagation(); swapSeatIdx(idx, idx+1); });
+
+      row.appendChild(badge);
+      row.appendChild(nameEl);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+
+      row.addEventListener("click", function(){
+        if(!ui.newGame.swapMode) return;
+        if(ui.newGame.swapSelected === null){ ui.newGame.swapSelected = name; renderGameTab(); }
+        else if(ui.newGame.swapSelected === name){ ui.newGame.swapSelected = null; renderGameTab(); }
+        else{
+          var a = ui.newGame.seatOrder.indexOf(ui.newGame.swapSelected);
+          var b = ui.newGame.seatOrder.indexOf(name);
+          var tmp = ui.newGame.seatOrder[a]; ui.newGame.seatOrder[a] = ui.newGame.seatOrder[b]; ui.newGame.seatOrder[b] = tmp;
+          ui.newGame.swapSelected = null;
+          renderGameTab();
+        }
+      });
+      el.appendChild(row);
+    });
+  }
+  function swapSeatIdx(i,j){
+    var o = ui.newGame.seatOrder;
+    var t = o[i]; o[i] = o[j]; o[j] = t;
+    renderGameTab();
+  }
+
+  document.getElementById("ngModeFull").addEventListener("click", function(){ ui.newGameSelfDrawMode="full"; renderGameTab(); });
+  document.getElementById("ngModeSplit").addEventListener("click", function(){ ui.newGameSelfDrawMode="split"; renderGameTab(); });
+
+  document.getElementById("startGameBtn").addEventListener("click", function(){
+    var me = meRoster();
+    if(!me) return;
+    if(ui.newGame.opponents.length !== 3){ showToast("請選滿 3 位對手"); return; }
+    if(!ui.newGame.seatOrder) return;
+    var date = document.getElementById("ngDate").value || todayISO();
+    var time = document.getElementById("ngTime").value || nowTimeStr();
+    var venue = document.getElementById("ngVenue").value.trim();
+    var base = parseInt(document.getElementById("ngBase").value, 10);
+    var tai = parseInt(document.getElementById("ngTai").value, 10);
+    var players = [me.name].concat(ui.newGame.opponents);
+    var firstSet = {
+      id: genId("s"), seatOrder: ui.newGame.seatOrder.slice(), dealerIndex: 0, streak: 0,
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+    };
+    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+    var photoName = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+    var musicName = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+    var newGame = {
+      id: genId("g"), date: date, time: time, venue: venue, players: players,
+      base: isNaN(base) ? 0 : Math.max(0, base),
+      tai: isNaN(tai) ? 0 : Math.max(0, tai),
+      selfDrawMode: ui.newGameSelfDrawMode,
+      status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
+      createdAt: Date.now(), endedAt: null
+    };
+    var newState = deepClone(state);
+    newState.games.push(newGame);
+    newState.activeGameId = newGame.id;
+    newState.dutyRotation = {
+      photoIdx: (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length,
+      musicIdx: (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length
+    };
+    newState.defaultBase = newGame.base;
+    newState.defaultTai = newGame.tai;
+    if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
+    ui.newGameFormReady = false;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
+    ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
+    commitState(newState);
+  });
+
+  // ================= 本局：補記過去的牌局 =================
+  document.getElementById("openBackfillBtn").addEventListener("click", function(){
+    ui.backfillFormOpen = true;
+    ui.backfillFormReady = false;
+    ui.backfill = { opponents: [] };
+    renderGameTab();
+  });
+  document.getElementById("bfCancelBtn").addEventListener("click", function(){
+    ui.backfillFormOpen = false;
+    renderGameTab();
+  });
+
+  function renderBackfillForm(){
+    var me = meRoster();
+    document.getElementById("bfNoMeWarning").style.display = me ? "none" : "block";
+    document.getElementById("bfOpponentPickBlock").style.display = me ? "block" : "none";
+
+    if(!ui.backfillFormReady){
+      document.getElementById("bfDate").value = ui.calSelectedDate || todayISO();
+      document.getElementById("bfTime").value = nowTimeStr();
+      document.getElementById("bfVenue").value = "";
+      document.getElementById("bfSetsCount").value = 1;
+      ui.backfillFormReady = true;
+    }
+    renderChipRow("bfVenueChips", state.venues, function(v){ document.getElementById("bfVenue").value = v; });
+
+    if(!me){ document.getElementById("bfAmountsBlock").style.display = "none"; document.getElementById("bfSubmitBtn").disabled = true; return; }
+
+    var candidates = state.roster.filter(function(r){ return !r.isMe; });
+    candidates = candidates.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
+    var chipsEl = document.getElementById("bfOpponentChips");
+    chipsEl.innerHTML = "";
+    candidates.forEach(function(r){
+      var b = document.createElement("button");
+      b.type = "button";
+      var selected = ui.backfill.opponents.indexOf(r.name) !== -1;
+      b.className = "chip" + (selected ? " chip-selected" : "");
+      b.textContent = (r.favorite ? "★ " : "") + r.name;
+      if(!selected && ui.backfill.opponents.length >= 3) b.disabled = true;
+      b.addEventListener("click", function(){
+        var idx = ui.backfill.opponents.indexOf(r.name);
+        if(idx !== -1) ui.backfill.opponents.splice(idx, 1);
+        else if(ui.backfill.opponents.length < 3) ui.backfill.opponents.push(r.name);
+        renderGameTab();
+      });
+      chipsEl.appendChild(b);
+    });
+    document.getElementById("bfOppCount").textContent = ui.backfill.opponents.length + "/3";
+
+    var amountsBlock = document.getElementById("bfAmountsBlock");
+    if(ui.backfill.opponents.length === 3){
+      amountsBlock.style.display = "block";
+      var players = [me.name].concat(ui.backfill.opponents);
+      var list = document.getElementById("bfAmountsList");
+      list.innerHTML = "";
+      players.forEach(function(name){
+        var row = document.createElement("div");
+        row.className = "grid2";
+        row.style.alignItems = "center";
+        row.style.marginBottom = "8px";
+        var label = document.createElement("label");
+        label.className = "field";
+        label.style.marginBottom = "0";
+        label.textContent = name + (me.name === name ? "（我）" : "");
+        var input = document.createElement("input");
+        input.type = "number"; input.step = "10";
+        input.value = 0;
+        input.setAttribute("data-name", name);
+        input.addEventListener("input", updateBackfillSum);
+        row.appendChild(label);
+        row.appendChild(input);
+        list.appendChild(row);
+      });
+      updateBackfillSum();
+    }else{
+      amountsBlock.style.display = "none";
+      document.getElementById("bfSubmitBtn").disabled = true;
+    }
+  }
+
+  function updateBackfillSum(){
+    var inputs = document.querySelectorAll("#bfAmountsList input");
+    var sum = 0, hasNonZero = false;
+    for(var i=0;i<inputs.length;i++){
+      var v = parseInt(inputs[i].value, 10) || 0;
+      sum += v;
+      if(v !== 0) hasNonZero = true;
+    }
+    document.getElementById("bfSumBadge").textContent = "合計 " + sum;
+    document.getElementById("bfSubmitBtn").disabled = (sum !== 0 || !hasNonZero);
+  }
+
+  document.getElementById("bfSubmitBtn").addEventListener("click", function(){
+    var me = meRoster();
+    if(!me || ui.backfill.opponents.length !== 3) return;
+    var inputs = document.querySelectorAll("#bfAmountsList input");
+    var players = [me.name].concat(ui.backfill.opponents);
+    var deltas = {};
+    var sum = 0, hasNonZero = false;
+    for(var i=0;i<inputs.length;i++){
+      var name = inputs[i].getAttribute("data-name");
+      var v = parseInt(inputs[i].value, 10) || 0;
+      deltas[name] = v;
+      sum += v;
+      if(v !== 0) hasNonZero = true;
+    }
+    if(sum !== 0){ showToast("四個人的金額加起來要等於 0"); return; }
+    if(!hasNonZero){ showToast("請至少輸入一個人的輸贏金額"); return; }
+    var date = document.getElementById("bfDate").value || todayISO();
+    var time = document.getElementById("bfTime").value || nowTimeStr();
+    var venue = document.getElementById("bfVenue").value.trim();
+    var setsCountRaw = parseInt(document.getElementById("bfSetsCount").value, 10);
+    var setsCount = (isNaN(setsCountRaw) || setsCountRaw < 1) ? 1 : setsCountRaw;
+    var hand = {
+      dealerName: players[0], streak: 0,
+      winnerName: null, method: "manual", loserName: null,
+      tai: 0, dealerBonusTai: 0, effectiveTai: 0,
+      amount: 0, deltas: deltas, tags: [],
+      seatOrderAtHand: players.slice(),
+      ts: Date.now()
+    };
+    var newGame = {
+      id: genId("g"), date: date, time: time, venue: venue, players: players,
+      base: 0, tai: 0, selfDrawMode: "full",
+      status: "ended",
+      sets: [{
+        id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
+        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
+      }],
+      duties: {record:null, music:null, photo:null},
+      manualSetsCount: setsCount,
+      createdAt: Date.now(), endedAt: Date.now()
+    };
+    var newState = deepClone(state);
+    newState.games.push(newGame);
+    if(venue && newState.venues.indexOf(venue) === -1) newState.venues.push(venue);
+    ui.backfillFormOpen = false;
+    commitState(newState);
+    showToast("補記完成，已加進戰績！");
+  });
+
+  // ================= 本局：進行中的將 =================
+  function computeDealerBonus(set){
+    if(!ui.dealerBonusEnabled) return 0;
+    // 莊家本來就有 1 台莊家台，連莊之後每多連一次再加 2 台（連一拉一＝3台、連二拉二＝5台…）。
+    return 2*set.streak + 1;
+  }
+
+  // 放槍胡牌不會自動算莊家台／拉莊台，要靠「莊家」「連莊」台型標籤手動加。
+  // 「莊家」是固定 1 台沒問題，但「連莊」代表的拉莊台會隨連莊次數往上加
+  // （連一+2、連二+4…同一組公式：2×目前連莊數），不能是固定值，
+  // 所以這裡動態算出目前這將的連莊數對應的台數，而不是用 TAI_TAGS 裡的
+  // 固定 value。
+  function currentActiveStreak(){
+    var game = activeGame(); if(!game) return 0;
+    var set = activeSet(game); if(!set) return 0;
+    return set.streak;
+  }
+  function tagValue(tag){
+    if(tag.key === "lianzhuang") return 2 * currentActiveStreak();
+    return tag.value;
+  }
+
+  function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags){
+    var dealerName = set.seatOrder[set.dealerIndex];
+    // 只有自摸才自動加莊家台／拉莊台；放槍（一般胡牌）不自動算，
+    // 要算的話由使用者自己手動點「莊家」或「連莊」台型標籤。
+    var dealerInvolved = method === "self";
+    var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
+    var effectiveTai = taiInput + bonus;
+    var amount = game.base + effectiveTai * game.tai;
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    if(method === "discard"){
+      deltas[loserName] -= amount;
+      deltas[winnerName] += amount;
+    }else{
+      var others = set.seatOrder.filter(function(n){ return n !== winnerName; });
+      if(game.selfDrawMode === "split"){
+        var share = Math.round(amount/3);
+        var shares = [share, share, amount - share*2];
+        others.forEach(function(n,i){ deltas[n] -= shares[i]; });
+        deltas[winnerName] += amount;
+      }else{
+        // 閒家自摸時，拉莊台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
+        // 不是三家一起多付。莊家自己連莊自摸時，三家（都不是莊家）一起付含拉莊加成的金額。
+        var baseAmount = game.base + taiInput * game.tai;
+        var winnerGain = 0;
+        others.forEach(function(n){
+          var pay = (winnerName === dealerName || n === dealerName) ? amount : baseAmount;
+          deltas[n] -= pay;
+          winnerGain += pay;
+        });
+        deltas[winnerName] += winnerGain;
+      }
+    }
+    return {
+      dealerName: dealerName, streak: set.streak,
+      winnerName: winnerName, method: method, loserName: loserName || null,
+      tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
+      amount: amount, deltas: deltas, tags: tags || [],
+      seatOrderAtHand: set.seatOrder.slice(),
+      ts: Date.now()
+    };
+  }
+
+  function huapaiTag(){
+    return TAI_TAGS.filter(function(t){ return t.key === "huapai"; })[0];
+  }
+  function computeTotalTai(){
+    var sum = ui.tai;
+    ui.taiTags.forEach(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      if(tag) sum += tagValue(tag);
+    });
+    sum += ui.huaCount * huapaiTag().value;
+    return sum;
+  }
+  function taiTagLabels(){
+    var labels = ui.taiTags.map(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      return tag ? tag.label : key;
+    });
+    // 花牌可能同一手有好幾張，重複放進標籤陣列裡（不是只放一次），
+    // 這樣「單手最大胡牌」的台型拆解跟「常胡台型」次數統計才會照實際
+    // 張數算，不會把好幾張花牌當成只中了一次。
+    for(var i=0;i<ui.huaCount;i++) labels.push(huapaiTag().label);
+    return labels;
+  }
+
+  function commitHand(winnerName, method, loserName){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels());
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.hands.push(record);
+    syncDealerFromHands(ns);
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null;
+    commitState(newState);
+  }
+
+  function buildDrawRecord(set){
+    var dealerName = set.seatOrder[set.dealerIndex];
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    return {
+      dealerName: dealerName, streak: set.streak,
+      winnerName: null, method: "draw", loserName: null,
+      tai: 0, dealerBonusTai: 0, effectiveTai: 0,
+      amount: 0, deltas: deltas,
+      seatOrderAtHand: set.seatOrder.slice(),
+      ts: Date.now()
+    };
+  }
+
+  function commitDraw(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    var record = buildDrawRecord(set);
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.hands.push(record);
+    syncDealerFromHands(ns);
+    commitState(newState);
+  }
+  document.getElementById("drawBtn").addEventListener("click", function(){ commitDraw(); });
+
+  function flashCard(name, cls){
+    var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
+    if(!el) return;
+    el.classList.add(cls);
+    setTimeout(function(){ el.classList.remove(cls); }, 500);
+  }
+  function cssEscape(s){
+    if(window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_ -￿-]/g, "\\$&");
+  }
+
+  // 固定在畫面最下面的分頁列會蓋住捲動位置剛好落在最下面的內容；預覽
+  // 剛跳出來時把「確認記錄」按鈕捲到分頁列上方，才不會被擋住點不到。
+  function ensurePendingPreviewVisible(){
+    var panel = document.getElementById("pendingPreview");
+    if(!panel || panel.style.display === "none") return;
+    var rect = panel.getBoundingClientRect();
+    var tabbar = document.querySelector(".tabbar");
+    var clearance = (tabbar ? tabbar.getBoundingClientRect().height : 60) + 16;
+    var overflow = rect.bottom - (window.innerHeight - clearance);
+    if(overflow > 0) window.scrollBy({ top: overflow, behavior: "smooth" });
+  }
+  function recordSelfDrawGesture(name){
+    if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
+    ui.pendingHand = { method: "self", winnerName: name, loserName: null };
+    renderGameTab();
+    ensurePendingPreviewVisible();
+    flashCard(name, "flash-win");
+  }
+  function recordDiscardGesture(winnerName, loserName){
+    ui.pendingHand = { method: "discard", winnerName: winnerName, loserName: loserName };
+    renderGameTab();
+    ensurePendingPreviewVisible();
+    flashCard(winnerName, "flash-win");
+    flashCard(loserName, "flash-lose");
+  }
+  function commitPendingHand(){
+    var p = ui.pendingHand;
+    if(!p) return;
+    ui.pendingHand = null;
+    commitHand(p.winnerName, p.method, p.loserName);
+  }
+  function cancelPendingHand(){
+    ui.pendingHand = null;
+    renderGameTab();
+  }
+
+  function setDealerGesture(name){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    var idx = set.seatOrder.indexOf(name);
+    if(idx === -1 || idx === set.dealerIndex) return;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.dealerIndex = idx;
+    ns.streak = 0;
+    commitState(newState);
+  }
+
+  // 換位模式下，點兩張卡片互換或用清單的 ▲▼ 調整，都只是先在本地暫存
+  // （ui.swapSeatOrder）調整順序，畫面立刻反映出來，但不會馬上發布到雲端、
+  // 整頁重新整理——再點一次「換位」結束時才會一次寫進去，使用者才不會
+  // 每動一下位置就被強制重整、跳動畫面。
+  function handleSwapTap(name){
+    if(!ui.swapSeatOrder) return;
+    if(ui.swapSelected === null){ ui.swapSelected = name; renderGameTab(); return; }
+    if(ui.swapSelected === name){ ui.swapSelected = null; renderGameTab(); return; }
+    var a = ui.swapSelected, b = name;
+    ui.swapSelected = null;
+    var order = ui.swapSeatOrder.slice();
+    var ia = order.indexOf(a), ib = order.indexOf(b);
+    if(ia===-1 || ib===-1){ renderGameTab(); return; }
+    var tmp = order[ia]; order[ia] = order[ib]; order[ib] = tmp;
+    ui.swapSeatOrder = order;
+    renderGameTab();
+  }
+
+  function swapActiveSeatIdx(i, j){
+    if(!ui.swapSeatOrder) return;
+    var order = ui.swapSeatOrder.slice();
+    var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    ui.swapSeatOrder = order;
+    renderGameTab();
+  }
+
+  function renderSwapSeatList(set){
+    var container = document.getElementById("activeSeatList");
+    if(!ui.swapMode || !ui.swapSeatOrder){ container.style.display = "none"; container.innerHTML = ""; return; }
+    container.style.display = "block";
+    container.innerHTML = "";
+    var me = meRoster();
+    ui.swapSeatOrder.forEach(function(name, idx){
+      var row = document.createElement("div");
+      row.className = "seat-row" + (ui.swapSelected === name ? " seat-row-selected" : "");
+      var badge = document.createElement("span");
+      badge.className = "wind-chip" + (idx === set.dealerIndex ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      var nameEl = document.createElement("span");
+      nameEl.className = "seat-name";
+      nameEl.textContent = name;
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
+      }
+      var upBtn = document.createElement("button");
+      upBtn.type = "button"; upBtn.className = "seat-arrow"; upBtn.textContent = "▲"; upBtn.disabled = idx === 0;
+      upBtn.addEventListener("click", function(e){ e.stopPropagation(); swapActiveSeatIdx(idx, idx-1); });
+      var downBtn = document.createElement("button");
+      downBtn.type = "button"; downBtn.className = "seat-arrow"; downBtn.textContent = "▼"; downBtn.disabled = idx === 3;
+      downBtn.addEventListener("click", function(e){ e.stopPropagation(); swapActiveSeatIdx(idx, idx+1); });
+
+      row.appendChild(badge);
+      row.appendChild(nameEl);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+      container.appendChild(row);
+    });
+  }
+
+  // ---- gesture recognition: triple-tap = self-draw, press+drag onto another card = discard ----
+  var DRAG_THRESHOLD = 12;
+  var TAP_WINDOW = 700;
+  var tapState = {}; // name -> [timestamps]
+
+  function attachCardGestures(cardEl, playerName){
+    var drag = null;
+    cardEl.addEventListener("pointerdown", function(e){
+      drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId };
+      try{ cardEl.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    cardEl.addEventListener("pointermove", function(e){
+      if(!drag || drag.pointerId !== e.pointerId) return;
+      var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+      if(!drag.moved && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD){
+        drag.moved = true;
+        cardEl.classList.add("dragging");
+      }
+      if(drag.moved){
+        cardEl.style.transform = "translate(" + dx + "px," + dy + "px)";
+        cardEl.style.position = "relative";
+        cardEl.style.zIndex = "10";
+        highlightDropTargetAt(e.clientX, e.clientY, cardEl);
+      }
+    });
+    cardEl.addEventListener("pointerup", function(e){
+      if(!drag || drag.pointerId !== e.pointerId) return;
+      var moved = drag.moved;
+      var startClientX = e.clientX, startClientY = e.clientY;
+      cardEl.classList.remove("dragging");
+      cardEl.style.transform = "";
+      cardEl.style.zIndex = "";
+      clearDropHighlights();
+      drag = null;
+      if(moved){
+        var target = findDropTargetAt(startClientX, startClientY, cardEl);
+        if(target && target !== playerName){
+          recordDiscardGesture(playerName, target);
+        }
+        return;
+      }
+      if(ui.swapMode){ handleSwapTap(playerName); return; }
+      var now = Date.now();
+      var arr = tapState[playerName] || [];
+      arr.push(now);
+      arr = arr.filter(function(t){ return now - t < TAP_WINDOW; });
+      tapState[playerName] = arr;
+      if(arr.length >= 3){
+        tapState[playerName] = [];
+        recordSelfDrawGesture(playerName);
+      }
+    });
+    cardEl.addEventListener("pointercancel", function(){
+      drag = null;
+      cardEl.classList.remove("dragging");
+      cardEl.style.transform = "";
+      cardEl.style.zIndex = "";
+      clearDropHighlights();
+    });
+  }
+  function findDropTargetAt(x, y, exceptEl){
+    var cards = document.querySelectorAll(".gesture-card");
+    for(var i=0;i<cards.length;i++){
+      if(cards[i] === exceptEl) continue;
+      var r = cards[i].getBoundingClientRect();
+      if(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom){
+        return cards[i].getAttribute("data-player");
+      }
+    }
+    return null;
+  }
+  function highlightDropTargetAt(x, y, exceptEl){
+    clearDropHighlights();
+    var name = findDropTargetAt(x, y, exceptEl);
+    if(name){
+      var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
+      if(el) el.classList.add("drop-hover");
+    }
+  }
+  function clearDropHighlights(){
+    var els = document.querySelectorAll(".gesture-card.drop-hover");
+    for(var i=0;i<els.length;i++){ els[i].classList.remove("drop-hover"); }
+  }
+
+  function renderTaiVal(){
+    document.getElementById("taiVal").innerHTML = ui.tai + "<small>其他台</small>";
+    document.getElementById("taiTotalText").textContent = computeTotalTai();
+  }
+  function renderHuaVal(){
+    document.getElementById("huaVal").innerHTML = ui.huaCount + "<small>花牌</small>";
+  }
+  // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
+  // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
+  // 標籤，就會把同一份拉莊台多算一次。所以自摸、且開關開著時，這兩個
+  // 標籤要鎖起來（順便把可能殘留的選取清掉），只有放槍胡牌才需要手動點。
+  function dealerTagsLocked(){
+    return !!(ui.pendingHand && ui.pendingHand.method === "self" && ui.dealerBonusEnabled);
+  }
+  function renderTaiTags(){
+    var el = document.getElementById("taiTagRow");
+    el.innerHTML = "";
+    var locked = dealerTagsLocked();
+    sortedTaiTags().forEach(function(tag){
+      var isDealerTag = (tag.key === "zhuangjia" || tag.key === "lianzhuang");
+      var disabled = locked && isDealerTag;
+      if(disabled){
+        var stray = ui.taiTags.indexOf(tag.key);
+        if(stray !== -1) ui.taiTags.splice(stray, 1);
+      }
+      var b = document.createElement("button");
+      var active = ui.taiTags.indexOf(tag.key) !== -1;
+      b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
+      b.textContent = tag.label + "+" + tagValue(tag);
+      b.disabled = disabled;
+      if(disabled) b.title = "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
+      b.addEventListener("click", function(){
+        if(disabled) return;
+        var idx = ui.taiTags.indexOf(tag.key);
+        if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
+        renderGameTab();
+      });
+      el.appendChild(b);
+    });
+    var sortBtn = document.getElementById("taiSortToggleBtn");
+    sortBtn.textContent = ui.taiSortMode === "freq" ? "排序：常用優先" : "排序：台數小到大";
+  }
+  document.getElementById("taiMinus").addEventListener("click", function(){ ui.tai = Math.max(0, ui.tai-1); renderGameTab(); });
+  document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
+  document.getElementById("huaMinus").addEventListener("click", function(){ ui.huaCount = Math.max(0, ui.huaCount-1); renderGameTab(); });
+  document.getElementById("huaPlus").addEventListener("click", function(){ ui.huaCount = Math.min(8, ui.huaCount+1); renderGameTab(); });
+  document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
+    ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
+    saveTaiSortMode(ui.taiSortMode);
+    renderGameTab();
+  });
+
+  // 進入換位模式時把目前座位存一份到 ui.swapSeatOrder 當暫存草稿；換位中的
+  // 調整都只改這份草稿（見 handleSwapTap／swapActiveSeatIdx），不會馬上發布。
+  // 再點一次「換位」結束時，如果草稿真的跟原本不同，才一次寫進去、發布一次。
+  document.getElementById("swapModeBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(!ui.swapMode){
+      if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+      ui.swapMode = true;
+      ui.swapSelected = null;
+      ui.swapSeatOrder = set.seatOrder.slice();
+      renderGameTab();
+      return;
+    }
+    ui.swapMode = false;
+    ui.swapSelected = null;
+    var newOrder = ui.swapSeatOrder;
+    ui.swapSeatOrder = null;
+    if(newOrder && JSON.stringify(newOrder) !== JSON.stringify(set.seatOrder)){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.seatOrder = newOrder;
+      commitState(newState);
+    }else{
+      renderGameTab();
+    }
+  });
+  document.getElementById("dealerBonusBtn").addEventListener("click", function(){ ui.dealerBonusEnabled = !ui.dealerBonusEnabled; renderGameTab(); });
+  document.getElementById("toggleSetLogBtn").addEventListener("click", function(){ ui.showSetLog = !ui.showSetLog; renderGameTab(); });
+  document.getElementById("toggleDutiesBtn").addEventListener("click", function(){ ui.showDuties = !ui.showDuties; renderGameTab(); });
+
+  document.getElementById("confirmPendingBtn").addEventListener("click", function(){ commitPendingHand(); });
+  document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
+
+  document.getElementById("undoBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    showConfirm("確定要刪除最後一筆紀錄嗎？", function(){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.hands.pop();
+      syncDealerFromHands(ns);
+      commitState(newState);
+    });
+  });
+
+  document.getElementById("endSetBtn").addEventListener("click", function(){
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    ui.endSetPanelOpen = true; renderGameTab();
+  });
+  document.getElementById("continueSetBtn").addEventListener("click", function(){ ui.endSetPanelOpen = false; renderGameTab(); });
+
+  document.getElementById("newSetBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ns.status = "ended"; ns.endedAt = Date.now();
+    // 預設不隨機重新抓位，沿用這將結束時的座位（東還是原本那位，當新的第一位莊家）；
+    // 想換座位可以在新的一將裡用「換位」調整。
+    ng.sets.push({
+      id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+    });
+    ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
+    ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
+    ui.pendingHand = null;
+    commitState(newState);
+  });
+
+  document.getElementById("finishGameBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    showConfirm("確定要結束整場並結算嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。", function(){
+      var set = activeSet(game);
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      if(set){
+        var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+        ns.status = "ended"; ns.endedAt = Date.now();
+      }
+      ng.status = "ended"; ng.endedAt = Date.now();
+      newState.activeGameId = null;
+      ui.newGameFormReady = false; ui.endSetPanelOpen = false;
+      commitState(newState);
+    });
+  });
+
+  // 開局按下去當下就已經把分工輪值往前推進一格（見 startGameBtn），如果
+  // 這場整個取消，輪值也要跟著退回去，不然下次開局會多跳一位、輪值就亂了。
+  document.getElementById("cancelGameBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    showConfirm("確定要取消這整場牌局嗎？不會列入戰績，牌局資料會直接刪除，且無法復原。", function(){
+      var newState = deepClone(state);
+      newState.games = newState.games.filter(function(g){ return g.id !== game.id; });
+      newState.activeGameId = null;
+      var rot = newState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      newState.dutyRotation = {
+        photoIdx: (rot.photoIdx - 1 + PHOTO_ROTATION_NAMES.length) % PHOTO_ROTATION_NAMES.length,
+        musicIdx: (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length
+      };
+      ui.newGameFormReady = false; ui.endSetPanelOpen = false;
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
+      ui.pendingHand = null;
+      commitState(newState);
+      showToast("已取消這場牌局。");
+    });
+  });
+
+  function renderSetLog(set){
+    var list = document.getElementById("setLogList");
+    list.innerHTML = "";
+    if(!set.hands.length){
+      list.innerHTML = '<div class="empty-hint">尚無對戰紀錄，記錄第一手吧！</div>';
+      return;
+    }
+    for(var i=set.hands.length-1; i>=0; i--){
+      var h = set.hands[i];
+      var item = document.createElement("div");
+      item.className = "log-item";
+      var dealerPart = h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName));
+      var headLine, detail;
+      if(h.method === "draw"){
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・流局（沒人胡牌）';
+        detail = '不換錢，莊家連莊。';
+      }else{
+        if(h.method === "discard"){
+          detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
+                   escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
+        }else{
+          var parts = [];
+          Object.keys(h.deltas).forEach(function(n){
+            if(n === h.winnerName) return;
+            parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
+          });
+          detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
+        }
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName));
+      }
+      item.innerHTML =
+        '<div class="log-head">'+headLine+'</div>' +
+        '<div class="log-detail">'+detail+'</div>';
+      list.appendChild(item);
+    }
+  }
+
+  var DUTY_LABELS = { record: "📝 記錄", music: "🎵 音樂", photo: "📷 拍照" };
+  function dutiesSummaryText(duties){
+    if(!duties) return "";
+    var parts = [];
+    Object.keys(DUTY_LABELS).forEach(function(key){
+      if(duties[key]) parts.push(DUTY_LABELS[key]+' '+escapeHtml(duties[key]));
+    });
+    return parts.join('　');
+  }
+  var DUTY_CHIP_IDS = { record: "dutyRecordChips", music: "dutyMusicChips", photo: "dutyPhotoChips" };
+  function assignDuty(gameId, key, name){
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
+    if(!ng) return;
+    if(!ng.duties) ng.duties = {record:null, music:null, photo:null};
+    ng.duties[key] = (ng.duties[key] === name) ? null : name;
+    commitState(newState);
+  }
+  function renderDuties(game){
+    var duties = game.duties || {record:null, music:null, photo:null};
+    document.getElementById("toggleDutiesBtn").textContent = ui.showDuties ? "收起" : "展開";
+    document.getElementById("dutiesBody").style.display = ui.showDuties ? "block" : "none";
+    var summaryText = dutiesSummaryText(duties);
+    document.getElementById("dutiesSummaryLine").innerHTML = summaryText || "還沒有人負責，點「展開」指派。";
+    Object.keys(DUTY_CHIP_IDS).forEach(function(key){
+      var el = document.getElementById(DUTY_CHIP_IDS[key]);
+      el.innerHTML = "";
+      game.players.forEach(function(name){
+        var b = document.createElement("button");
+        b.type = "button";
+        var selected = duties[key] === name;
+        b.className = "chip" + (selected ? " chip-selected" : "");
+        b.textContent = name;
+        b.addEventListener("click", function(){ assignDuty(game.id, key, name); });
+        el.appendChild(b);
+      });
+    });
+  }
+
+  // 牌桌固定畫成菱形（中間留空模擬桌面），「我」永遠在最下面；下家在右邊、
+  // 對家在最上面、上家在左邊——跟著座位陣列（seatOrder）目前的順序轉，
+  // 換位／換莊家改變座位陣列時，這裡會自動重新算，門風本身不受影響
+  // （門風還是照 WINDS[原始索引] 算，只有畫面上的擺放位置變了）。
+  function diamondSlots(seatOrder, me){
+    var myIdx = me ? seatOrder.indexOf(me.name) : -1;
+    var rotated = myIdx === -1 ? seatOrder.slice() : seatOrder.slice(myIdx).concat(seatOrder.slice(0, myIdx));
+    var slotNames = ["slot-bottom", "slot-right", "slot-top", "slot-left"];
+    var slotOf = {};
+    rotated.forEach(function(name, i){ slotOf[name] = slotNames[i]; });
+    return slotOf;
+  }
+
+  // 選好放槍還是自摸之後先不記上，只算出這手的預覽金額，等使用者確認
+  // （可能還要再調整台數）才真的寫進紀錄——buildHandRecord 是純函式，
+  // 這裡呼叫只是拿計算結果來顯示，不會動到實際的 state。
+  function renderPendingPreview(game, set){
+    var panel = document.getElementById("pendingPreview");
+    var p = ui.pendingHand;
+    if(!p){ panel.style.display = "none"; return; }
+    panel.style.display = "block";
+    var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels());
+    var detail;
+    if(p.method === "discard"){
+      detail = escapeHtml(p.loserName) + ' <span class="minus">-'+record.amount+'</span> → ' +
+               escapeHtml(p.winnerName) + ' <span class="plus">+'+record.amount+'</span>';
+    }else{
+      var parts = [];
+      Object.keys(record.deltas).forEach(function(n){
+        if(n === p.winnerName) return;
+        parts.push(escapeHtml(n)+' <span class="minus">-'+(-record.deltas[n])+'</span>');
+      });
+      detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
+    }
+    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName));
+    document.getElementById("pendingPreviewDetail").innerHTML =
+      '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
+  }
+
+  function renderActiveSet(game, set){
+    var setIdx = game.sets.indexOf(set);
+    document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
+    var modeText = game.selfDrawMode === "split" ? "三家均攤" : "各付全額";
+    document.getElementById("gameMetaLine1").textContent = game.date + (game.time ? " "+game.time : "") + (game.venue ? "・"+game.venue : "") + "・底$"+game.base+"/台$"+game.tai+"・自摸"+modeText;
+    var setHandCount = set.hands.length;
+    var gameHandCount = allHandsOf(game).length;
+    document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
+
+    renderDuties(game);
+    renderTaiVal();
+    renderHuaVal();
+    renderTaiTags();
+
+    var setTotals = computeSetTotals(set);
+    var grid = document.getElementById("gestureGrid");
+    grid.innerHTML = "";
+    var me = meRoster();
+    // 換位中顯示的是本地暫存的草稿順序（ui.swapSeatOrder），還沒發布；
+    // 一般情況下顯示的才是實際已記錄的座位（set.seatOrder）。
+    var displayOrder = (ui.swapMode && ui.swapSeatOrder) ? ui.swapSeatOrder : set.seatOrder;
+    var slotOf = diamondSlots(displayOrder, me);
+    var pending = ui.pendingHand;
+    displayOrder.forEach(function(name, idx){
+      var card = document.createElement("div");
+      var cardCls = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
+      if(pending){
+        if(pending.winnerName === name) cardCls += " pending-winner";
+        if(pending.loserName === name) cardCls += " pending-loser";
+      }
+      card.className = cardCls;
+      card.setAttribute("data-player", name);
+
+      var badge = document.createElement("button");
+      badge.type = "button";
+      badge.className = "wind-chip" + (idx === set.dealerIndex ? " wind-dealer" : "");
+      badge.textContent = WINDS[idx];
+      badge.addEventListener("pointerdown", function(e){ e.stopPropagation(); });
+      badge.addEventListener("click", function(e){ e.stopPropagation(); setDealerGesture(name); });
+      card.appendChild(badge);
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.appendChild(document.createTextNode(name));
+      if(me && me.name === name){
+        var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
+        nameEl.appendChild(tag);
+      }
+      card.appendChild(nameEl);
+
+      var amt = setTotals[name] || 0;
+      var amtEl = document.createElement("div");
+      amtEl.className = "amt " + (amt>0?"win":(amt<0?"lose":"zero"));
+      amtEl.textContent = (amt>0?"+":"")+amt;
+      card.appendChild(amtEl);
+
+      var stats = computePlayerHandStats(set, name);
+      var statsEl = document.createElement("div");
+      statsEl.className = "mini-stats";
+      statsEl.textContent = "摸"+stats.self+" 胡"+stats.win+" 槍"+stats.discard;
+      card.appendChild(statsEl);
+
+      attachCardGestures(card, name);
+      grid.appendChild(card);
+    });
+
+    renderPendingPreview(game, set);
+
+    document.getElementById("swapModeBtn").classList.toggle("selected", ui.swapMode);
+    document.getElementById("swapModeBtn").textContent = ui.swapMode ? "🔁 換位中" : "🔁 換位";
+    renderSwapSeatList(set);
+    document.getElementById("dealerBonusBtn").classList.toggle("selected", ui.dealerBonusEnabled);
+    document.getElementById("dealerBonusBtn").textContent = "自摸莊家台 " + (ui.dealerBonusEnabled ? "✓" : "✕");
+
+    var logBtn = document.getElementById("toggleSetLogBtn");
+    var logBtnPrefix = ui.showSetLog ? "隱藏本手" : "顯示本手";
+    logBtn.textContent = set.hands.length ? (logBtnPrefix+"・共"+set.hands.length+"手") : (logBtnPrefix+"・還沒記");
+    document.getElementById("setLogList").style.display = ui.showSetLog ? "block" : "none";
+    if(ui.showSetLog) renderSetLog(set);
+
+    renderPastSets(game);
+  }
+
+  function renderPastSets(game){
+    var card = document.getElementById("pastSetsCard");
+    var list = document.getElementById("pastSetsList");
+    var current = activeSet(game);
+    var pastSets = game.sets.filter(function(s){ return s !== current; });
+    if(!pastSets.length){ card.style.display = "none"; list.innerHTML = ""; return; }
+    card.style.display = "block";
+    list.innerHTML = "";
+    pastSets.forEach(function(s){
+      var idx = game.sets.indexOf(s);
+      var totals = computeSetTotals(s);
+      var item = document.createElement("div");
+      item.className = "log-item";
+      var summary = s.seatOrder.map(function(n){
+        var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
+        return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+      }).join('　');
+      var head = document.createElement("div");
+      head.className = "log-head";
+      head.textContent = "第"+(idx+1)+"將・共"+s.hands.length+"手";
+      var detail = document.createElement("div");
+      detail.className = "log-detail";
+      detail.innerHTML = summary;
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "link-btn danger";
+      delBtn.style.marginTop = "6px";
+      delBtn.textContent = "🗑️ 刪除這將";
+      delBtn.addEventListener("click", function(){
+        showConfirm("確定要刪除第"+(idx+1)+"將的紀錄嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
+          var newState = deepClone(state);
+          var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+          ng.sets = ng.sets.filter(function(x){ return x.id !== s.id; });
+          commitState(newState);
+        });
+      });
+      item.appendChild(head);
+      item.appendChild(detail);
+      item.appendChild(delBtn);
+      list.appendChild(item);
+    });
+  }
+
+  function renderGameTab(){
+    var game = activeGame();
+    // 這個彈出視窗獨立掛在畫面最外層（不是本局卡片的子元素），這樣才能蓋住
+    // 整個畫面而不是被卡進捲動內容裡；因此開關狀態要在這裡統一同步，
+    // 不能只靠 renderActiveSet（沒有進行中的牌局時它根本不會被呼叫，
+    // 視窗會卡住蓋住整個畫面點不到東西）。
+    document.getElementById("endSetModalOverlay").style.display = (game && ui.endSetPanelOpen) ? "flex" : "none";
+    var showBackfill = !game && ui.backfillFormOpen;
+    document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
+    document.getElementById("backfillPanel").style.display = showBackfill ? "block" : "none";
+    document.getElementById("activeGamePanel").style.display = game ? "block" : "none";
+    if(!game){
+      if(showBackfill) renderBackfillForm(); else renderNewGameForm();
+    }else{
+      var set = activeSet(game);
+      if(set) renderActiveSet(game, set);
+    }
+  }
+
+  // ================= 名單 =================
+  function renderRosterTab(){
+    var list = document.getElementById("rosterList");
+    list.innerHTML = "";
+    if(!state.roster.length){
+      list.innerHTML = '<div class="empty-hint">尚無牌友，先新增一位吧！</div>';
+    }
+    state.roster.forEach(function(r){
+      var row = document.createElement("div");
+      row.className = "roster-row";
+      var star = document.createElement("button");
+      star.type = "button"; star.className = "roster-star" + (r.favorite ? " active" : "");
+      star.textContent = r.favorite ? "★" : "☆";
+      star.addEventListener("click", function(){
+        var ns = deepClone(state);
+        var rr = ns.roster.filter(function(x){ return x.id === r.id; })[0];
+        if(rr) rr.favorite = !rr.favorite;
+        commitState(ns);
+      });
+      var nameSpan = document.createElement("div");
+      nameSpan.className = "roster-name";
+      nameSpan.appendChild(document.createTextNode(r.name));
+      if(r.isMe){
+        var meBadge = document.createElement("span");
+        meBadge.className = "me-badge"; meBadge.textContent = "我";
+        nameSpan.appendChild(meBadge);
+      }
+      var actions = document.createElement("div");
+      actions.className = "roster-actions";
+      if(!r.isMe){
+        var setMeBtn = document.createElement("button");
+        setMeBtn.type = "button"; setMeBtn.className = "link-btn"; setMeBtn.textContent = "設為我";
+        setMeBtn.addEventListener("click", function(){
+          var ns = deepClone(state);
+          ns.roster.forEach(function(x){ x.isMe = (x.id === r.id); });
+          commitState(ns);
+        });
+        actions.appendChild(setMeBtn);
+      }
+      var renameBtn = document.createElement("button");
+      renameBtn.type = "button"; renameBtn.className = "link-btn"; renameBtn.textContent = "改名";
+      renameBtn.addEventListener("click", function(){
+        showPrompt("修改名字", r.name, function(newName){
+          newName = newName.trim();
+          if(!newName) return;
+          var ns = deepClone(state);
+          var rr = ns.roster.filter(function(x){ return x.id === r.id; })[0];
+          if(rr) rr.name = newName;
+          commitState(ns);
+        });
+      });
+      var delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "link-btn danger"; delBtn.textContent = "刪除";
+      delBtn.addEventListener("click", function(){
+        showConfirm("確定刪除「"+r.name+"」嗎？（不會影響已記錄的牌局資料）", function(){
+          var ns = deepClone(state);
+          ns.roster = ns.roster.filter(function(x){ return x.id !== r.id; });
+          commitState(ns);
+        });
+      });
+      actions.appendChild(renameBtn);
+      actions.appendChild(delBtn);
+      row.appendChild(star);
+      row.appendChild(nameSpan);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+
+    var vlist = document.getElementById("venueList");
+    vlist.innerHTML = "";
+    if(!state.venues.length){
+      vlist.innerHTML = '<div class="empty-hint">尚無常用場地。</div>';
+    }
+    state.venues.forEach(function(v){
+      var row = document.createElement("div");
+      row.className = "roster-row";
+      var nameSpan = document.createElement("div");
+      nameSpan.className = "roster-name"; nameSpan.textContent = v;
+      var actions = document.createElement("div");
+      actions.className = "roster-actions";
+      var delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "link-btn danger"; delBtn.textContent = "刪除";
+      delBtn.addEventListener("click", function(){
+        var ns = deepClone(state);
+        ns.venues = ns.venues.filter(function(x){ return x !== v; });
+        commitState(ns);
+      });
+      actions.appendChild(delBtn);
+      row.appendChild(nameSpan);
+      row.appendChild(actions);
+      vlist.appendChild(row);
+    });
+  }
+  document.getElementById("rosterAddBtn").addEventListener("click", function(){
+    var input = document.getElementById("rosterNameInput");
+    var name = input.value.trim();
+    if(!name) return;
+    var ns = deepClone(state);
+    ns.roster.push({ id: genId("r"), name: name, favorite: false, isMe: false });
+    input.value = "";
+    commitState(ns);
+  });
+  document.getElementById("venueAddBtn").addEventListener("click", function(){
+    var input = document.getElementById("venueNameInput");
+    var name = input.value.trim();
+    if(!name) return;
+    var ns = deepClone(state);
+    if(ns.venues.indexOf(name) === -1) ns.venues.push(name);
+    input.value = "";
+    commitState(ns);
+  });
+
+  // ================= 設定 =================
+  function renderSettingsTab(){
+    document.getElementById("defBaseInput").value = state.defaultBase;
+    document.getElementById("defTaiInput").value = state.defaultTai;
+  }
+  document.getElementById("applyDefaultsBtn").addEventListener("click", function(){
+    var base = parseInt(document.getElementById("defBaseInput").value, 10);
+    var tai = parseInt(document.getElementById("defTaiInput").value, 10);
+    var ns = deepClone(state);
+    ns.defaultBase = isNaN(base) ? 0 : Math.max(0, base);
+    ns.defaultTai = isNaN(tai) ? 0 : Math.max(0, tai);
+    commitState(ns);
+  });
+  document.getElementById("resetAllBtn").addEventListener("click", function(){
+    showConfirm("確定要清空所有牌局、名單與設定嗎？此動作無法復原。", function(){
+      ui.newGameFormReady = false;
+      ui.backfillFormOpen = false;
+      commitState(defaultState());
+    });
+  });
+  document.getElementById("openHelpBtn").addEventListener("click", function(){
+    document.getElementById("helpOverlay").style.display = "block";
+    document.getElementById("helpOverlay").scrollTop = 0;
+  });
+  document.getElementById("closeHelpBtn").addEventListener("click", function(){
+    document.getElementById("helpOverlay").style.display = "none";
+  });
+
+  // ================= 資料備份 =================
+  // 不依賴雲端資料庫的手動備份：匯出用「複製到剪貼簿」，匯入則用原生
+  // 檔案選取（FileReader 讀檔一定能用）搭配貼上文字兩種方式，就算 Firebase
+  // 掛了或想搬到別的地方，也還有這份保險。
+  function closeBackupPanels(){
+    document.getElementById("backupExportPanel").style.display = "none";
+    document.getElementById("backupImportPanel").style.display = "none";
+  }
+  document.getElementById("exportBackupBtn").addEventListener("click", function(){
+    document.getElementById("backupExportText").value = JSON.stringify(state, null, 2);
+    closeBackupPanels();
+    document.getElementById("backupExportPanel").style.display = "block";
+  });
+  document.getElementById("closeExportPanelBtn").addEventListener("click", closeBackupPanels);
+  document.getElementById("copyBackupBtn").addEventListener("click", function(){
+    var textEl = document.getElementById("backupExportText");
+    textEl.focus(); textEl.select();
+    function fallbackCopy(){
+      var ok = false;
+      try{ ok = document.execCommand("copy"); }catch(e){}
+      showToast(ok ? "已複製到剪貼簿！" : "複製失敗，請手動選取文字複製。");
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(textEl.value).then(function(){
+        showToast("已複製到剪貼簿！");
+      }, fallbackCopy);
+    }else{
+      fallbackCopy();
+    }
+  });
+
+  document.getElementById("importBackupBtn").addEventListener("click", function(){
+    document.getElementById("backupImportText").value = "";
+    document.getElementById("backupFileInput").value = "";
+    closeBackupPanels();
+    document.getElementById("backupImportPanel").style.display = "block";
+  });
+  document.getElementById("closeImportPanelBtn").addEventListener("click", closeBackupPanels);
+  document.getElementById("backupFileInput").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ document.getElementById("backupImportText").value = String(reader.result || ""); };
+    reader.onerror = function(){ showToast("讀取檔案失敗，請改用貼上文字的方式。"); };
+    reader.readAsText(file);
+  });
+  document.getElementById("restoreBackupBtn").addEventListener("click", function(){
+    var raw = document.getElementById("backupImportText").value.trim();
+    if(!raw){ showToast("請先選擇備份檔或貼上備份內容。"); return; }
+    var parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ showToast("內容不是有效的 JSON，請確認貼的是完整備份內容。"); return; }
+    var restored = normalizeState(parsed);
+    if(!restored){ showToast("這份內容看起來不是麻將算帳本的備份格式。"); return; }
+    showConfirm("確定要還原這份備份嗎？目前所有牌局、名單與設定都會被覆蓋，且無法復原。", function(){
+      closeBackupPanels();
+      ui.newGameFormReady = false;
+      ui.backfillFormOpen = false;
+      commitState(restored);
+      showToast("已還原備份！");
+    });
+  });
+
+  // ================= 戰績 =================
+  var subBtns = document.querySelectorAll(".subtab-btn");
+  for(var sbi=0; sbi<subBtns.length; sbi++){
+    subBtns[sbi].addEventListener("click", function(e){
+      ui.statsSub = e.currentTarget.getAttribute("data-sub");
+      renderStatsTab();
+    });
+  }
+
+  // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
+  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。同一天如果
+  // 打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。
+  function computeDrinkTreatCounts(endedGames){
+    var byDate = {};
+    endedGames.forEach(function(g){
+      (byDate[g.date] = byDate[g.date] || []).push(g);
+    });
+    var counts = {};
+    Object.keys(byDate).forEach(function(date){
+      var dayLosers = {};
+      byDate[date].forEach(function(g){
+        var totals = computeGameTotals(g);
+        var min = null;
+        g.players.forEach(function(n){
+          var v = totals[n] || 0;
+          if(min === null || v < min) min = v;
+        });
+        if(min === null || min >= 0) return; // 這場沒人真的輸錢
+        g.players.forEach(function(n){
+          if((totals[n]||0) === min) dayLosers[n] = true;
+        });
+      });
+      Object.keys(dayLosers).forEach(function(n){
+        counts[n] = (counts[n]||0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  function renderLongTermHtml(endedGames){
+    if(!endedGames.length){
+      return '<div class="empty-hint">還沒有結束的牌局。<br>在「本局」開一場牌局，結束後統計會出現在這裡。</div>';
+    }
+    var totalHands = 0;
+    var byName = {};
+    endedGames.forEach(function(g){
+      var hands = allHandsOf(g);
+      totalHands += hands.length;
+      var totals = computeGameTotals(g);
+      g.players.forEach(function(name){
+        if(!byName[name]) byName[name] = { games:0, net:0 };
+        byName[name].games += 1;
+        byName[name].net += (totals[name]||0);
+      });
+    });
+    var names = Object.keys(byName).sort(function(a,b){ return byName[b].net - byName[a].net; });
+    var rows = names.map(function(n){
+      var d = byName[n];
+      var cls = d.net>0?"win":(d.net<0?"lose":"zero");
+      var sign = d.net>0?"+":"";
+      var avg = Math.round(d.net/d.games);
+      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(n)+'</div>' +
+        '<div class="stat-mid">'+d.games+' 場</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+d.net+'<small>平均 '+(avg>=0?'+':'')+avg+'/場</small></div></div>';
+    }).join("");
+
+    var drinkCounts = computeDrinkTreatCounts(endedGames);
+    var drinkNames = Object.keys(drinkCounts).sort(function(a,b){ return drinkCounts[b]-drinkCounts[a]; });
+    var drinkSection = drinkNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">🍹 請飲料次數（每天最輸的人請客，同一天算一次）</div>' +
+       '<div class="stat-list">' + drinkNames.map(function(n){
+         return '<div class="stat-row"><div class="stat-name">'+escapeHtml(n)+'</div>' +
+           '<div class="stat-amt">🍹 '+drinkCounts[n]+' 次</div></div>';
+       }).join('') + '</div>') : '';
+
+    return '<div class="stat-summary">總場次 <b>'+endedGames.length+'</b> ・ 總手數 <b>'+totalHands+'</b></div>' +
+      '<div class="stat-list">'+rows+'</div>' + drinkSection;
+  }
+
+  function statsTargetCandidates(){
+    // anyone in the roster, plus anyone else who's ever actually played but
+    // isn't (or no longer is) a saved roster entry
+    var names = state.roster.map(function(r){ return r.name; });
+    state.games.forEach(function(g){
+      g.players.forEach(function(n){ if(names.indexOf(n) === -1) names.push(n); });
+    });
+    return names;
+  }
+  function currentStatsTarget(){
+    if(ui.statsTargetName && statsTargetCandidates().indexOf(ui.statsTargetName) !== -1) return ui.statsTargetName;
+    var me = meRoster();
+    return me ? me.name : (statsTargetCandidates()[0] || null);
+  }
+  function renderStatsTargetChips(){
+    var el = document.getElementById("statsTargetChips");
+    var show = (ui.statsSub === "wind" || ui.statsSub === "analysis");
+    el.style.display = show ? "flex" : "none";
+    if(!show) return;
+    var target = currentStatsTarget();
+    el.innerHTML = "";
+    statsTargetCandidates().forEach(function(name){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (name === target ? " chip-selected" : "");
+      b.textContent = name;
+      b.addEventListener("click", function(){ ui.statsTargetName = name; renderStatsTab(); });
+      el.appendChild(b);
+    });
+  }
+
+  function renderWindHtml(endedGames, targetName){
+    if(!targetName) return '<div class="empty-hint">名單裡還沒有人，先到「名單」新增牌友。</div>';
+    var buckets = [{hands:0,net:0},{hands:0,net:0},{hands:0,net:0},{hands:0,net:0}];
+    endedGames.forEach(function(g){
+      if(g.players.indexOf(targetName) === -1) return;
+      allHandsOf(g).forEach(function(h){
+        if(h.method === "manual") return; // backfilled totals have no real seat/wind data
+        var idx = h.seatOrderAtHand.indexOf(targetName);
+        if(idx === -1) return;
+        buckets[idx].hands += 1;
+        buckets[idx].net += (h.deltas[targetName]||0);
+      });
+    });
+    var rows = WINDS.map(function(w,i){
+      var d = buckets[i];
+      var cls = d.net>0?"win":(d.net<0?"lose":"zero");
+      var sign = d.net>0?"+":"";
+      return '<div class="stat-row"><div class="stat-name">'+w+'</div><div class="stat-mid">'+d.hands+' 手</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+d.net+'</div></div>';
+    }).join("");
+    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」各門風總輸贏（依手數）</div><div class="stat-list">'+rows+'</div>';
+  }
+
+  // 「單手最大胡牌／放槍」底下列出那手實際疊了哪些台型、各自幾台，
+  // 方便回顧怎麼贏／怎麼放槍的，不是只留一個總台數。各台型台數查
+  // TAI_TAGS；連莊台照那手當時的連莊數（h.streak）現算，跟記錄當下
+  // 用的算法一致，不能用固定值。手動用「其他台」加減、沒對到任何
+  // 台型標籤的部分，就顯示成「其他台」。
+  function handTaiBreakdownText(h){
+    var parts = [];
+    var tagSum = 0;
+    var grouped = groupTagCounts(h.tags);
+    grouped.order.forEach(function(label){
+      var tag = TAI_TAGS.filter(function(t){ return t.label === label; })[0];
+      var perVal = tag ? (tag.key === "lianzhuang" ? 2*h.streak : tag.value) : 0;
+      var count = grouped.counts[label];
+      var val = perVal * count;
+      tagSum += val;
+      parts.push(escapeHtml(label) + (count > 1 ? ("×"+count) : "") + "+" + val);
+    });
+    var other = h.tai - tagSum;
+    if(other !== 0) parts.push("其他台"+(other>0?"+":"")+other);
+    var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
+    if(bonusPhrase) parts.push(bonusPhrase);
+    return parts.join("、");
+  }
+
+  function renderAnalysisHtml(endedGames, targetName){
+    if(!targetName) return '<div class="empty-hint">名單裡還沒有人，先到「名單」新增牌友。</div>';
+    if(!endedGames.length) return '<div class="empty-hint">還沒有結束的牌局。打完幾場之後，這裡會告訴你贏在哪、輸在哪。</div>';
+    var selfWinCount=0, discardWinCount=0, selfWinAmt=0, discardWinAmt=0;
+    var gotDiscardedCount=0, gotDiscardedAmt=0, paidSelfDrawCount=0, paidSelfDrawAmt=0;
+    var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
+    var drawCount=0;
+    var maxWin=null, maxDealIn=null; // {amt, detail}
+    var tagFreq = {}; // 台型標籤 -> 這位玩家胡牌時用到這個台型的次數
+    var venueMap = {}; // name -> {count, winCount, loseCount, drawCount, netAmt}
+    endedGames.forEach(function(g){
+      if(g.players.indexOf(targetName) === -1) return;
+      var gameNet = (computeGameTotals(g)[targetName]) || 0;
+      var vName = (g.venue && g.venue.trim()) ? g.venue : "（未填場地）";
+      if(!venueMap[vName]) venueMap[vName] = {count:0, winCount:0, loseCount:0, drawCount:0, netAmt:0};
+      var vs = venueMap[vName];
+      vs.count++;
+      vs.netAmt += gameNet;
+      if(gameNet>0) vs.winCount++;
+      else if(gameNet<0) vs.loseCount++;
+      else vs.drawCount++;
+      var whenStr = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '');
+      allHandsOf(g).forEach(function(h){
+        if(h.method === "manual") return; // backfilled totals have no real dealer/自摸/放槍 breakdown
+        var myDelta = h.deltas[targetName] || 0;
+        if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
+        else{ nonDealerNet+=myDelta; nonDealerHands++; }
+        if(h.method === "draw"){ drawCount++; return; }
+        if(h.winnerName === targetName){
+          if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
+          else{ discardWinCount++; discardWinAmt+=myDelta; }
+          (h.tags || []).forEach(function(label){ tagFreq[label] = (tagFreq[label] || 0) + 1; });
+          // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
+          // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
+          // 排「單手最大」才準。下面第二行的台型拆解只是說明這手怎麼
+          // 贏的，不是拿來排名的依據。
+          if(!maxWin || myDelta > maxWin.amt){
+            var winWhat = h.method === "self" ? '自摸' : '放槍（'+escapeHtml(h.loserName)+'）';
+            var winBreakdown = handTaiBreakdownText(h);
+            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat + (winBreakdown ? '<br>'+winBreakdown : '') };
+          }
+        }else{
+          if(h.method === "discard" && h.loserName === targetName){
+            gotDiscardedCount++; gotDiscardedAmt+=myDelta;
+            if(!maxDealIn || myDelta < maxDealIn.amt){
+              var dealInBreakdown = handTaiBreakdownText(h);
+              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) + (dealInBreakdown ? '<br>'+dealInBreakdown : '') };
+            }
+          }
+          else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
+        }
+      });
+    });
+    var totalHands = dealerHands + nonDealerHands;
+    var winCount = selfWinCount + discardWinCount;
+    function pct(n, d){ return d>0 ? Math.round(n/d*100)+'%' : '－'; }
+    function card(label, count, amt){
+      var cls = amt>0?"win":(amt<0?"lose":"zero");
+      var sign = amt>0?"+":"";
+      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+count+' 次</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+amt+'</div></div>';
+    }
+    function rateCard(label, sub, rateText){
+      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+sub+'</div>' +
+        '<div class="stat-amt">'+rateText+'</div></div>';
+    }
+    function extremeCard(label, item){
+      // 標籤 + 金額同一行，日期/對手/台數等較長的說明文字獨立一行放在下面，
+      // 避免跟其他統計列一樣塞進三欄 flex，窄螢幕上把標籤擠到逐字換行。
+      if(!item){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+          '<div class="stat-amt zero">－</div></div><div class="stat-mid">尚無紀錄</div></div>';
+      }
+      var cls = item.amt>0?"win":(item.amt<0?"lose":"zero");
+      var sign = item.amt>0?"+":"";
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div><div class="stat-mid">'+item.detail+'</div></div>';
+    }
+    var overallRows = rateCard("胡牌率", totalHands+' 手中 '+winCount+' 手', pct(winCount, totalHands)) +
+                       rateCard("放槍率", totalHands+' 手中 '+gotDiscardedCount+' 手', pct(gotDiscardedCount, totalHands)) +
+                       rateCard("流局率", totalHands+' 手中 '+drawCount+' 手', pct(drawCount, totalHands));
+    var detailRows = card("自摸胡牌", selfWinCount, selfWinAmt) +
+               card("胡別人放槍", discardWinCount, discardWinAmt) +
+               card("放槍賠錢", gotDiscardedCount, gotDiscardedAmt) +
+               card("被別人自摸", paidSelfDrawCount, paidSelfDrawAmt) +
+               card("當莊時", dealerHands, dealerNet) +
+               card("非莊時", nonDealerHands, nonDealerNet);
+    var extremeRows = extremeCard("單手最大胡牌", maxWin) + extremeCard("單手最大放槍", maxDealIn);
+
+    // 常胡台型：算這位玩家胡牌時每個台型標籤各出現幾次，依次數排序，
+    // 讓人一眼看出自己（或對手）最常靠什麼台型贏——只算標籤，不是台數，
+    // 同一手裡疊了好幾種台型就各自累計一次。
+    var tagFreqNames = Object.keys(tagFreq).sort(function(a,b){ return tagFreq[b]-tagFreq[a]; });
+    var tagFreqRows = tagFreqNames.map(function(label){
+      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(label)+'</div>' +
+        '<div class="stat-amt">'+tagFreq[label]+' 次</div></div>';
+    }).join('');
+    var tagFreqSection = tagFreqNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">常胡台型</div><div class="stat-list">'+tagFreqRows+'</div>') : '';
+
+    var venueNames = Object.keys(venueMap);
+    var MIN_VENUE_GAMES = 2; // 場次太少的地點排除在「最高」評選外，避免單場就跳出100%
+    var bestVenue=null, worstVenue=null;
+    venueNames.forEach(function(vName){
+      var vs = venueMap[vName];
+      if(vs.count < MIN_VENUE_GAMES) return;
+      var winRate = vs.winCount / vs.count, loseRate = vs.loseCount / vs.count;
+      if(!bestVenue || winRate > bestVenue.rate || (winRate === bestVenue.rate && vs.count > bestVenue.count)){
+        bestVenue = { name: vName, rate: winRate, count: vs.count, winCount: vs.winCount, loseCount: vs.loseCount, netAmt: vs.netAmt };
+      }
+      if(!worstVenue || loseRate > worstVenue.rate || (loseRate === worstVenue.rate && vs.count > worstVenue.count)){
+        worstVenue = { name: vName, rate: loseRate, count: vs.count, winCount: vs.winCount, loseCount: vs.loseCount, netAmt: vs.netAmt };
+      }
+    });
+    function venueExtremeCard(label, v){
+      if(!v){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+          '<div class="stat-amt zero">－</div></div><div class="stat-mid">還沒有地點打滿 '+MIN_VENUE_GAMES+' 場</div></div>';
+      }
+      var sign = v.netAmt>0?"+":"";
+      var cls = v.netAmt>0?"win":(v.netAmt<0?"lose":"zero");
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+        '<div class="stat-amt">'+escapeHtml(v.name)+'</div></div><div class="stat-mid">共'+v.count+'場・勝'+v.winCount+'場('+pct(v.winCount,v.count)+')・敗'+v.loseCount+'場('+pct(v.loseCount,v.count)+')・淨額<span class="'+cls+'">'+sign+v.netAmt+'</span></div></div>';
+    }
+    var venueHighlightRows = venueExtremeCard("勝率最高地點", bestVenue) + venueExtremeCard("敗率最高地點", worstVenue);
+    var venueListRows = venueNames.slice().sort(function(a,b){ return venueMap[b].count - venueMap[a].count; }).map(function(vName){
+      var vs = venueMap[vName];
+      var sign = vs.netAmt>0?"+":"";
+      var cls = vs.netAmt>0?"win":(vs.netAmt<0?"lose":"zero");
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(vName)+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+vs.netAmt+'</div></div><div class="stat-mid">共'+vs.count+'場・勝'+vs.winCount+'場('+pct(vs.winCount,vs.count)+')・敗'+vs.loseCount+'場('+pct(vs.loseCount,vs.count)+')</div></div>';
+    }).join('');
+    var venueSection = venueNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">地點戰績</div><div class="stat-list">'+venueHighlightRows+'</div>' +
+       '<div class="stat-list" style="margin-top:8px;">'+venueListRows+'</div>') : '';
+
+    return '<div class="stat-summary">「'+escapeHtml(targetName)+'」整體表現・共 '+totalHands+' 手</div><div class="stat-list">'+overallRows+'</div>' +
+      '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
+      '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>' +
+      tagFreqSection +
+      venueSection;
+  }
+
+  function renderGamesListInto(container, endedGames){
+    if(!endedGames.length){
+      container.innerHTML = '<div class="empty-hint">還沒有結束的牌局。</div>';
+      return;
+    }
+    var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
+    var me = meRoster();
+    sorted.forEach(function(g){
+      var totals = computeGameTotals(g);
+      var item = document.createElement("div");
+      item.className = "log-item";
+      var meIn = me && g.players.indexOf(me.name) !== -1;
+      var headline;
+      if(meIn){
+        var net = totals[me.name] || 0;
+        var cls = net>0?"plus":(net<0?"minus":"");
+        headline = '<span class="'+cls+'">'+(net>0?'+':'')+net+'</span>';
+      }else{
+        headline = g.players.map(function(n){ return escapeHtml(n)+' '+((totals[n]||0)>0?'+':'')+(totals[n]||0); }).join('、');
+      }
+      var head = document.createElement("div");
+      head.className = "log-head";
+      head.style.cursor = "pointer";
+      var setsCount = g.manualSetsCount || g.sets.length;
+      head.innerHTML = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '') + '・共'+setsCount+'將・' + headline + ' <span class="expand-hint">▾</span>';
+      var detail = document.createElement("div");
+      detail.className = "log-detail";
+      detail.style.display = "none";
+      var isBackfilled = allHandsOf(g).some(function(h){ return h.method === "manual"; });
+      var summaryEl = document.createElement("div");
+      summaryEl.innerHTML = g.players.map(function(n){
+        var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
+        return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+      }).join('　') + '<br>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
+      detail.appendChild(summaryEl);
+
+      var dutiesText = dutiesSummaryText(g.duties);
+      if(dutiesText){
+        var dutiesEl = document.createElement("div");
+        dutiesEl.style.marginTop = "4px";
+        dutiesEl.innerHTML = dutiesText;
+        detail.appendChild(dutiesEl);
+      }
+
+      if(g.sets.length > 1){
+        var setsList = document.createElement("div");
+        setsList.style.marginTop = "8px";
+        g.sets.forEach(function(s, sIdx){
+          var setTotals = computeSetTotals(s);
+          var setRow = document.createElement("div");
+          setRow.style.marginTop = "6px";
+          setRow.style.paddingTop = "6px";
+          setRow.style.borderTop = "1px solid #e6e3dc";
+          var setSummary = s.seatOrder.map(function(n){
+            var t = setTotals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
+            return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+          }).join('　');
+          setRow.innerHTML = '第'+(sIdx+1)+'將・共'+s.hands.length+'手・'+setSummary;
+          var delSetBtn = document.createElement("button");
+          delSetBtn.type = "button";
+          delSetBtn.className = "link-btn danger";
+          delSetBtn.style.marginTop = "4px";
+          delSetBtn.style.display = "block";
+          delSetBtn.textContent = "🗑️ 刪除第"+(sIdx+1)+"將";
+          delSetBtn.addEventListener("click", function(e){
+            e.stopPropagation();
+            showConfirm("確定要刪除第"+(sIdx+1)+"將的紀錄嗎？此動作無法復原。", function(){
+              var ns = deepClone(state);
+              var ng = ns.games.filter(function(x){ return x.id === g.id; })[0];
+              if(ng) ng.sets = ng.sets.filter(function(x){ return x.id !== s.id; });
+              commitState(ns);
+            });
+          });
+          setRow.appendChild(delSetBtn);
+          setsList.appendChild(setRow);
+        });
+        detail.appendChild(setsList);
+      }
+
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "link-btn danger";
+      delBtn.style.marginTop = "6px";
+      delBtn.textContent = "🗑️ 刪除這場牌局";
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        showConfirm("確定要刪除這場牌局嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
+          var ns = deepClone(state);
+          ns.games = ns.games.filter(function(x){ return x.id !== g.id; });
+          commitState(ns);
+        });
+      });
+      detail.appendChild(delBtn);
+      head.addEventListener("click", function(){
+        detail.style.display = (detail.style.display !== "none") ? "none" : "block";
+      });
+      item.appendChild(head);
+      item.appendChild(detail);
+      container.appendChild(item);
+    });
+  }
+
+  function renderStatsTab(){
+    var btns = document.querySelectorAll(".subtab-btn");
+    for(var i=0;i<btns.length;i++){
+      btns[i].classList.toggle("selected", btns[i].getAttribute("data-sub") === ui.statsSub);
+    }
+    renderStatsTargetChips();
+    var content = document.getElementById("statsContent");
+    var endedGames = state.games.filter(function(g){ return g.status === "ended"; });
+    if(ui.statsSub === "longterm") content.innerHTML = renderLongTermHtml(endedGames);
+    else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames, currentStatsTarget());
+    else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, endedGames); }
+    else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames, currentStatsTarget());
+  }
+
+  // ================= 月曆 =================
+  document.getElementById("calPrev").addEventListener("click", function(){
+    ui.calMonth--; if(ui.calMonth<0){ ui.calMonth=11; ui.calYear--; }
+    renderCalendarTab();
+  });
+  document.getElementById("calNext").addEventListener("click", function(){
+    ui.calMonth++; if(ui.calMonth>11){ ui.calMonth=0; ui.calYear++; }
+    renderCalendarTab();
+  });
+
+  function renderCalDay(){
+    var titleEl = document.getElementById("calDayTitle");
+    var contentEl = document.getElementById("calDayContent");
+    if(!ui.calSelectedDate){
+      titleEl.textContent = "選一個日期";
+      contentEl.innerHTML = '<div class="empty-hint">點上面月曆的日期查看那天的紀錄。</div>';
+      return;
+    }
+    titleEl.textContent = ui.calSelectedDate;
+    var games = state.games.filter(function(g){ return g.date === ui.calSelectedDate; });
+    contentEl.innerHTML = "";
+    if(!games.length){
+      var empty = document.createElement("div");
+      empty.className = "empty-hint";
+      empty.textContent = "這天沒有紀錄。";
+      contentEl.appendChild(empty);
+    }else{
+      games.forEach(function(g){
+        var totals = computeGameTotals(g);
+        var row = document.createElement("div");
+        row.className = "log-item";
+        var statusText = g.status === "active" ? "進行中" : "已結束";
+        row.innerHTML = '<div class="log-head">'+(g.time?escapeHtml(g.time)+' ・ ':'')+(g.venue?escapeHtml(g.venue):"（未填場地）")+' ・ '+statusText+'</div>' +
+          '<div class="log-detail">'+g.players.map(function(n){
+            var t = totals[n]||0; var cls = t>0?"plus":(t<0?"minus":"");
+            return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
+          }).join('　')+'</div>';
+        contentEl.appendChild(row);
+      });
+    }
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn btn-outline btn-block";
+    addBtn.style.marginTop = "10px";
+    var hasActive = !!activeGame();
+    addBtn.textContent = hasActive ? "請先結束目前進行中的牌局" : "🎬 在這天開新牌局";
+    addBtn.disabled = hasActive;
+    addBtn.addEventListener("click", function(){
+      if(hasActive) return;
+      ui.newGameFormReady = false;
+      ui.tab = "game";
+      updateTabVisibility();
+      renderAll();
+    });
+    contentEl.appendChild(addBtn);
+  }
+
+  function currentCalTarget(){
+    if(ui.calTargetName && statsTargetCandidates().indexOf(ui.calTargetName) !== -1) return ui.calTargetName;
+    var me = meRoster();
+    return me ? me.name : (statsTargetCandidates()[0] || null);
+  }
+  function renderCalTargetChips(){
+    var el = document.getElementById("calTargetChips");
+    el.innerHTML = "";
+    var target = currentCalTarget();
+    statsTargetCandidates().forEach(function(name){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (name === target ? " chip-selected" : "");
+      b.textContent = name;
+      b.addEventListener("click", function(){ ui.calTargetName = name; renderCalendarTab(); });
+      el.appendChild(b);
+    });
+  }
+
+  function renderCalendarTab(){
+    var y = ui.calYear, m = ui.calMonth;
+    document.getElementById("calTitle").textContent = y+"年"+(m+1)+"月";
+    var first = new Date(y, m, 1);
+    var startWeekday = first.getDay();
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+    var daysInPrevMonth = new Date(y, m, 0).getDate();
+    renderCalTargetChips();
+    var target = currentCalTarget();
+
+    var byDate = {};
+    state.games.forEach(function(g){
+      if(!byDate[g.date]) byDate[g.date] = [];
+      byDate[g.date].push(g);
+    });
+
+    var grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    var totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7;
+    var monthGamesCount=0, monthHands=0, monthNet=0, monthNetKnown=false;
+
+    for(var idx=0; idx<totalCells; idx++){
+      var dayNum = idx - startWeekday + 1;
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cal-cell";
+      var cellDate, inMonth;
+      if(dayNum < 1){ cellDate = new Date(y, m-1, daysInPrevMonth+dayNum); inMonth = false; }
+      else if(dayNum > daysInMonth){ cellDate = new Date(y, m+1, dayNum-daysInMonth); inMonth = false; }
+      else{ cellDate = new Date(y, m, dayNum); inMonth = true; }
+      var iso = isoOf(cellDate);
+      if(!inMonth) cell.classList.add("other-month");
+      if(iso === ui.calSelectedDate) cell.classList.add("selected");
+
+      var dnum = document.createElement("div");
+      dnum.className = "cal-daynum";
+      dnum.textContent = cellDate.getDate();
+      cell.appendChild(dnum);
+
+      var games = byDate[iso] || [];
+      if(inMonth){
+        monthGamesCount += games.length;
+        games.forEach(function(g){ monthHands += allHandsOf(g).length; });
+      }
+      if(games.length && target){
+        var dayNet = 0; var found = false;
+        games.forEach(function(g){
+          if(g.players.indexOf(target) !== -1){ found = true; dayNet += (computeGameTotals(g)[target]||0); }
+        });
+        if(found){
+          var amtEl = document.createElement("div");
+          amtEl.className = "cal-amt " + (dayNet>0?"win":(dayNet<0?"lose":"zero"));
+          amtEl.textContent = (dayNet>0?"+":"")+dayNet;
+          cell.appendChild(amtEl);
+          if(inMonth){ monthNet += dayNet; monthNetKnown = true; }
+        }
+      }
+
+      (function(isoCapture){
+        cell.addEventListener("click", function(){
+          ui.calSelectedDate = isoCapture;
+          renderCalendarTab();
+        });
+      })(iso);
+
+      grid.appendChild(cell);
+    }
+
+    document.getElementById("calSummary").innerHTML =
+      '本月場次 <b>'+monthGamesCount+'</b> ・ 本月將數 <b>'+monthHands+'</b> ・ 本月「'+(target?escapeHtml(target):'－')+'」的輸贏 <b>' +
+      (target ? (monthNetKnown ? ((monthNet>0?'+':'')+monthNet) : '—') : '（名單裡還沒有人）') + '</b>';
+
+    renderCalDay();
+  }
+
+  // ================= render all =================
+  function renderAll(){
+    updateTabVisibility();
+    renderGameTab();
+    renderStatsTab();
+    renderCalendarTab();
+    renderRosterTab();
+    renderSettingsTab();
+    setCloudBadge();
+  }
+
+  updateTabVisibility();
+  renderAll();
+  initFirebase();
+})();
+
+</script>
 </body>
 </html>
