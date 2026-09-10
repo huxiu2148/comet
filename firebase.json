@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "mahjong",
     "public": ".",
     "ignore": [
       "firebase.json",
