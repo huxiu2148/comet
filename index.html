@@ -47,17 +47,14 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
   }
-  /* 上面的 height:100% 是給不支援 100dvh 的舊瀏覽器當備案；100dvh
-     （dynamic viewport height）才是真正貼齊 iOS 目前實際看得到的螢幕
-     高度，不受 Safari 網址列/工具列有沒有展開影響。固定寫死的 100%／
-     100vh 在手機瀏覽器上是有名的「量到的是網址列收起來時比較高的那個
-     視窗，但畫面實際顯示的是網址列還在、比較矮的那個」，兩者對不起來，
-     底部就會多出一截空白——這正是導覽列下方那截固定空白的成因，且是
-     一打開就有，不需要滑動就會出現，不同於彈性回彈那種要碰過畫面才會
-     跳一下的情形。 */
-  @supports (height: 100dvh){
-    html,body{ height:100dvh; }
-  }
+  /* 100dvh 在 Safari 分頁裡量得到正確高度，但實測「加到主畫面」的 PWA
+     獨立模式下，dvh／vh 這類 CSS 視窗單位在 iOS 上另外有已知的計算不準
+     問題（跟一般分頁走的是不同一套邏輯），底部一樣會多出一截空白。改
+     用 JS 直接讀 window.innerHeight（跟 visualViewport 的 resize 事件
+     保持同步）寫成一個 CSS 變數，不管在分頁還是獨立模式下都是量真正
+     看得到的高度，不依賴瀏覽器自己對 vh/dvh 的計算對不對。 */
+  :root{ --vh100: 100%; }
+  html,body{ height: var(--vh100); }
   /* body 底下其實還包著一層 #app-shell（每次 renderAll 不會整個重建，
      只是個穩定的掛載點），沒有明確高度的話 height:100% 這個百分比鏈會
      在這裡就斷掉——.wrap 的 height:100% 會失去依據，變回「內容多高就多
@@ -748,6 +745,22 @@
 </div>
 <div id="toast" class="toast" style="display:none;"></div>
 </div>
+<script>
+  // 用實測的 window.innerHeight 取代 CSS 的 100%/100vh/100dvh，這幾個
+  // 視窗單位在 iOS 上（尤其是加到主畫面的 PWA 獨立模式）量出來的高度
+  // 常常跟畫面實際看得到的不一樣，會讓 position:fixed 的底部導覽列貼
+  // 不到真正的螢幕最下面。這段要盡量早執行（放在最前面、不等 DOM 或
+  // 其他 script 載完），這樣第一次畫面就是對的，不用等重新計算才修正。
+  (function(){
+    function setVh(){
+      document.documentElement.style.setProperty("--vh100", window.innerHeight + "px");
+    }
+    setVh();
+    window.addEventListener("resize", setVh);
+    window.addEventListener("orientationchange", setVh);
+    if(window.visualViewport) window.visualViewport.addEventListener("resize", setVh);
+  })();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
