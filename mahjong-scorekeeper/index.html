@@ -30,20 +30,33 @@
     --lose: #b1503e;
   }
   *{ box-sizing: border-box; }
+  /* iOS Safari 的彈性回彈捲動（rubber-band）在頁面內容比螢幕短、不用捲動
+     時特別容易發生（例如戰績分頁只有少數幾場牌局）：輕輕一碰畫面就會
+     整頁彈一下，這時候 position:fixed 的底部分頁列會跟著暫時往上位移、
+     下面露出一截空白，直到彈回原位。overscroll-behavior-y:none 在部分
+     iOS 版本沒辦法完全擋掉「整個頁面」層級的回彈（跟一般捲動容器裡的回
+     彈是不同機制）。真正可靠的作法：讓 html/body 本身完全不捲動、固定
+     滿版，實際捲動改交給裡面的 .wrap 自己負責——這樣就沒有「整頁」可以
+     被彈了，底下的分頁列（跟其他 fixed 元素）本來就是相對視窗定位，不
+     會受 .wrap 內部捲動影響，理論上不會再跟著跳動。 */
   html,body{
-    margin:0; padding:0;
+    margin:0; padding:0; height:100%; overflow:hidden;
     background: var(--bg);
     font-family: "PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     color: var(--ink);
     -webkit-tap-highlight-color: transparent;
-    /* iOS Safari 的彈性回彈捲動（rubber-band）在頁面內容比螢幕短、不用
-       捲動時特別容易發生（例如戰績分頁只有少數幾場牌局）：輕輕一碰畫面
-       就會整頁彈一下，這時候 position:fixed 的底部分頁列會跟著暫時往上
-       位移、下面露出一截空白，直到彈回原位。關掉回彈就不會有這個現象，
-       跟其他內容比較長、原本就不太會被彈到的分頁看起來才會一致。 */
     overscroll-behavior-y: none;
   }
-  .wrap{ max-width: 560px; margin: 0 auto; padding: 0 12px calc(84px + env(safe-area-inset-bottom)); }
+  /* body 底下其實還包著一層 #app-shell（每次 renderAll 不會整個重建，
+     只是個穩定的掛載點），沒有明確高度的話 height:100% 這個百分比鏈會
+     在這裡就斷掉——.wrap 的 height:100% 會失去依據，變回「內容多高就多
+     高」，整個 wrap 反而量不到捲動需要的固定高度，導致捲動的還是 body
+     自己而不是 .wrap。這裡也要補上 height:100% 讓鏈路通到底。 */
+  #app-shell{ height:100%; }
+  .wrap{
+    max-width: 560px; margin: 0 auto; padding: 0 12px calc(84px + env(safe-area-inset-bottom));
+    height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain;
+  }
 
   /* 從主畫面圖示開啟（沒有瀏覽器網址列／狀態列）時，畫面最上面就直接是
      系統狀態列（時間、電量），標題要往下讓開安全區域，不然會被蓋住；
@@ -1896,7 +1909,10 @@
     var tabbar = document.querySelector(".tabbar");
     var clearance = (tabbar ? tabbar.getBoundingClientRect().height : 60) + 16;
     var overflow = rect.bottom - (window.innerHeight - clearance);
-    if(overflow > 0) window.scrollBy({ top: overflow, behavior: "smooth" });
+    // 實際捲動的是 .wrap（不是 window/body，見 html,body 的 overflow:hidden
+    // 設定），所以要捲的也是它自己，window.scrollBy 在這裡不會有效果。
+    var wrapEl = document.querySelector(".wrap");
+    if(overflow > 0 && wrapEl) wrapEl.scrollBy({ top: overflow, behavior: "smooth" });
   }
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
