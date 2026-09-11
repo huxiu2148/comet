@@ -774,43 +774,6 @@
     if(window.visualViewport) window.visualViewport.addEventListener("resize", setVh);
   })();
 
-  // 修正 iOS PWA 獨立模式已知的鍵盤 bug：打開過一次螢幕鍵盤之後，
-  // window.innerHeight／visualViewport.height 會永久卡在鍵盤打開時的
-  // 縮水數值，收起鍵盤、切背景再切回來都不會自己恢復，只能整個把 App
-  // 從多工列表滑掉關閉才會重置——但沒有人會為了這個去關 App。第一版用
-  // 一個隱形的假元素開關來強制重排，沒有效果；後來查到關鍵是「被開關
-  // 的元素要是真的佔滿版面、看得到內容的那個」，iOS 才會真的重新去量
-  // 視窗高度，光是一個不影響版面觀感的隱形元素不會觸發。改成直接開關
-  // #app-shell（整個 App 實際內容），這樣畫面會閃一下（可以接受，總比
-  // 導覽列永遠貼不到底好）。
-  (function(){
-    // 同一個 tick 裡把 display 關掉又馬上打開，瀏覽器很可能直接把這兩個
-    //動作合併、當作沒發生過（優化掉中間那個「消失」的狀態），根本沒有
-    // 真的跑完一次重排。改成跨兩個 animation frame：關掉 display 之後
-    // 先讓瀏覽器真的畫一次「不見了」的畫面，下一輪再打開，強迫它是兩個
-    // 分開的動作。
-    function healViewport(){
-      var healer = document.getElementById("app-shell");
-      if(!healer) return;
-      healer.style.display = "none";
-      requestAnimationFrame(function(){
-        void healer.offsetHeight;
-        requestAnimationFrame(function(){
-          healer.style.display = "";
-        });
-      });
-    }
-    document.addEventListener("focusout", function(e){
-      var t = e.target;
-      if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")){
-        setTimeout(healViewport, 50);
-      }
-    });
-    document.addEventListener("visibilitychange", function(){
-      if(document.visibilityState === "visible") setTimeout(healViewport, 50);
-    });
-  })();
-
   // 暫時的除錯資訊，量出實際數字幫忙抓 PWA 導覽列貼不到底的原因；問題
   // 確認解決後會拿掉這段跟上面那條紅線、debugInfo 的 HTML。
   (function(){
