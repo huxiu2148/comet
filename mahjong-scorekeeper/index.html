@@ -181,6 +181,12 @@
   .cloud-badge-lg.synced{ background: var(--win); color:#fff; }
   .cloud-badge-lg.syncing{ background: var(--accent-soft); color: var(--ink); }
 
+  .update-badge{
+    display:block; margin:8px auto 0; font-size:.78rem; font-weight:700;
+    padding:6px 16px; border-radius:999px; border:none; cursor:pointer;
+    background: var(--accent-dark); color:#fff;
+  }
+
   .tab-page{ display:none; }
   .tab-page.active{ display:block; }
   .tabbar{
@@ -366,6 +372,7 @@
     <h1>🀄 決戰西風</h1>
     <p>清楚記錄每一手，輸贏一目瞭然</p>
     <div class="cloud-badge local" id="cloudBadge">💾 本機模式</div>
+    <button type="button" class="update-badge" id="updateBadge" style="display:none;">🔄 有新版本，點此更新</button>
   </header>
 
   <!-- ============ 本局 ============ -->
@@ -736,6 +743,11 @@
 <script id="app-script">
 (function(){
   "use strict";
+
+  // 部署時（GitHub Actions）會把 __BUILD_VERSION__ 換成真正的建置版本
+  // 字串；本機開發／測試環境沒有跑那個步驟，就會維持這個原始值，版本
+  // 檢查邏輯自然比對不出差異，不會在測試裡誤跳出更新按鈕。
+  var APP_VERSION = "__BUILD_VERSION__";
 
   // Firebase 專案的用戶端設定值——這些不是密鑰，是給瀏覽器端 SDK 用的
   // 公開識別碼，真正擋住陌生人讀寫的是 Realtime Database 的安全規則
@@ -3304,9 +3316,35 @@
     setCloudBadge();
   }
 
+  // ---------- 版本檢查（有新版本可以提醒重新整理） ----------
+  // 這是純靜態網頁，沒有 service worker，瀏覽器分頁只要開著就不會自己
+  // 知道又部署了新版本。定期把 index.html 重新抓一次（用 cache:no-store
+  // 繞過快取），比對裡面寫死的建置版本字串，兩者不一樣就代表已經有新
+  // 版本上線了，跳出按鈕讓使用者自己決定要不要重新整理，不強制打斷。
+  function checkForUpdate(){
+    fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var m = html.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+        if(m && m[1] && m[1] !== APP_VERSION){
+          var btn = document.getElementById("updateBadge");
+          if(btn) btn.style.display = "block";
+        }
+      })
+      .catch(function(){});
+  }
+  document.getElementById("updateBadge").addEventListener("click", function(){
+    location.reload();
+  });
+  setInterval(checkForUpdate, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible") checkForUpdate();
+  });
+
   updateTabVisibility();
   renderAll();
   initFirebase();
+  checkForUpdate();
 })();
 
 </script>
