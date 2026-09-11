@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Inject build version
+        run: |
+          BUILD_VERSION="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}"
+          sed -i "s/__BUILD_VERSION__/$BUILD_VERSION/g" index.html
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
