@@ -1961,12 +1961,17 @@
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var idx = set.seatOrder.indexOf(name);
     if(idx === -1 || idx === set.dealerIndex) return;
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-    ns.dealerIndex = idx;
-    ns.streak = 0;
-    commitState(newState);
+    // 這個手勢不用先按「換位」就能直接點門風圈圈換莊家，很容易手滑點到，
+    // 而且換莊家一定會把連莊數重新歸零——不小心點到就會悄悄把正確的連莊
+    // 記錄清掉、算錯拉莊台，而且沒有復原的入口。加一個確認，擋掉手滑。
+    showConfirm("確定要把莊家改成「"+name+"」嗎？連莊數會重新歸零。", function(){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      ns.dealerIndex = idx;
+      ns.streak = 0;
+      commitState(newState);
+    });
   }
 
   // 換位模式下，點兩張卡片互換或用清單的 ▲▼ 調整，都只是先在本地暫存
@@ -2030,7 +2035,12 @@
   }
 
   // ---- gesture recognition: triple-tap = self-draw, press+drag onto another card = discard ----
-  var DRAG_THRESHOLD = 12;
+  // 12px 對手指來說太敏感了——快速點三下時，手指本來就會有一點點自然
+  // 的抖動／位移，稍微超過 12px 就會被誤判成「拖動」而不算進三連擊，
+  // 造成「點了但沒反應、還被當成拖曳」的狀況。拉高到 24px，一般點按
+  // 的抖動範圍都能容忍，同時還是遠低於真正想拖到別張卡片的移動距離，
+  // 不會讓放槍手勢變得容易誤觸發。
+  var DRAG_THRESHOLD = 24;
   var TAP_WINDOW = 700;
   var tapState = {}; // name -> [timestamps]
 
