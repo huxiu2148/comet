@@ -636,12 +636,6 @@
   <button type="button" class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
 </nav>
 
-<!-- 暫時的除錯用元素，之後確認完 PWA 導覽列問題會拿掉：一條貼著螢幕
-     最下面的紅線，跟一個顯示實測數字的小方塊，用來確認 position:fixed
-     bottom:0 到底有沒有真的貼齊、還有量到的視窗高度是多少。 -->
-<div id="debugBottomLine" style="position:fixed; left:0; right:0; bottom:0; height:6px; background:red; z-index:999; pointer-events:none;"></div>
-<div id="debugInfo" style="position:fixed; left:6px; bottom:70px; z-index:999; background:rgba(0,0,0,.8); color:#0f0; font-size:10px; font-family:monospace; padding:6px 8px; border-radius:6px; white-space:pre; line-height:1.5; pointer-events:none;"></div>
-
 <div id="modalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" id="modalMessage"></div>
@@ -741,45 +735,6 @@
 </div>
 <div id="toast" class="toast" style="display:none;"></div>
 </div>
-<script>
-  // 暫時的除錯資訊，量出實際數字幫忙抓 PWA 導覽列貼不到底的原因；問題
-  // 確認解決後會拿掉這段跟上面那條紅線、debugInfo 的 HTML。
-  (function(){
-    function measureSafeAreaBottom(){
-      var probe = document.createElement("div");
-      probe.style.cssText = "position:fixed;left:0;bottom:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;";
-      document.body.appendChild(probe);
-      var v = getComputedStyle(probe).paddingBottom;
-      document.body.removeChild(probe);
-      return v;
-    }
-    function updateDebugInfo(){
-      var el = document.getElementById("debugInfo");
-      if(!el) return;
-      var tabbar = document.querySelector(".tabbar");
-      var tRect = tabbar ? tabbar.getBoundingClientRect() : null;
-      var lines = [
-        "window.innerHeight: " + window.innerHeight,
-        "visualViewport.height: " + (window.visualViewport ? window.visualViewport.height : "無"),
-        "documentElement.clientHeight: " + document.documentElement.clientHeight,
-        "screen.height: " + screen.height,
-        "display-mode standalone: " + (window.matchMedia("(display-mode: standalone)").matches ? "是" : "否"),
-        "navigator.standalone: " + (window.navigator.standalone === true ? "是" : (window.navigator.standalone === false ? "否" : "無")),
-        "safe-area-inset-bottom: " + measureSafeAreaBottom(),
-        "tabbar top/bottom: " + (tRect ? (Math.round(tRect.top) + " / " + Math.round(tRect.bottom)) : "無"),
-        "紅線 bottom(應該=innerHeight): " + document.getElementById("debugBottomLine").getBoundingClientRect().bottom
-      ];
-      el.textContent = lines.join("\n");
-    }
-    updateDebugInfo();
-    window.addEventListener("resize", updateDebugInfo);
-    window.addEventListener("orientationchange", updateDebugInfo);
-    if(window.visualViewport) window.visualViewport.addEventListener("resize", updateDebugInfo);
-    document.addEventListener("visibilitychange", function(){
-      if(document.visibilityState === "visible") setTimeout(updateDebugInfo, 100);
-    });
-  })();
-</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
