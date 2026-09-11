@@ -656,13 +656,6 @@
 <!-- 暫時的除錯用元素，之後確認完 PWA 導覽列問題會拿掉：一條貼著螢幕
      最下面的紅線，跟一個顯示實測數字的小方塊，用來確認 position:fixed
      bottom:0 到底有沒有真的貼齊、還有量到的視窗高度是多少。 -->
-<!-- 專門用來修正 iOS PWA 獨立模式「開過一次鍵盤，視窗就永久縮水、切
-     回前景也不會恢復」這個已知 bug 的隱形元素：打完字之後把這個滿版
-     元素的 display 先關掉、強制觸發一次重排（讀 offsetHeight），再打開，
-     這個動作會讓 iOS 重新量一次真正的視窗高度，把被鍵盤卡住的縮水值
-     修回來。整個過程完全看不到（一直是隱形的），只是借它的滿版尺寸
-     觸發瀏覽器重新計算。 -->
-<div id="viewportHealer" style="position:fixed; inset:0; visibility:hidden; pointer-events:none; z-index:-1;"></div>
 <div id="debugBottomLine" style="position:fixed; left:0; right:0; bottom:0; height:6px; background:red; z-index:999; pointer-events:none;"></div>
 <div id="debugInfo" style="position:fixed; left:6px; bottom:70px; z-index:999; background:rgba(0,0,0,.8); color:#0f0; font-size:10px; font-family:monospace; padding:6px 8px; border-radius:6px; white-space:pre; line-height:1.5; pointer-events:none;"></div>
 
@@ -784,12 +777,15 @@
   // 修正 iOS PWA 獨立模式已知的鍵盤 bug：打開過一次螢幕鍵盤之後，
   // window.innerHeight／visualViewport.height 會永久卡在鍵盤打開時的
   // 縮水數值，收起鍵盤、切背景再切回來都不會自己恢復，只能整個把 App
-  // 從多工列表滑掉關閉才會重置——但沒有人會為了這個去關 App。打完字、
-  // 鍵盤收起來的時候，觸發一次「隱形滿版元素開關+強制重排」，可以讓
-  // iOS 重新量出正確的視窗高度，把卡住的縮水值修正回來。
+  // 從多工列表滑掉關閉才會重置——但沒有人會為了這個去關 App。第一版用
+  // 一個隱形的假元素開關來強制重排，沒有效果；後來查到關鍵是「被開關
+  // 的元素要是真的佔滿版面、看得到內容的那個」，iOS 才會真的重新去量
+  // 視窗高度，光是一個不影響版面觀感的隱形元素不會觸發。改成直接開關
+  // #app-shell（整個 App 實際內容），這樣畫面會閃一下（可以接受，總比
+  // 導覽列永遠貼不到底好）。
   (function(){
     function healViewport(){
-      var healer = document.getElementById("viewportHealer");
+      var healer = document.getElementById("app-shell");
       if(!healer) return;
       healer.style.display = "none";
       void healer.offsetHeight; // 讀取觸發強制重排，不能省略
