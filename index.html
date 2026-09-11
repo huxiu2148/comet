@@ -47,6 +47,17 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
   }
+  /* 上面的 height:100% 是給不支援 100dvh 的舊瀏覽器當備案；100dvh
+     （dynamic viewport height）才是真正貼齊 iOS 目前實際看得到的螢幕
+     高度，不受 Safari 網址列/工具列有沒有展開影響。固定寫死的 100%／
+     100vh 在手機瀏覽器上是有名的「量到的是網址列收起來時比較高的那個
+     視窗，但畫面實際顯示的是網址列還在、比較矮的那個」，兩者對不起來，
+     底部就會多出一截空白——這正是導覽列下方那截固定空白的成因，且是
+     一打開就有，不需要滑動就會出現，不同於彈性回彈那種要碰過畫面才會
+     跳一下的情形。 */
+  @supports (height: 100dvh){
+    html,body{ height:100dvh; }
+  }
   /* body 底下其實還包著一層 #app-shell（每次 renderAll 不會整個重建，
      只是個穩定的掛載點），沒有明確高度的話 height:100% 這個百分比鏈會
      在這裡就斷掉——.wrap 的 height:100% 會失去依據，變回「內容多高就多
@@ -580,7 +591,7 @@
     <div class="card">
       <h2>📍 常用場地</h2>
       <div class="add-row">
-        <input type="text" id="venueNameInput" placeholder="新增場地，例如 阿德家" maxlength="16">
+        <input type="text" id="venueNameInput" placeholder="新增場地" maxlength="16">
         <button class="btn btn-primary" id="venueAddBtn">新增</button>
       </div>
       <div id="venueList"></div>
