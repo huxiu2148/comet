@@ -784,12 +784,21 @@
   // #app-shell（整個 App 實際內容），這樣畫面會閃一下（可以接受，總比
   // 導覽列永遠貼不到底好）。
   (function(){
+    // 同一個 tick 裡把 display 關掉又馬上打開，瀏覽器很可能直接把這兩個
+    //動作合併、當作沒發生過（優化掉中間那個「消失」的狀態），根本沒有
+    // 真的跑完一次重排。改成跨兩個 animation frame：關掉 display 之後
+    // 先讓瀏覽器真的畫一次「不見了」的畫面，下一輪再打開，強迫它是兩個
+    // 分開的動作。
     function healViewport(){
       var healer = document.getElementById("app-shell");
       if(!healer) return;
       healer.style.display = "none";
-      void healer.offsetHeight; // 讀取觸發強制重排，不能省略
-      healer.style.display = "";
+      requestAnimationFrame(function(){
+        void healer.offsetHeight;
+        requestAnimationFrame(function(){
+          healer.style.display = "";
+        });
+      });
     }
     document.addEventListener("focusout", function(e){
       var t = e.target;
