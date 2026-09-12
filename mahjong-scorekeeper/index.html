@@ -301,6 +301,9 @@
   .gesture-card .amt.lose{ color: var(--lose); }
   .gesture-card .amt.zero{ color: var(--ink-faint); }
   .gesture-card .mini-stats{ font-size:.6rem; color: var(--ink-soft); margin-top:4px; }
+  .gesture-card .game-amt{ font-size:.65rem; color: var(--ink-soft); margin-top:2px; font-variant-numeric: tabular-nums; }
+  .gesture-card .game-amt.win{ color: var(--win); }
+  .gesture-card .game-amt.lose{ color: var(--lose); }
   .gesture-card.dragging{ box-shadow: 0 8px 18px rgba(0,0,0,.2); cursor:grabbing; }
   .gesture-card.drop-hover{ background: var(--accent-soft); border-color: var(--accent); }
   .gesture-card.flash-win{ animation: flashwin .5s ease; }
@@ -2423,6 +2426,7 @@
     renderTaiTags();
 
     var setTotals = computeSetTotals(set);
+    var gameTotals = game.sets.length > 1 ? computeGameTotals(game) : null;
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
     var me = meRoster();
@@ -2469,6 +2473,14 @@
       statsEl.className = "mini-stats";
       statsEl.textContent = "摸"+stats.self+" 胡"+stats.win+" 槍"+stats.discard;
       card.appendChild(statsEl);
+
+      if(gameTotals){
+        var gAmt = gameTotals[name] || 0;
+        var gAmtEl = document.createElement("div");
+        gAmtEl.className = "game-amt " + (gAmt>0?"win":(gAmt<0?"lose":""));
+        gAmtEl.textContent = "全場"+(gAmt>0?"+":"")+gAmt;
+        card.appendChild(gAmtEl);
+      }
 
       attachCardGestures(card, name);
       grid.appendChild(card);
