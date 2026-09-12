@@ -605,6 +605,8 @@
       <h2>☁️ 雲端狀態</h2>
       <div class="cloud-badge-lg local" id="cloudBadgeLg">💾 本機模式</div>
       <p class="hint-text" id="cloudHint"></p>
+      <button type="button" class="btn btn-outline btn-block" id="manualReloadBtn" style="margin-top:8px;">🔄 重新整理</button>
+      <p class="hint-text">加到主畫面用 PWA 模式打開時沒有網址列，沒辦法用瀏覽器的下拉重新整理，畫面卡住或想強制拿最新資料時可以按這裡。</p>
     </div>
     <div class="card">
       <h2>💾 資料備份</h2>
@@ -2673,6 +2675,9 @@
     ns.defaultBase = isNaN(base) ? 0 : Math.max(0, base);
     ns.defaultTai = isNaN(tai) ? 0 : Math.max(0, tai);
     commitState(ns);
+  });
+  document.getElementById("manualReloadBtn").addEventListener("click", function(){
+    location.reload();
   });
   document.getElementById("resetAllBtn").addEventListener("click", function(){
     showConfirm("確定要清空所有牌局、名單與設定嗎？此動作無法復原。", function(){
