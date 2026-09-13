@@ -261,6 +261,12 @@
 
   .game-meta{ margin-top:6px; font-size:.74rem; color: var(--ink-soft); text-align:center; }
 
+  .dice-row{ margin-top:10px; text-align:center; }
+  .dice-row .btn{ min-height:auto; padding:8px 18px; font-size:.85rem; }
+  .dice-result{ margin-top:8px; font-size:1.3rem; font-weight:800; letter-spacing:2px; }
+  .dice-result .dice-sum{ display:block; margin-top:2px; font-size:.72rem; font-weight:600; color: var(--ink-soft); letter-spacing:0; }
+  .dice-result.leopard-hit{ color: var(--win); }
+
   /* seat draw list (new game) */
   .seat-row{
     display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding:10px 0; border-radius:8px;
@@ -460,6 +466,10 @@
         <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span><button type="button" class="link-btn danger" id="cancelGameBtn">🗑️ 取消牌局</button></h2>
         <div class="game-meta" id="gameMetaLine1"></div>
         <div class="game-meta" id="gameMetaLine2"></div>
+        <div class="dice-row">
+          <button type="button" class="btn btn-outline" id="diceRollBtn">🎲 骰骰子</button>
+          <div id="diceResult" class="dice-result" style="display:none;"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -480,6 +490,23 @@
             <button type="button" id="huaPlus">＋</button>
           </div>
         </div>
+
+        <div class="toggle-row" style="margin-top:10px;">
+          <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
+        </div>
+        <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
+          <div class="stepper">
+            <button type="button" id="leopardMultMinus">－</button>
+            <div class="val" id="leopardMultVal">2<small>倍數</small></div>
+            <button type="button" id="leopardMultPlus">＋</button>
+          </div>
+          <div class="stepper">
+            <button type="button" id="leopardBaseMinus">－</button>
+            <div class="val" id="leopardBaseVal">0<small>底</small></div>
+            <button type="button" id="leopardBasePlus">＋</button>
+          </div>
+        </div>
+        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。</p>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
@@ -540,6 +567,7 @@
         <button type="button" class="subtab-btn" data-sub="wind">門風</button>
         <button type="button" class="subtab-btn" data-sub="games">歷史牌局</button>
         <button type="button" class="subtab-btn" data-sub="analysis">分析</button>
+        <button type="button" class="subtab-btn" data-sub="kings">擂台</button>
       </div>
       <div class="chip-row" id="statsTargetChips" style="display:none;"></div>
       <div id="statsContent"></div>
@@ -821,7 +849,8 @@
     { key: "huapai", label: "花牌", value: 1 },
     { key: "haidi", label: "海底撈月", value: 1 },
     { key: "gangshang", label: "槓上開花", value: 1 },
-    { key: "qiangganghu", label: "搶槓胡", value: 1 }
+    { key: "qiangganghu", label: "搶槓胡", value: 1 },
+    { key: "shaigui", label: "骰規", value: 1 }
   ];
   var TAI_SORT_KEY = "twmj_tai_sort_v1";
   function loadTaiSortMode(){
@@ -1270,6 +1299,10 @@
     if(bonusTai <= 0) return null;
     return dealerIsWinner ? ("含拉莊台 +"+bonusTai+"台") : ("莊家多付拉莊台 +"+bonusTai+"台");
   }
+  function leopardPhrase(leopard){
+    if(!leopard) return null;
+    return "🐆豹子×"+leopard.multiplier+(leopard.base ? ("+"+leopard.base) : "");
+  }
   // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
   // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
   // 像花牌這種同一手可能出現好幾次的台型，tags 陣列裡會重複放好幾個
@@ -1283,13 +1316,14 @@
     });
     return { counts: counts, order: order };
   }
-  function tagsAndBonusParen(tags, bonusPhrase){
+  function tagsAndBonusParen(tags, bonusPhrase, extraPhrase){
     var grouped = groupTagCounts(tags);
     var parts = grouped.order.map(function(label){
       var c = grouped.counts[label];
       return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
     });
     if(bonusPhrase) parts.push(bonusPhrase);
+    if(extraPhrase) parts.push(extraPhrase);
     return parts.length ? ("（"+parts.join("、")+"）") : "";
   }
   function activeGame(){
@@ -1372,6 +1406,7 @@
     swapSelected: null,
     swapSeatOrder: null,
     dealerBonusEnabled: true,
+    leopard: { enabled: false, multiplier: 2, base: 0 },
     showSetLog: true,
     endSetPanelOpen: false,
     showDuties: true,
@@ -1596,7 +1631,7 @@
 
     function resetNewGameUi(){
       ui.newGameFormReady = false;
-      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true;
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2, base: 0 };
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     }
 
@@ -1804,13 +1839,21 @@
     return tag.value;
   }
 
-  function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags){
+  // 豹子：倍數跟底都是記錄當下自己手動決定的（不是系統判斷觸發），套用在
+  // 「這手全部的台數」上（含莊家台、連莊台一起算完才乘），公式是
+  // 倍數×台數+底，例如三倍、這手總共三台、底輸入3，最後就是 3×3+3=12台。
+  function applyLeopard(tai, leopard){
+    if(!leopard || !leopard.enabled) return tai;
+    return leopard.multiplier * tai + leopard.base;
+  }
+
+  function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags, leopard){
     var dealerName = set.seatOrder[set.dealerIndex];
     // 只有自摸才自動加莊家台／拉莊台；放槍（一般胡牌）不自動算，
     // 要算的話由使用者自己手動點「莊家」或「連莊」台型標籤。
     var dealerInvolved = method === "self";
     var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
-    var effectiveTai = taiInput + bonus;
+    var effectiveTai = applyLeopard(taiInput + bonus, leopard);
     var amount = game.base + effectiveTai * game.tai;
     var deltas = {};
     set.seatOrder.forEach(function(n){ deltas[n] = 0; });
@@ -1827,7 +1870,8 @@
       }else{
         // 閒家自摸時，拉莊台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
         // 不是三家一起多付。莊家自己連莊自摸時，三家（都不是莊家）一起付含拉莊加成的金額。
-        var baseAmount = game.base + taiInput * game.tai;
+        // 豹子倍數／底一樣要套進這個「原本台數」，不然開豹子的時候這兩家反而沒吃到倍數。
+        var baseAmount = game.base + applyLeopard(taiInput, leopard) * game.tai;
         var winnerGain = 0;
         others.forEach(function(n){
           var pay = (winnerName === dealerName || n === dealerName) ? amount : baseAmount;
@@ -1841,6 +1885,7 @@
       dealerName: dealerName, streak: set.streak,
       winnerName: winnerName, method: method, loserName: loserName || null,
       tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
+      leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, base: leopard.base } : null,
       amount: amount, deltas: deltas, tags: tags || [],
       seatOrderAtHand: set.seatOrder.slice(),
       ts: Date.now()
@@ -1874,13 +1919,13 @@
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
-    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels());
+    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2, base: 0 };
     commitState(newState);
   }
 
@@ -1925,7 +1970,11 @@
   }
 
   // 固定在畫面最下面的分頁列會蓋住捲動位置剛好落在最下面的內容；預覽
-  // 剛跳出來時把「確認記錄」按鈕捲到分頁列上方，才不會被擋住點不到。
+  // 剛跳出來、或後續調整台數／豹子讓預覽變高時，都要把「確認記錄」按鈕
+  // 捲到分頁列上方，才不會被擋住點不到。這裡改用瞬間捲動（不用 smooth
+  // 動畫）：這個函式現在每次重繪都可能呼叫，如果用動畫，使用者連續點
+  // 台數+/－時畫面會一直跳動；瞬間捲動同時也避免使用者剛按下「確認」
+  // 時捲動動畫還沒播完、按鈕還沒真的到位的問題。
   function ensurePendingPreviewVisible(){
     var panel = document.getElementById("pendingPreview");
     if(!panel || panel.style.display === "none") return;
@@ -1933,7 +1982,7 @@
     var tabbar = document.querySelector(".tabbar");
     var clearance = (tabbar ? tabbar.getBoundingClientRect().height : 60) + 16;
     var overflow = rect.bottom - (window.innerHeight - clearance);
-    if(overflow > 0) window.scrollBy({ top: overflow, behavior: "smooth" });
+    if(overflow > 0) window.scrollBy({ top: overflow, behavior: "auto" });
   }
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
@@ -2135,6 +2184,15 @@
   function renderHuaVal(){
     document.getElementById("huaVal").innerHTML = ui.huaCount + "<small>花牌</small>";
   }
+  function renderLeopardUi(){
+    var btn = document.getElementById("leopardBtn");
+    btn.classList.toggle("selected", ui.leopard.enabled);
+    btn.textContent = "🐆 豹子 " + (ui.leopard.enabled ? "✓" : "✕");
+    document.getElementById("leopardInputs").style.display = ui.leopard.enabled ? "flex" : "none";
+    document.getElementById("leopardHint").style.display = ui.leopard.enabled ? "block" : "none";
+    document.getElementById("leopardMultVal").innerHTML = ui.leopard.multiplier + "<small>倍數</small>";
+    document.getElementById("leopardBaseVal").innerHTML = ui.leopard.base + "<small>底</small>";
+  }
   // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
   // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
   // 標籤，就會把同一份拉莊台多算一次。所以自摸、且開關開著時，這兩個
@@ -2174,6 +2232,11 @@
   document.getElementById("taiPlus").addEventListener("click", function(){ ui.tai = Math.min(30, ui.tai+1); renderGameTab(); });
   document.getElementById("huaMinus").addEventListener("click", function(){ ui.huaCount = Math.max(0, ui.huaCount-1); renderGameTab(); });
   document.getElementById("huaPlus").addEventListener("click", function(){ ui.huaCount = Math.min(8, ui.huaCount+1); renderGameTab(); });
+  document.getElementById("leopardBtn").addEventListener("click", function(){ ui.leopard.enabled = !ui.leopard.enabled; renderGameTab(); });
+  document.getElementById("leopardMultMinus").addEventListener("click", function(){ ui.leopard.multiplier = Math.max(1, ui.leopard.multiplier-1); renderGameTab(); });
+  document.getElementById("leopardMultPlus").addEventListener("click", function(){ ui.leopard.multiplier = Math.min(20, ui.leopard.multiplier+1); renderGameTab(); });
+  document.getElementById("leopardBaseMinus").addEventListener("click", function(){ ui.leopard.base = Math.max(0, ui.leopard.base-1); renderGameTab(); });
+  document.getElementById("leopardBasePlus").addEventListener("click", function(){ ui.leopard.base = Math.min(50, ui.leopard.base+1); renderGameTab(); });
   document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
     ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
     saveTaiSortMode(ui.taiSortMode);
@@ -2252,6 +2315,7 @@
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
+    ui.leopard = { enabled: false, multiplier: 2, base: 0 };
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2290,10 +2354,26 @@
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
+      ui.leopard = { enabled: false, multiplier: 2, base: 0 };
       ui.pendingHand = null;
       commitState(newState);
       showToast("已取消這場牌局。");
     });
+  });
+
+  // 骰骰子：純粹的小工具，跟台數計算完全無關（不會自動幫「豹子」設定
+  // 倍數），只是需要的時候按一下、看看骰出來的點數，方便自己決定要不要
+  // 開豹子、開幾倍。骰三顆，因為「豹子」原本就是骰寶那種三顆一樣的說法。
+  var DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  document.getElementById("diceRollBtn").addEventListener("click", function(){
+    var values = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
+    var sum = values[0] + values[1] + values[2];
+    var isLeopard = values[0] === values[1] && values[1] === values[2];
+    var facesText = values.map(function(v){ return DICE_FACES[v] + v; }).join("　");
+    var resultEl = document.getElementById("diceResult");
+    resultEl.style.display = "block";
+    resultEl.classList.toggle("leopard-hit", isLeopard);
+    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
   });
 
   function renderSetLog(set){
@@ -2324,7 +2404,7 @@
           });
           detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
         }
-        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName));
+        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
       }
       item.innerHTML =
         '<div class="log-head">'+headLine+'</div>' +
@@ -2393,7 +2473,7 @@
     var p = ui.pendingHand;
     if(!p){ panel.style.display = "none"; return; }
     panel.style.display = "block";
-    var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels());
+    var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
     var detail;
     if(p.method === "discard"){
       detail = escapeHtml(p.loserName) + ' <span class="minus">-'+record.amount+'</span> → ' +
@@ -2406,9 +2486,14 @@
       });
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
-    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName));
+    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
     document.getElementById("pendingPreviewDetail").innerHTML =
       '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
+    // 調整台數／開豹子這些操作都會讓預覽框內容變長、把「確認記錄」推得
+    // 更下面，光靠手勢剛觸發那一次的捲動不夠，每次重繪都要重新檢查一次，
+    // 不然按鈕可能被底部分頁列擋住點不到（ensurePendingPreviewVisible 內部
+    // 已經有 overflow<=0 就不動的判斷，不會每次都跳一下）。
+    ensurePendingPreviewVisible();
   }
 
   function renderActiveSet(game, set){
@@ -2423,6 +2508,7 @@
     renderDuties(game);
     renderTaiVal();
     renderHuaVal();
+    renderLeopardUi();
     renderTaiTags();
 
     var setTotals = computeSetTotals(set);
@@ -2923,6 +3009,8 @@
     if(other !== 0) parts.push("其他台"+(other>0?"+":"")+other);
     var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
     if(bonusPhrase) parts.push(bonusPhrase);
+    var lp = leopardPhrase(h.leopard);
+    if(lp) parts.push(lp);
     return parts.join("、");
   }
 
@@ -3069,6 +3157,187 @@
       venueSection;
   }
 
+  // ================= 擂台：固定班底互相比較的稱號牆 =================
+  // 「分析」分頁一次只看一個人；這裡反過來，同一份數據攤開讓名單裡
+  // 所有打過牌的人互相比較，找出每一項的第一名（可能並列）。主要是
+  // 給固定班底（例如彗/綺/儒/榕）用的，但寫成看名單裡所有人，人數
+  // 變多也一樣能用。
+  function computeArenaStats(endedGames, names){
+    var stats = {};
+    names.forEach(function(n){
+      stats[n] = {
+        name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
+        dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
+        dealerHands: 0, dealerNet: 0, maxStreak: 0,
+        maxWin: null, maxDealIn: null
+      };
+    });
+    var overallMaxWin = null, overallMaxDealIn = null; // {name, amt, detail}
+    var pairwise = {}; // pairwise[付錢的人][收錢的人] = 累計付了多少錢
+    function addPair(payer, receiver, amt){
+      if(!pairwise[payer]) pairwise[payer] = {};
+      pairwise[payer][receiver] = (pairwise[payer][receiver] || 0) + amt;
+    }
+    endedGames.forEach(function(g){
+      var totals = computeGameTotals(g);
+      g.players.forEach(function(n){
+        if(!stats[n]) return;
+        stats[n].gamesPlayed++;
+        if((totals[n]||0) > 0) stats[n].gamesWon++;
+      });
+      var whenStr = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '');
+      allHandsOf(g).forEach(function(h){
+        if(h.method === "manual") return; // 補記只有總輸贏，沒有逐手的自摸/放槍細節
+        h.seatOrderAtHand.forEach(function(n){
+          if(!stats[n]) return;
+          stats[n].hands++;
+          stats[n].netAmt += (h.deltas[n] || 0);
+        });
+        if(stats[h.dealerName]){
+          stats[h.dealerName].dealerHands++;
+          stats[h.dealerName].dealerNet += (h.deltas[h.dealerName] || 0);
+          if(h.streak > stats[h.dealerName].maxStreak) stats[h.dealerName].maxStreak = h.streak;
+        }
+        if(h.method === "draw") return;
+        var breakdown = handTaiBreakdownText(h);
+        if(h.method === "discard"){
+          addPair(h.loserName, h.winnerName, h.amount);
+        }else{
+          h.seatOrderAtHand.forEach(function(n){
+            if(n === h.winnerName) return;
+            var paid = -(h.deltas[n] || 0);
+            if(paid > 0) addPair(n, h.winnerName, paid);
+          });
+        }
+        if(stats[h.winnerName]){
+          var s = stats[h.winnerName];
+          s.wins++;
+          if(h.method === "self") s.selfWins++; else s.discardWins++;
+          var myDelta = h.deltas[h.winnerName] || 0;
+          var winWhat = h.method === "self" ? "自摸" : "放槍（"+escapeHtml(h.loserName)+"）";
+          var winDetail = whenStr+'・'+winWhat+(breakdown ? '<br>'+breakdown : '');
+          if(!s.maxWin || myDelta > s.maxWin.amt) s.maxWin = { amt: myDelta, detail: winDetail };
+          if(!overallMaxWin || myDelta > overallMaxWin.amt) overallMaxWin = { name: h.winnerName, amt: myDelta, detail: winDetail };
+        }
+        if(h.method === "discard" && stats[h.loserName]){
+          var s2 = stats[h.loserName];
+          s2.dealIns++;
+          var loseDelta = h.deltas[h.loserName] || 0;
+          var dealDetail = whenStr+'・放槍給'+escapeHtml(h.winnerName)+(breakdown ? '<br>'+breakdown : '');
+          if(!s2.maxDealIn || loseDelta < s2.maxDealIn.amt) s2.maxDealIn = { amt: loseDelta, detail: dealDetail };
+          if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail };
+        }
+      });
+    });
+    return { stats: stats, overallMaxWin: overallMaxWin, overallMaxDealIn: overallMaxDealIn, pairwise: pairwise };
+  }
+
+  function renderKingsHtml(endedGames){
+    var names = statsTargetCandidates().filter(function(n){
+      return endedGames.some(function(g){ return g.players.indexOf(n) !== -1; });
+    });
+    if(!names.length) return '<div class="empty-hint">還沒有結束的牌局。打完幾場之後，這裡會排名比較每個人的戰績。</div>';
+    var arena = computeArenaStats(endedGames, names);
+    var stats = arena.stats;
+    function pct(n, d){ return d>0 ? Math.round(n/d*100)+'%' : '－'; }
+    function fmtAmt(v){ return (v>0?'+':'')+v; }
+    function amtCls(v){ return v>0?'win':(v<0?'lose':'zero'); }
+
+    var ranked = names.slice().sort(function(a,b){ return stats[b].netAmt - stats[a].netAmt; });
+    var medals = ['🥇','🥈','🥉'];
+    var rankRows = ranked.map(function(n, i){
+      var s = stats[n];
+      var medal = medals[i] || ('#'+(i+1));
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+medal+' '+escapeHtml(n)+'</div>' +
+        '<div class="stat-amt '+amtCls(s.netAmt)+'">'+fmtAmt(s.netAmt)+'</div></div>' +
+        '<div class="stat-mid">共'+s.gamesPlayed+'場・勝'+s.gamesWon+'場('+pct(s.gamesWon,s.gamesPlayed)+')・'+s.hands+'手・胡'+s.wins+'次('+pct(s.wins,s.hands)+')</div></div>';
+    }).join('');
+
+    // 每一項稱號都是拿同一個數字在所有人之間比大小，找出目前排第一的
+    // （可能並列，例如兩個人剛好胡牌次數一樣多，就都列出來）。
+    function topBy(getter, opts){
+      opts = opts || {};
+      var best = null, winners = [];
+      names.forEach(function(n){
+        if(opts.minHands && stats[n].hands < opts.minHands) return;
+        var v = getter(stats[n]);
+        if(v === null || v === undefined) return;
+        if(opts.excludeZero && v === 0) return;
+        if(best === null || (opts.lowest ? v < best : v > best)){ best = v; winners = [n]; }
+        else if(v === best){ winners.push(n); }
+      });
+      return { value: best, winners: winners };
+    }
+    function titleRow(emoji, label, result, fmt){
+      if(result.value === null || !result.winners.length){
+        return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div><div class="stat-amt zero">尚無紀錄</div></div>';
+      }
+      return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div>' +
+        '<div class="stat-mid">'+result.winners.map(escapeHtml).join('、')+'</div><div class="stat-amt">'+fmt(result.value)+'</div></div>';
+    }
+    var MIN_RATE_HANDS = 8; // 手數太少的話比率一下就100%或0%，沒有參考價值，先排除
+    var titleRows =
+      titleRow('🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
+      titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
+      titleRow('🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
+      titleRow('🍜','自摸率最高', topBy(function(s){ return s.hands ? s.selfWins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
+      titleRow('🧲','放槍率最高（最容易放槍）', topBy(function(s){ return s.hands ? s.dealIns/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
+      titleRow('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(v){ return '連莊'+v+'次'; }) +
+      titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
+      titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; });
+    var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆</div><div class="stat-list">'+titleRows+'</div>';
+
+    function extremeCard(label, item){
+      if(!item){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+          '<div class="stat-amt zero">－</div></div><div class="stat-mid">尚無紀錄</div></div>';
+      }
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'（'+escapeHtml(item.name)+'）</div>' +
+        '<div class="stat-amt '+amtCls(item.amt)+'">'+fmtAmt(item.amt)+'</div></div><div class="stat-mid">'+item.detail+'</div></div>';
+    }
+    var extremeSection = '<div class="stat-summary" style="margin-top:14px;">💎 單手紀錄（全員最高）</div><div class="stat-list">' +
+      extremeCard('史上最大胡牌', arena.overallMaxWin) + extremeCard('史上最大放槍', arena.overallMaxDealIn) + '</div>';
+
+    var fullRows = ranked.map(function(n){
+      var s = stats[n];
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(n)+'</div>' +
+        '<div class="stat-amt '+amtCls(s.netAmt)+'">'+fmtAmt(s.netAmt)+'</div></div>' +
+        '<div class="stat-mid">'+s.hands+'手・胡'+s.wins+'次('+pct(s.wins,s.hands)+')・自摸'+s.selfWins+'・胡放槍'+s.discardWins+'・放槍'+s.dealIns+'次('+pct(s.dealIns,s.hands)+')・當莊'+s.dealerHands+'手('+fmtAmt(s.dealerNet)+')</div></div>';
+    }).join('');
+    var fullSection = '<div class="stat-summary" style="margin-top:14px;">📋 完整數據</div><div class="stat-list">'+fullRows+'</div>';
+
+    // 提款機排行：把「A 付給 B」跟「B 付給 A」互相抵銷後，取淨轉帳方向跟
+    // 金額最大的幾組——這樣才是真正「誰一直在輸錢給誰」，不是只看誰放槍
+    // 次數多（放槍金額可能很小，自摸反而讓人一次付很多）。
+    var netPairs = [];
+    var seen = {};
+    names.forEach(function(a){
+      names.forEach(function(b){
+        if(a === b) return;
+        var key = [a,b].sort().join('|');
+        if(seen[key]) return;
+        seen[key] = true;
+        var ab = (arena.pairwise[a] && arena.pairwise[a][b]) || 0;
+        var ba = (arena.pairwise[b] && arena.pairwise[b][a]) || 0;
+        var net = ab - ba;
+        if(net > 0) netPairs.push({ from: a, to: b, amt: net });
+        else if(net < 0) netPairs.push({ from: b, to: a, amt: -net });
+      });
+    });
+    netPairs.sort(function(x,y){ return y.amt - x.amt; });
+    var pairRows = netPairs.slice(0, 8).map(function(p){
+      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div><div class="stat-amt lose">－'+p.amt+'</div></div>';
+    }).join('');
+    var pairSection = netPairs.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">🏧 提款機排行（誰累計輸最多錢給誰）</div><div class="stat-list">'+pairRows+'</div>') : '';
+
+    return '<div class="stat-summary">總排行榜（依淨輸贏排序）</div><div class="stat-list">'+rankRows+'</div>' +
+      titleSection + extremeSection + fullSection + pairSection;
+  }
+
   function renderGamesListInto(container, endedGames){
     if(!endedGames.length){
       container.innerHTML = '<div class="empty-hint">還沒有結束的牌局。</div>';
@@ -3183,6 +3452,7 @@
     else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames, currentStatsTarget());
     else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, endedGames); }
     else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames, currentStatsTarget());
+    else if(ui.statsSub === "kings") content.innerHTML = renderKingsHtml(endedGames);
   }
 
   // ================= 月曆 =================
