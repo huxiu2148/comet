@@ -500,13 +500,8 @@
             <div class="val" id="leopardMultVal">2<small>倍數</small></div>
             <button type="button" id="leopardMultPlus">＋</button>
           </div>
-          <div class="stepper">
-            <button type="button" id="leopardBaseMinus">－</button>
-            <div class="val" id="leopardBaseVal">0<small>底</small></div>
-            <button type="button" id="leopardBasePlus">＋</button>
-          </div>
         </div>
-        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。</p>
+        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
@@ -1301,7 +1296,8 @@
   }
   function leopardPhrase(leopard){
     if(!leopard) return null;
-    return "🐆豹子×"+leopard.multiplier+(leopard.base ? ("+"+leopard.base) : "");
+    var baseTai = Math.round(leopard.baseTai * 100) / 100;
+    return "🐆豹子×"+leopard.multiplier+(baseTai ? ("+"+baseTai) : "");
   }
   // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
   // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
@@ -1406,7 +1402,7 @@
     swapSelected: null,
     swapSeatOrder: null,
     dealerBonusEnabled: true,
-    leopard: { enabled: false, multiplier: 2, base: 0 },
+    leopard: { enabled: false, multiplier: 2 },
     showSetLog: true,
     endSetPanelOpen: false,
     showDuties: true,
@@ -1631,7 +1627,7 @@
 
     function resetNewGameUi(){
       ui.newGameFormReady = false;
-      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2, base: 0 };
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 };
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     }
 
@@ -1839,12 +1835,16 @@
     return tag.value;
   }
 
-  // 豹子：倍數跟底都是記錄當下自己手動決定的（不是系統判斷觸發），套用在
+  // 豹子：倍數是記錄當下自己手動決定的（不是系統判斷觸發），套用在
   // 「這手全部的台數」上（含莊家台、連莊台一起算完才乘），公式是
-  // 倍數×台數+底，例如三倍、這手總共三台、底輸入3，最後就是 3×3+3=12台。
-  function applyLeopard(tai, leopard){
+  // 倍數×台數+底。「底」不用另外輸入——直接拿開局設定的「底（元）」換算
+  // 成台數（底÷每台），因為那組底本來開局就設定好了，不用每手重打一次。
+  // 例如底30、每台10，換算成台數就是3；三倍、這手總共三台，
+  // 最後就是 3×3+3=12台。
+  function applyLeopard(tai, leopard, game){
     if(!leopard || !leopard.enabled) return tai;
-    return leopard.multiplier * tai + leopard.base;
+    var baseTai = game.base / game.tai;
+    return leopard.multiplier * tai + baseTai;
   }
 
   function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags, leopard){
@@ -1853,7 +1853,7 @@
     // 要算的話由使用者自己手動點「莊家」或「連莊」台型標籤。
     var dealerInvolved = method === "self";
     var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
-    var effectiveTai = applyLeopard(taiInput + bonus, leopard);
+    var effectiveTai = applyLeopard(taiInput + bonus, leopard, game);
     var amount = game.base + effectiveTai * game.tai;
     var deltas = {};
     set.seatOrder.forEach(function(n){ deltas[n] = 0; });
@@ -1870,8 +1870,8 @@
       }else{
         // 閒家自摸時，拉莊台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
         // 不是三家一起多付。莊家自己連莊自摸時，三家（都不是莊家）一起付含拉莊加成的金額。
-        // 豹子倍數／底一樣要套進這個「原本台數」，不然開豹子的時候這兩家反而沒吃到倍數。
-        var baseAmount = game.base + applyLeopard(taiInput, leopard) * game.tai;
+        // 豹子倍數一樣要套進這個「原本台數」，不然開豹子的時候這兩家反而沒吃到倍數。
+        var baseAmount = game.base + applyLeopard(taiInput, leopard, game) * game.tai;
         var winnerGain = 0;
         others.forEach(function(n){
           var pay = (winnerName === dealerName || n === dealerName) ? amount : baseAmount;
@@ -1885,7 +1885,7 @@
       dealerName: dealerName, streak: set.streak,
       winnerName: winnerName, method: method, loserName: loserName || null,
       tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
-      leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, base: leopard.base } : null,
+      leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, baseTai: game.base / game.tai } : null,
       amount: amount, deltas: deltas, tags: tags || [],
       seatOrderAtHand: set.seatOrder.slice(),
       ts: Date.now()
@@ -1925,7 +1925,7 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2, base: 0 };
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 };
     commitState(newState);
   }
 
@@ -2184,14 +2184,18 @@
   function renderHuaVal(){
     document.getElementById("huaVal").innerHTML = ui.huaCount + "<small>花牌</small>";
   }
-  function renderLeopardUi(){
+  function renderLeopardUi(game){
     var btn = document.getElementById("leopardBtn");
     btn.classList.toggle("selected", ui.leopard.enabled);
     btn.textContent = "🐆 豹子 " + (ui.leopard.enabled ? "✓" : "✕");
     document.getElementById("leopardInputs").style.display = ui.leopard.enabled ? "flex" : "none";
     document.getElementById("leopardHint").style.display = ui.leopard.enabled ? "block" : "none";
     document.getElementById("leopardMultVal").innerHTML = ui.leopard.multiplier + "<small>倍數</small>";
-    document.getElementById("leopardBaseVal").innerHTML = ui.leopard.base + "<small>底</small>";
+    if(ui.leopard.enabled && game){
+      var baseTai = Math.round((game.base / game.tai) * 100) / 100;
+      document.getElementById("leopardHint").textContent =
+        "開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的底÷每台換算，這場是 "+game.base+"÷"+game.tai+" = "+baseTai+" 台。";
+    }
   }
   // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
   // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
@@ -2235,8 +2239,6 @@
   document.getElementById("leopardBtn").addEventListener("click", function(){ ui.leopard.enabled = !ui.leopard.enabled; renderGameTab(); });
   document.getElementById("leopardMultMinus").addEventListener("click", function(){ ui.leopard.multiplier = Math.max(1, ui.leopard.multiplier-1); renderGameTab(); });
   document.getElementById("leopardMultPlus").addEventListener("click", function(){ ui.leopard.multiplier = Math.min(20, ui.leopard.multiplier+1); renderGameTab(); });
-  document.getElementById("leopardBaseMinus").addEventListener("click", function(){ ui.leopard.base = Math.max(0, ui.leopard.base-1); renderGameTab(); });
-  document.getElementById("leopardBasePlus").addEventListener("click", function(){ ui.leopard.base = Math.min(50, ui.leopard.base+1); renderGameTab(); });
   document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
     ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
     saveTaiSortMode(ui.taiSortMode);
@@ -2315,7 +2317,7 @@
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
-    ui.leopard = { enabled: false, multiplier: 2, base: 0 };
+    ui.leopard = { enabled: false, multiplier: 2 };
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2354,7 +2356,7 @@
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
-      ui.leopard = { enabled: false, multiplier: 2, base: 0 };
+      ui.leopard = { enabled: false, multiplier: 2 };
       ui.pendingHand = null;
       commitState(newState);
       showToast("已取消這場牌局。");
@@ -2508,7 +2510,7 @@
     renderDuties(game);
     renderTaiVal();
     renderHuaVal();
-    renderLeopardUi();
+    renderLeopardUi(game);
     renderTaiTags();
 
     var setTotals = computeSetTotals(set);
