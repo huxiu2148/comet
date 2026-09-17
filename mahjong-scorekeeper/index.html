@@ -404,6 +404,9 @@
         <button type="button" class="method-btn" id="ngModeSplit">三家均攤</button>
       </div>
 
+      <button type="button" class="btn btn-outline btn-block" id="ngDrinkBtn" style="margin-top:14px;">🍹 這場最輸的請飲料</button>
+      <p class="hint-text">開局的時候先決定，之後在「本局」畫面或「歷史牌局」都還可以再改。</p>
+
       <div id="ngNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能開新牌局。</div>
 
       <div id="ngOpponentPickBlock">
@@ -470,6 +473,7 @@
           <button type="button" class="btn btn-outline" id="diceRollBtn">🎲 骰骰子</button>
           <div id="diceResult" class="dice-result" style="display:none;"></div>
         </div>
+        <button type="button" class="btn btn-outline btn-block" id="drinkToggleBtn" style="margin-top:10px;">🍹 最輸請飲料</button>
       </div>
 
       <div class="card">
@@ -760,7 +764,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析幾個子分頁，都只統計已經結束的牌局。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
-      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果同一天打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。</li>
+      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果同一天打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
 
     <h3>👥 名單・⚙️ 設定</h3>
@@ -1055,6 +1059,7 @@
       time: typeof g.time === "string" ? g.time : "",
       venue: typeof g.venue === "string" ? g.venue : "",
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
+      drinkEnabled: g.drinkEnabled !== false,
       status: g.status === "ended" ? "ended" : "active",
       sets: sets, duties: duties,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
@@ -1391,7 +1396,7 @@
     calSelectedDate: null,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null },
+    newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
     backfillFormOpen: false,
     backfillFormReady: false,
     backfill: { opponents: [] },
@@ -1444,12 +1449,15 @@
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
-      ui.newGame = { opponents: [], seatOrder: null, swapMode: false, swapSelected: null };
+      ui.newGame = { opponents: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true };
       ui.newGameFormReady = true;
     }
     renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
     document.getElementById("ngModeFull").classList.toggle("selected", ui.newGameSelfDrawMode !== "split");
     document.getElementById("ngModeSplit").classList.toggle("selected", ui.newGameSelfDrawMode === "split");
+    var ngDrinkBtn = document.getElementById("ngDrinkBtn");
+    ngDrinkBtn.classList.toggle("selected", ui.newGame.drinkEnabled);
+    ngDrinkBtn.textContent = "🍹 這場最輸的請飲料 " + (ui.newGame.drinkEnabled ? "✓" : "✕");
 
     if(!me){ document.getElementById("ngSeatBlock").style.display = "none"; return; }
 
@@ -1572,6 +1580,7 @@
 
   document.getElementById("ngModeFull").addEventListener("click", function(){ ui.newGameSelfDrawMode="full"; renderGameTab(); });
   document.getElementById("ngModeSplit").addEventListener("click", function(){ ui.newGameSelfDrawMode="split"; renderGameTab(); });
+  document.getElementById("ngDrinkBtn").addEventListener("click", function(){ ui.newGame.drinkEnabled = !ui.newGame.drinkEnabled; renderGameTab(); });
 
   document.getElementById("startGameBtn").addEventListener("click", function(){
     var me = meRoster();
@@ -1586,6 +1595,7 @@
     var players = [me.name].concat(ui.newGame.opponents);
     var seatOrderSnapshot = ui.newGame.seatOrder.slice();
     var selfDrawMode = ui.newGameSelfDrawMode;
+    var drinkEnabled = ui.newGame.drinkEnabled !== false;
     var baseVal = isNaN(base) ? 0 : Math.max(0, base);
     var taiVal = isNaN(tai) ? 0 : Math.max(0, tai);
 
@@ -1608,7 +1618,7 @@
       };
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
-        base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode,
+        base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
         status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
         createdAt: Date.now(), endedAt: null
       };
@@ -1795,7 +1805,7 @@
     };
     var newGame = {
       id: genId("g"), date: date, time: time, venue: venue, players: players,
-      base: 0, tai: 0, selfDrawMode: "full",
+      base: 0, tai: 0, selfDrawMode: "full", drinkEnabled: true,
       status: "ended",
       sets: [{
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
@@ -2378,6 +2388,30 @@
     resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
   });
 
+  // 這場最輸的要不要請飲料，開局時先決定，本局畫面跟歷史牌局都能再改
+  // （沒有明確設過的舊牌局一律當作「要」，維持原本一直都有的行為，
+  // 不會因為多了這個開關就讓舊資料的請飲料次數統計憑空消失）。
+  function gameDrinkEnabled(game){
+    return game.drinkEnabled !== false;
+  }
+  function toggleGameDrinkEnabled(gameId){
+    var newState = deepClone(state);
+    var g = newState.games.filter(function(x){ return x.id === gameId; })[0];
+    if(!g) return;
+    g.drinkEnabled = !gameDrinkEnabled(g);
+    commitState(newState);
+  }
+  function renderDrinkToggle(game){
+    var btn = document.getElementById("drinkToggleBtn");
+    var enabled = gameDrinkEnabled(game);
+    btn.classList.toggle("selected", enabled);
+    btn.textContent = "🍹 最輸請飲料 " + (enabled ? "✓" : "✕");
+  }
+  document.getElementById("drinkToggleBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    toggleGameDrinkEnabled(game.id);
+  });
+
   function renderSetLog(set){
     var list = document.getElementById("setLogList");
     list.innerHTML = "";
@@ -2512,6 +2546,7 @@
     renderHuaVal();
     renderLeopardUi(game);
     renderTaiTags();
+    renderDrinkToggle(game);
 
     var setTotals = computeSetTotals(set);
     var gameTotals = game.sets.length > 1 ? computeGameTotals(game) : null;
@@ -2869,9 +2904,11 @@
   // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
   // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。同一天如果
   // 打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。
+  // 有些場次開局時（或事後）關掉了「最輸請飲料」，那場就不算進來。
   function computeDrinkTreatCounts(endedGames){
     var byDate = {};
     endedGames.forEach(function(g){
+      if(!gameDrinkEnabled(g)) return;
       (byDate[g.date] = byDate[g.date] || []).push(g);
     });
     var counts = {};
@@ -3418,6 +3455,18 @@
         });
         detail.appendChild(setsList);
       }
+
+      var drinkBtn = document.createElement("button");
+      drinkBtn.type = "button";
+      drinkBtn.className = "link-btn";
+      drinkBtn.style.marginTop = "6px";
+      drinkBtn.style.display = "block";
+      drinkBtn.textContent = gameDrinkEnabled(g) ? "🍹 這場最輸請飲料：開（點一下關掉）" : "🍹 這場最輸請飲料：關（點一下打開）";
+      drinkBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        toggleGameDrinkEnabled(g.id);
+      });
+      detail.appendChild(drinkBtn);
 
       var delBtn = document.createElement("button");
       delBtn.type = "button";
