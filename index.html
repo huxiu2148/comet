@@ -767,7 +767,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析幾個子分頁，都只統計已經結束的牌局。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
-      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果同一天打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
+      <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
 
     <h3>👥 名單・⚙️ 設定</h3>
@@ -2979,35 +2979,42 @@
   }
 
   // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
-  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。同一天如果
-  // 打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。
+  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。判斷「算幾次」
+  // 是照牌局時間順序看「連續」：同一個人連續幾場都是最輸的，不管是不是
+  // 同一天（例如今天最後一場跟明天第一場都是他最輸，一樣算連續），只算
+  //一次；中間只要有別人變成最輸的（或那場沒人真的輸錢）就算斷開，之後
+  // 同一個人再輸就是重新算一次，不會因為都在同一天就自動合併。
   // 有些場次開局時（或事後）關掉了「最輸請飲料」，那場就不算進來。
-  // 回傳每一筆「欠飲料」的明細（哪一天、誰），不是只有總次數，這樣才能
-  // 一筆一筆記錄有沒有真的請過。
+  // 回傳每一筆「欠飲料」的明細（記在連續開始的那一天、欠的人是誰），
+  // 不是只有總次數，這樣才能一筆一筆記錄有沒有真的請過。
   function computeDrinkDebts(endedGames){
-    var byDate = {};
-    endedGames.forEach(function(g){
-      if(!gameDrinkEnabled(g)) return;
-      (byDate[g.date] = byDate[g.date] || []).push(g);
+    var enabled = endedGames.filter(gameDrinkEnabled);
+    var sorted = enabled.slice().sort(function(a, b){
+      if(a.date !== b.date) return a.date < b.date ? -1 : 1;
+      var at = a.time || "", bt = b.time || "";
+      if(at !== bt) return at < bt ? -1 : 1;
+      return (a.createdAt||0) - (b.createdAt||0);
     });
     var debts = [];
-    Object.keys(byDate).forEach(function(date){
-      var dayLosers = {};
-      byDate[date].forEach(function(g){
-        var totals = computeGameTotals(g);
-        var min = null;
-        g.players.forEach(function(n){
-          var v = totals[n] || 0;
-          if(min === null || v < min) min = v;
-        });
-        if(min === null || min >= 0) return; // 這場沒人真的輸錢
-        g.players.forEach(function(n){
-          if((totals[n]||0) === min) dayLosers[n] = true;
-        });
+    var streakLoser = null; // 目前連續最輸的人（單一一人時才會延續連續）
+    sorted.forEach(function(g){
+      var totals = computeGameTotals(g);
+      var min = null;
+      g.players.forEach(function(n){
+        var v = totals[n] || 0;
+        if(min === null || v < min) min = v;
       });
-      Object.keys(dayLosers).forEach(function(n){
-        debts.push({ date: date, name: n });
-      });
+      if(min === null || min >= 0){ streakLoser = null; return; } // 這場沒人真的輸錢，連續中斷
+      var losers = g.players.filter(function(n){ return (totals[n]||0) === min; });
+      if(losers.length === 1){
+        if(losers[0] === streakLoser) return; // 跟上一場同一個人連續最輸，沿用同一筆債務
+        debts.push({ date: g.date, name: losers[0] });
+        streakLoser = losers[0];
+      }else{
+        // 平手：每個人都各自算一次，平手本身不算「連續」，之後重新開始判斷
+        losers.forEach(function(n){ debts.push({ date: g.date, name: n }); });
+        streakLoser = null;
+      }
     });
     return debts;
   }
