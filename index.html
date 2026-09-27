@@ -1861,10 +1861,19 @@
   // 成台數（底÷每台），因為那組底本來開局就設定好了，不用每手重打一次。
   // 例如底30、每台10，換算成台數就是3；三倍、這手總共三台，
   // 最後就是 3×3+3=12台。
-  function applyLeopard(tai, leopard, game){
+  //
+  // 這裡只把「台數」乘倍數，底不乘——底本來就已經包含在每手都會加的
+  // game.base 那筆錢裡了，「+底（換算成的台數）」只是為了讓畫面上的
+  // 台數看起來完整（例如顯示「7台」），如果連底也乘倍數、算金額時又是
+  // base + effectiveTai*每台，會把底的錢重複算兩次（一次是 game.base
+  // 本身，一次是 baseTai 換算回來乘每台）。所以算金額只用「倍數×台數」，
+  // 底的錢仍然只透過 game.base 算一次。
+  function applyLeopard(tai, leopard){
     if(!leopard || !leopard.enabled) return tai;
-    var baseTai = game.base / game.tai;
-    return leopard.multiplier * tai + baseTai;
+    return leopard.multiplier * tai;
+  }
+  function leopardBaseTai(leopard, game){
+    return (leopard && leopard.enabled) ? (game.base / game.tai) : 0;
   }
 
   function buildHandRecord(game, set, winnerName, method, loserName, taiInput, tags, leopard){
@@ -1873,8 +1882,10 @@
     // 要算的話由使用者自己手動點「莊家」或「連莊」台型標籤。
     var dealerInvolved = method === "self";
     var bonus = dealerInvolved ? computeDealerBonus(set) : 0;
-    var effectiveTai = applyLeopard(taiInput + bonus, leopard, game);
-    var amount = game.base + effectiveTai * game.tai;
+    var multipliedTai = applyLeopard(taiInput + bonus, leopard);
+    var baseTai = leopardBaseTai(leopard, game);
+    var effectiveTai = multipliedTai + baseTai; // 顯示用的台數，含底換算的台數
+    var amount = game.base + multipliedTai * game.tai; // 金額只乘台數，底已經在 game.base 裡算過一次了
     var deltas = {};
     set.seatOrder.forEach(function(n){ deltas[n] = 0; });
     if(method === "discard"){
@@ -1891,7 +1902,7 @@
         // 閒家自摸時，拉莊台加成只讓「莊家自己」多付，另外兩家仍付原本台數的錢——
         // 不是三家一起多付。莊家自己連莊自摸時，三家（都不是莊家）一起付含拉莊加成的金額。
         // 豹子倍數一樣要套進這個「原本台數」，不然開豹子的時候這兩家反而沒吃到倍數。
-        var baseAmount = game.base + applyLeopard(taiInput, leopard, game) * game.tai;
+        var baseAmount = game.base + applyLeopard(taiInput, leopard) * game.tai;
         var winnerGain = 0;
         others.forEach(function(n){
           var pay = (winnerName === dealerName || n === dealerName) ? amount : baseAmount;
@@ -1905,7 +1916,7 @@
       dealerName: dealerName, streak: set.streak,
       winnerName: winnerName, method: method, loserName: loserName || null,
       tai: taiInput, dealerBonusTai: bonus, effectiveTai: effectiveTai,
-      leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, baseTai: game.base / game.tai } : null,
+      leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, baseTai: baseTai } : null,
       amount: amount, deltas: deltas, tags: tags || [],
       seatOrderAtHand: set.seatOrder.slice(),
       ts: Date.now()
