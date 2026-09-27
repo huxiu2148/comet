@@ -1422,7 +1422,8 @@
     endSetPanelOpen: false,
     showDuties: true,
     taiSortMode: loadTaiSortMode(),
-    pendingHand: null
+    pendingHand: null,
+    editSeatSetId: null
   };
 
   // ================= TAB NAVIGATION =================
@@ -2670,6 +2671,17 @@
       var detail = document.createElement("div");
       detail.className = "log-detail";
       detail.innerHTML = summary;
+      var seatBtn = document.createElement("button");
+      seatBtn.type = "button";
+      seatBtn.className = "link-btn";
+      seatBtn.style.marginTop = "6px";
+      seatBtn.style.marginRight = "12px";
+      var editingThis = ui.editSeatSetId === s.id;
+      seatBtn.textContent = editingThis ? "🔁 完成編輯座位" : "🔁 編輯座位";
+      seatBtn.addEventListener("click", function(){
+        ui.editSeatSetId = editingThis ? null : s.id;
+        renderGameTab();
+      });
       var delBtn = document.createElement("button");
       delBtn.type = "button";
       delBtn.className = "link-btn danger";
@@ -2685,9 +2697,53 @@
       });
       item.appendChild(head);
       item.appendChild(detail);
+      item.appendChild(seatBtn);
       item.appendChild(delBtn);
+      if(editingThis){
+        var hint = document.createElement("p");
+        hint.className = "hint-text";
+        hint.style.marginTop = "6px";
+        hint.textContent = "這將已經結束，這裡只是調整座位順序記錄，不會改到已經記過的每一手歷史紀錄；如果下一將是用「沿用座位」開的，調整完要記得也去換位改回來。";
+        item.appendChild(hint);
+        var editList = document.createElement("div");
+        editList.style.marginTop = "6px";
+        s.seatOrder.forEach(function(name, seatIdx){
+          var row = document.createElement("div");
+          row.className = "seat-row";
+          var badge = document.createElement("span");
+          badge.className = "wind-chip" + (seatIdx === s.dealerIndex ? " wind-dealer" : "");
+          badge.textContent = WINDS[seatIdx];
+          var nameEl = document.createElement("span");
+          nameEl.className = "seat-name";
+          nameEl.textContent = name;
+          var upBtn = document.createElement("button");
+          upBtn.type = "button"; upBtn.className = "seat-arrow"; upBtn.textContent = "▲"; upBtn.disabled = seatIdx === 0;
+          upBtn.addEventListener("click", function(){ swapPastSeatIdx(game.id, s.id, seatIdx, seatIdx-1); });
+          var downBtn = document.createElement("button");
+          downBtn.type = "button"; downBtn.className = "seat-arrow"; downBtn.textContent = "▼"; downBtn.disabled = seatIdx === s.seatOrder.length-1;
+          downBtn.addEventListener("click", function(){ swapPastSeatIdx(game.id, s.id, seatIdx, seatIdx+1); });
+          row.appendChild(badge);
+          row.appendChild(nameEl);
+          row.appendChild(upBtn);
+          row.appendChild(downBtn);
+          editList.appendChild(row);
+        });
+        item.appendChild(editList);
+      }
       list.appendChild(item);
     });
+  }
+  // 已結束的將原則上不能再動——這裡只調整 seatOrder 本身的順序（純粹用來
+  // 修正手滑換位的紀錄），不會去動任何一手已經記錄的 hands（每一手自己
+  // 記的 seatOrderAtHand 是當時的快照，本來就不會因為事後調座位而跟著變）。
+  function swapPastSeatIdx(gameId, setId, i, j){
+    var newState = deepClone(state);
+    var g = newState.games.filter(function(x){ return x.id === gameId; })[0];
+    if(!g) return;
+    var s = g.sets.filter(function(x){ return x.id === setId; })[0];
+    if(!s || j < 0 || j >= s.seatOrder.length) return;
+    var tmp = s.seatOrder[i]; s.seatOrder[i] = s.seatOrder[j]; s.seatOrder[j] = tmp;
+    commitState(newState);
   }
 
   function renderGameTab(){
