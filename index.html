@@ -510,6 +510,16 @@
         </div>
         <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
 
+        <div class="toggle-row" style="margin-top:10px;">
+          <button type="button" class="btn btn-outline" id="tilesToggleBtn">🀄 記錄胡的牌</button>
+        </div>
+        <div id="tilesPickerBlock" style="display:none; margin-top:8px;">
+          <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
+          <p class="hint-text" id="tilesSummary">還沒選牌</p>
+          <div class="chip-row" id="tilesGrid"></div>
+          <p class="hint-text">點一下牌加一張，點到第5下會清掉那張牌重新算（一張牌最多算4張）。這只是記錄用，不會影響台數或金額計算。</p>
+        </div>
+
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
           <div id="pendingPreviewDetail"></div>
@@ -854,6 +864,33 @@
     { key: "qiangganghu", label: "搶槓胡", value: 1 },
     { key: "shaigui", label: "骰規", value: 1 }
   ];
+  // 記錄胡的牌用的 34 種牌（萬/筒/條各1-9 + 東南西北中發白），花牌另外算，
+  // 不算在胡牌的牌型裡，所以這裡不用列進去。code 直接用顯示文字當 key，
+  // 每種花色/字牌彼此不會撞名，不用另外編號。
+  var TILE_DEFS = (function(){
+    var defs = [];
+    ["萬","筒","條"].forEach(function(suit){
+      for(var i=1;i<=9;i++){ defs.push({ code: i+suit, label: i+suit }); }
+    });
+    ["東","南","西","北","中","發","白"].forEach(function(h){ defs.push({ code: h, label: h }); });
+    return defs;
+  })();
+  function flattenTileMap(tileMap){
+    var arr = [];
+    TILE_DEFS.forEach(function(t){
+      var c = tileMap[t.code] || 0;
+      for(var i=0;i<c;i++) arr.push(t.label);
+    });
+    return arr;
+  }
+  function tilesSummaryText(tileMap){
+    var parts = [];
+    TILE_DEFS.forEach(function(t){
+      var c = tileMap[t.code];
+      if(c) parts.push(t.label + (c>1 ? ("×"+c) : ""));
+    });
+    return parts.join("、");
+  }
   var TAI_SORT_KEY = "twmj_tai_sort_v1";
   function loadTaiSortMode(){
     try{
@@ -1423,7 +1460,9 @@
     showDuties: true,
     taiSortMode: loadTaiSortMode(),
     pendingHand: null,
-    editSeatSetId: null
+    editSeatSetId: null,
+    tilesPickerOpen: false,
+    winningTiles: {}
   };
 
   // ================= TAB NAVIGATION =================
@@ -1648,7 +1687,7 @@
 
     function resetNewGameUi(){
       ui.newGameFormReady = false;
-      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 };
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     }
 
@@ -1952,12 +1991,13 @@
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
     var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
+    record.tiles = flattenTileMap(ui.winningTiles);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 };
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     commitState(newState);
   }
 
@@ -2229,6 +2269,34 @@
         "開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的底÷每台換算，這場是 "+game.base+"÷"+game.tai+" = "+baseTai+" 台。";
     }
   }
+
+  function renderTilesPicker(){
+    var btn = document.getElementById("tilesToggleBtn");
+    var open = ui.tilesPickerOpen;
+    var total = 0;
+    Object.keys(ui.winningTiles).forEach(function(k){ total += ui.winningTiles[k]; });
+    btn.classList.toggle("selected", open);
+    btn.textContent = "🀄 記錄胡的牌" + (total ? (" ("+total+")") : "");
+    document.getElementById("tilesPickerBlock").style.display = open ? "block" : "none";
+    if(!open) return;
+    var grid = document.getElementById("tilesGrid");
+    grid.innerHTML = "";
+    TILE_DEFS.forEach(function(t){
+      var count = ui.winningTiles[t.code] || 0;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (count > 0 ? " chip-selected" : "");
+      b.textContent = t.label + (count > 1 ? ("×"+count) : "");
+      b.addEventListener("click", function(){
+        var c = (ui.winningTiles[t.code] || 0) + 1;
+        if(c > 4) c = 0;
+        if(c === 0) delete ui.winningTiles[t.code]; else ui.winningTiles[t.code] = c;
+        renderGameTab();
+      });
+      grid.appendChild(b);
+    });
+    document.getElementById("tilesSummary").textContent = tilesSummaryText(ui.winningTiles) || "還沒選牌";
+  }
   // 自摸的時候，「自摸莊家台」開關已經自動把莊家台／拉莊台算進 effectiveTai
   // 了（見 buildHandRecord），這時候如果使用者又手動點「莊家」「連莊」
   // 標籤，就會把同一份拉莊台多算一次。所以自摸、且開關開著時，這兩個
@@ -2271,6 +2339,8 @@
   document.getElementById("leopardBtn").addEventListener("click", function(){ ui.leopard.enabled = !ui.leopard.enabled; renderGameTab(); });
   document.getElementById("leopardMultMinus").addEventListener("click", function(){ ui.leopard.multiplier = Math.max(1, ui.leopard.multiplier-1); renderGameTab(); });
   document.getElementById("leopardMultPlus").addEventListener("click", function(){ ui.leopard.multiplier = Math.min(20, ui.leopard.multiplier+1); renderGameTab(); });
+  document.getElementById("tilesToggleBtn").addEventListener("click", function(){ ui.tilesPickerOpen = !ui.tilesPickerOpen; renderGameTab(); });
+  document.getElementById("tilesClearBtn").addEventListener("click", function(){ ui.winningTiles = {}; renderGameTab(); });
   document.getElementById("taiSortToggleBtn").addEventListener("click", function(){
     ui.taiSortMode = ui.taiSortMode === "freq" ? "value" : "freq";
     saveTaiSortMode(ui.taiSortMode);
@@ -2349,7 +2419,7 @@
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
-    ui.leopard = { enabled: false, multiplier: 2 };
+    ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2388,7 +2458,7 @@
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
-      ui.leopard = { enabled: false, multiplier: 2 };
+      ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
       ui.pendingHand = null;
       commitState(newState);
       showToast("已取消這場牌局。");
@@ -2464,9 +2534,18 @@
         }
         headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
       }
+      var tilesLine = "";
+      if(h.tiles && h.tiles.length){
+        var tileCounts = groupTagCounts(h.tiles);
+        var tileParts = tileCounts.order.map(function(label){
+          var c = tileCounts.counts[label];
+          return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
+        });
+        tilesLine = '<div class="log-detail">🀄 '+tileParts.join('、')+'</div>';
+      }
       item.innerHTML =
         '<div class="log-head">'+headLine+'</div>' +
-        '<div class="log-detail">'+detail+'</div>';
+        '<div class="log-detail">'+detail+'</div>' + tilesLine;
       list.appendChild(item);
     }
   }
@@ -2545,8 +2624,10 @@
       detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
     }
     var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
+    var tilesText = tilesSummaryText(ui.winningTiles);
     document.getElementById("pendingPreviewDetail").innerHTML =
-      '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
+      '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' +
+      (tilesText ? '<div class="log-detail">🀄 '+escapeHtml(tilesText)+'</div>' : '');
     // 調整台數／開豹子這些操作都會讓預覽框內容變長、把「確認記錄」推得
     // 更下面，光靠手勢剛觸發那一次的捲動不夠，每次重繪都要重新檢查一次，
     // 不然按鈕可能被底部分頁列擋住點不到（ensurePendingPreviewVisible 內部
@@ -2568,6 +2649,7 @@
     renderHuaVal();
     renderLeopardUi(game);
     renderTaiTags();
+    renderTilesPicker();
     renderDrinkToggle(game);
 
     var setTotals = computeSetTotals(set);
