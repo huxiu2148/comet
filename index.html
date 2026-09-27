@@ -1462,7 +1462,10 @@
     pendingHand: null,
     editSeatSetId: null,
     tilesPickerOpen: false,
-    winningTiles: {}
+    winningTiles: {},
+    pastSetLogOpenId: null,
+    historyHandLogKey: null,
+    expandedHistoryGameId: null
   };
 
   // ================= TAB NAVIGATION =================
@@ -2504,50 +2507,64 @@
     toggleGameDrinkEnabled(game.id);
   });
 
-  function renderSetLog(set){
-    var list = document.getElementById("setLogList");
-    list.innerHTML = "";
+  // 單獨拆成一個純函式，這樣「目前這將」的即時清單（下面的 renderSetLog）
+  // 跟「已結束的將／歷史牌局」要回頭看逐手紀錄（含記錄的胡牌牌型）時，
+  // 可以共用同一份組法，不用兩邊各寫一次、容易漏改到其中一邊。
+  function handLogItemHtml(h, idx){
+    var headLine, detail;
+    if(h.method === "manual"){
+      headLine = '補記總結（無逐手紀錄）';
+      var parts0 = Object.keys(h.deltas).map(function(n){
+        var v = h.deltas[n]; var cls = v>0?"plus":(v<0?"minus":"");
+        return escapeHtml(n)+' <span class="'+cls+'">'+(v>0?'+':'')+v+'</span>';
+      });
+      detail = parts0.join('、');
+      return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
+    }
+    var dealerPart = h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName));
+    if(h.method === "draw"){
+      headLine = '第'+(idx+1)+'手・'+dealerPart+'・流局（沒人胡牌）';
+      detail = '不換錢，莊家連莊。';
+    }else{
+      if(h.method === "discard"){
+        detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
+                 escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
+      }else{
+        var parts = [];
+        Object.keys(h.deltas).forEach(function(n){
+          if(n === h.winnerName) return;
+          parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
+        });
+        detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
+      }
+      headLine = '第'+(idx+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
+    }
+    var tilesLine = "";
+    if(h.tiles && h.tiles.length){
+      var tileCounts = groupTagCounts(h.tiles);
+      var tileParts = tileCounts.order.map(function(label){
+        var c = tileCounts.counts[label];
+        return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
+      });
+      tilesLine = '<div class="log-detail">🀄 '+tileParts.join('、')+'</div>';
+    }
+    return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine;
+  }
+  function renderHandListInto(container, set){
+    container.innerHTML = "";
     if(!set.hands.length){
-      list.innerHTML = '<div class="empty-hint">尚無對戰紀錄，記錄第一手吧！</div>';
+      container.innerHTML = '<div class="empty-hint">這將沒有逐手紀錄。</div>';
       return;
     }
     for(var i=set.hands.length-1; i>=0; i--){
-      var h = set.hands[i];
       var item = document.createElement("div");
       item.className = "log-item";
-      var dealerPart = h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName));
-      var headLine, detail;
-      if(h.method === "draw"){
-        headLine = '第'+(i+1)+'手・'+dealerPart+'・流局（沒人胡牌）';
-        detail = '不換錢，莊家連莊。';
-      }else{
-        if(h.method === "discard"){
-          detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
-                   escapeHtml(h.winnerName) + ' <span class="plus">+'+h.amount+'</span>';
-        }else{
-          var parts = [];
-          Object.keys(h.deltas).forEach(function(n){
-            if(n === h.winnerName) return;
-            parts.push(escapeHtml(n)+' <span class="minus">-'+(-h.deltas[n])+'</span>');
-          });
-          detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
-        }
-        headLine = '第'+(i+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
-      }
-      var tilesLine = "";
-      if(h.tiles && h.tiles.length){
-        var tileCounts = groupTagCounts(h.tiles);
-        var tileParts = tileCounts.order.map(function(label){
-          var c = tileCounts.counts[label];
-          return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
-        });
-        tilesLine = '<div class="log-detail">🀄 '+tileParts.join('、')+'</div>';
-      }
-      item.innerHTML =
-        '<div class="log-head">'+headLine+'</div>' +
-        '<div class="log-detail">'+detail+'</div>' + tilesLine;
-      list.appendChild(item);
+      item.innerHTML = handLogItemHtml(set.hands[i], i);
+      container.appendChild(item);
     }
+  }
+  function renderSetLog(set){
+    renderHandListInto(document.getElementById("setLogList"), set);
   }
 
   var DUTY_LABELS = { record: "📝 記錄", music: "🎵 音樂", photo: "📷 拍照" };
@@ -2753,6 +2770,17 @@
       var detail = document.createElement("div");
       detail.className = "log-detail";
       detail.innerHTML = summary;
+      var handsBtn = document.createElement("button");
+      handsBtn.type = "button";
+      handsBtn.className = "link-btn";
+      handsBtn.style.marginTop = "6px";
+      handsBtn.style.marginRight = "12px";
+      var handsOpen = ui.pastSetLogOpenId === s.id;
+      handsBtn.textContent = handsOpen ? "🀄 收起本手" : "🀄 顯示本手";
+      handsBtn.addEventListener("click", function(){
+        ui.pastSetLogOpenId = handsOpen ? null : s.id;
+        renderGameTab();
+      });
       var seatBtn = document.createElement("button");
       seatBtn.type = "button";
       seatBtn.className = "link-btn";
@@ -2779,8 +2807,15 @@
       });
       item.appendChild(head);
       item.appendChild(detail);
+      item.appendChild(handsBtn);
       item.appendChild(seatBtn);
       item.appendChild(delBtn);
+      if(handsOpen){
+        var handsContainer = document.createElement("div");
+        handsContainer.style.marginTop = "6px";
+        renderHandListInto(handsContainer, s);
+        item.appendChild(handsContainer);
+      }
       if(editingThis){
         var hint = document.createElement("p");
         hint.className = "hint-text";
@@ -3637,7 +3672,8 @@
       head.innerHTML = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '') + '・共'+setsCount+'將・' + headline + ' <span class="expand-hint">▾</span>';
       var detail = document.createElement("div");
       detail.className = "log-detail";
-      detail.style.display = "none";
+      var isExpanded = ui.expandedHistoryGameId === g.id;
+      detail.style.display = isExpanded ? "block" : "none";
       var isBackfilled = allHandsOf(g).some(function(h){ return h.method === "manual"; });
       var summaryEl = document.createElement("div");
       summaryEl.innerHTML = g.players.map(function(n){
@@ -3668,6 +3704,19 @@
             return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
           }).join('　');
           setRow.innerHTML = '第'+(sIdx+1)+'將・共'+s.hands.length+'手・'+setSummary;
+          var setKey = g.id + "|" + s.id;
+          var setHandsOpen = ui.historyHandLogKey === setKey;
+          var setHandsBtn = document.createElement("button");
+          setHandsBtn.type = "button";
+          setHandsBtn.className = "link-btn";
+          setHandsBtn.style.marginTop = "4px";
+          setHandsBtn.style.marginRight = "12px";
+          setHandsBtn.textContent = setHandsOpen ? "🀄 收起本手" : "🀄 顯示本手";
+          setHandsBtn.addEventListener("click", function(e){
+            e.stopPropagation();
+            ui.historyHandLogKey = setHandsOpen ? null : setKey;
+            renderStatsTab();
+          });
           var delSetBtn = document.createElement("button");
           delSetBtn.type = "button";
           delSetBtn.className = "link-btn danger";
@@ -3683,10 +3732,41 @@
               commitState(ns);
             });
           });
+          setRow.appendChild(setHandsBtn);
           setRow.appendChild(delSetBtn);
+          if(setHandsOpen){
+            var setHandsContainer = document.createElement("div");
+            setHandsContainer.style.marginTop = "6px";
+            renderHandListInto(setHandsContainer, s);
+            setRow.appendChild(setHandsContainer);
+          }
           setsList.appendChild(setRow);
         });
         detail.appendChild(setsList);
+      }else{
+        var onlySet = g.sets[0];
+        if(onlySet){
+          var onlyKey = g.id + "|" + onlySet.id;
+          var onlyHandsOpen = ui.historyHandLogKey === onlyKey;
+          var onlyHandsBtn = document.createElement("button");
+          onlyHandsBtn.type = "button";
+          onlyHandsBtn.className = "link-btn";
+          onlyHandsBtn.style.marginTop = "6px";
+          onlyHandsBtn.style.display = "block";
+          onlyHandsBtn.textContent = onlyHandsOpen ? "🀄 收起本手" : "🀄 顯示本手";
+          onlyHandsBtn.addEventListener("click", function(e){
+            e.stopPropagation();
+            ui.historyHandLogKey = onlyHandsOpen ? null : onlyKey;
+            renderStatsTab();
+          });
+          detail.appendChild(onlyHandsBtn);
+          if(onlyHandsOpen){
+            var onlyHandsContainer = document.createElement("div");
+            onlyHandsContainer.style.marginTop = "6px";
+            renderHandListInto(onlyHandsContainer, onlySet);
+            detail.appendChild(onlyHandsContainer);
+          }
+        }
       }
 
       var drinkBtn = document.createElement("button");
@@ -3716,7 +3796,8 @@
       });
       detail.appendChild(delBtn);
       head.addEventListener("click", function(){
-        detail.style.display = (detail.style.display !== "none") ? "none" : "block";
+        ui.expandedHistoryGameId = isExpanded ? null : g.id;
+        renderStatsTab();
       });
       item.appendChild(head);
       item.appendChild(detail);
