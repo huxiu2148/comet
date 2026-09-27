@@ -2972,9 +2972,11 @@
       var delBtn = document.createElement("button");
       delBtn.type = "button"; delBtn.className = "link-btn danger"; delBtn.textContent = "刪除";
       delBtn.addEventListener("click", function(){
-        var ns = deepClone(state);
-        ns.venues = ns.venues.filter(function(x){ return x !== v; });
-        commitState(ns);
+        showConfirm("確定刪除常用場地「"+v+"」嗎？（不會影響已記錄的牌局資料）", function(){
+          var ns = deepClone(state);
+          ns.venues = ns.venues.filter(function(x){ return x !== v; });
+          commitState(ns);
+        });
       });
       actions.appendChild(delBtn);
       row.appendChild(nameSpan);
