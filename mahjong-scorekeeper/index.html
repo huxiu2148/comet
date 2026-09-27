@@ -109,6 +109,10 @@
     text-align:center;
   }
   input:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
+  select.select-input{
+    width:100%; padding:10px 12px; font-size:.95rem; border:1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--ink);
+  }
 
   .apply-btn{ margin-top:12px; width:100%; }
 
@@ -582,6 +586,10 @@
         <button type="button" class="subtab-btn" data-sub="kings">擂台</button>
       </div>
       <div class="chip-row" id="statsTargetChips" style="display:none;"></div>
+      <div id="statsGameFilterRow" style="display:none; margin-top:8px;">
+        <label class="field" for="statsGameFilterSelect">場次範圍</label>
+        <select class="select-input" id="statsGameFilterSelect"></select>
+      </div>
       <div id="statsContent"></div>
     </div>
   </section>
@@ -1437,6 +1445,7 @@
     tab: "game",
     statsSub: "longterm",
     statsTargetName: null,
+    statsGameFilter: null,
     calTargetName: null,
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
@@ -3095,16 +3104,23 @@
     });
   }
 
-  // 每場結束時，輸最多錢的人請飲料（平手就算大家都請）。只看每場的
-  // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。判斷「算幾次」
-  // 是照牌局時間順序看「連續」：同一個人連續幾場都是最輸的，不管是不是
-  // 同一天（例如今天最後一場跟明天第一場都是他最輸，一樣算連續），只算
-  //一次；中間只要有別人變成最輸的（或那場沒人真的輸錢）就算斷開，之後
-  // 同一個人再輸就是重新算一次，不會因為都在同一天就自動合併。
-  // 有些場次開局時（或事後）關掉了「最輸請飲料」，那場就不算進來。
-  // 回傳每一筆「欠飲料」的明細（記在連續開始的那一天、欠的人是誰），
-  // 不是只有總次數，這樣才能一筆一筆記錄有沒有真的請過。
-  function computeDrinkDebts(endedGames){
+  // 請飲料是「每兩場一組」：把有開請飲料的牌局照時間順序排好，兩場兩場
+  // 分組（第1+2場一組、第3+4場一組...），同一組裡兩場各自的最輸的人
+  // （可能平手多人）合起來就是這組要請的人——同一人在這組兩場都最輸，
+  // 這組只算他請一次；兩場最輸的人不同，就是這幾個人一起請這一組。
+  // 如果總場次是奇數，最後一場還沒有配對對象，先不算，等下一場出現
+  // 配成一組才知道要不要請。
+  function gameLoserNames(g){
+    var totals = computeGameTotals(g);
+    var min = null;
+    g.players.forEach(function(n){
+      var v = totals[n] || 0;
+      if(min === null || v < min) min = v;
+    });
+    if(min === null || min >= 0) return [];
+    return g.players.filter(function(n){ return (totals[n]||0) === min; });
+  }
+  function computeDrinkUnits(endedGames){
     var enabled = endedGames.filter(gameDrinkEnabled);
     var sorted = enabled.slice().sort(function(a, b){
       if(a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -3112,26 +3128,30 @@
       if(at !== bt) return at < bt ? -1 : 1;
       return (a.createdAt||0) - (b.createdAt||0);
     });
+    var units = [];
+    for(var i=0; i+1<sorted.length; i+=2){
+      var g1 = sorted[i], g2 = sorted[i+1];
+      var members = gameLoserNames(g1).slice();
+      gameLoserNames(g2).forEach(function(n){ if(members.indexOf(n) === -1) members.push(n); });
+      if(!members.length) continue; // 這兩場都沒人真的輸錢，這組不用請
+      units.push({ id: g1.id + "|" + g2.id, gameIds: [g1.id, g2.id], dates: [g1.date, g2.date], members: members });
+    }
+    return units;
+  }
+  // 回傳每一筆「欠飲料」的明細（一組欠一筆，一組裡不只一人的話，每個人
+  // 各自都算一筆，並標記這筆是跟誰一起請的），不是只有總次數，這樣才能
+  // 一筆一筆記錄有沒有真的請過。
+  function computeDrinkDebts(endedGames){
     var debts = [];
-    var streakLoser = null; // 目前連續最輸的人（單一一人時才會延續連續）
-    sorted.forEach(function(g){
-      var totals = computeGameTotals(g);
-      var min = null;
-      g.players.forEach(function(n){
-        var v = totals[n] || 0;
-        if(min === null || v < min) min = v;
+    computeDrinkUnits(endedGames).forEach(function(u){
+      u.members.forEach(function(n){
+        debts.push({
+          unitId: u.id,
+          name: n,
+          dates: u.dates,
+          sharedWith: u.members.filter(function(m){ return m !== n; })
+        });
       });
-      if(min === null || min >= 0){ streakLoser = null; return; } // 這場沒人真的輸錢，連續中斷
-      var losers = g.players.filter(function(n){ return (totals[n]||0) === min; });
-      if(losers.length === 1){
-        if(losers[0] === streakLoser) return; // 跟上一場同一個人連續最輸，沿用同一筆債務
-        debts.push({ date: g.date, name: losers[0] });
-        streakLoser = losers[0];
-      }else{
-        // 平手：每個人都各自算一次，平手本身不算「連續」，之後重新開始判斷
-        losers.forEach(function(n){ debts.push({ date: g.date, name: n }); });
-        streakLoser = null;
-      }
     });
     return debts;
   }
@@ -3141,38 +3161,44 @@
     return counts;
   }
   // 誰請了、誰還沒請，是額外記錄的狀態，跟牌局本身的輸贏資料分開放，
-  // 用「日期+名字」當 key（同一天同一個人最多只會欠一次，見上面的
-  // computeDrinkDebts），不用另外配 id。
-  function drinkPaidKey(date, name){ return date + "|" + name; }
-  function isDrinkPaid(date, name){
-    return !!(state.drinkPaid && state.drinkPaid[drinkPaidKey(date, name)]);
+  // 用「這組的 id（兩場的 id 接起來）+名字」當 key，同一組裡每個人的
+  // 已請狀態是各自獨立記錄的。
+  function drinkPaidKey(unitId, name){ return unitId + "|" + name; }
+  function isDrinkPaid(unitId, name){
+    return !!(state.drinkPaid && state.drinkPaid[drinkPaidKey(unitId, name)]);
   }
-  function toggleDrinkPaid(date, name){
+  function toggleDrinkPaid(unitId, name){
     var newState = deepClone(state);
     if(!newState.drinkPaid) newState.drinkPaid = {};
-    var key = drinkPaidKey(date, name);
+    var key = drinkPaidKey(unitId, name);
     if(newState.drinkPaid[key]) delete newState.drinkPaid[key];
     else newState.drinkPaid[key] = true;
     commitState(newState);
   }
+  function drinkDateRangeLabel(dates){
+    return dates[0] === dates[1] ? dates[0] : (dates[0] + '~' + dates[1]);
+  }
   // 長期統計是用字串組 innerHTML 顯示、沒有互動；請飲料明細需要每一筆
   // 都能點來切換已請／未請，所以另外用 DOM 元素蓋在字串內容後面，
-  // 而不是塞進 renderLongTermHtml 回傳的那段字串裡。
-  function renderDrinkTreatSection(container, endedGames){
+  // 而不是塞進 renderLongTermHtml 回傳的那段字串裡。endedGames 一律傳
+  // 全部已結束的牌局（配對需要完整的時間順序），filterGameId 有值時
+  // 表示目前是「單場檢視」，只顯示那一場所屬的那一組。
+  function renderDrinkTreatSection(container, endedGames, filterGameId){
+    if(filterGameId){ renderDrinkTreatForSingleGame(container, endedGames, filterGameId); return; }
     var debts = computeDrinkDebts(endedGames);
     if(!debts.length) return;
     var byName = {};
     debts.forEach(function(d){
       if(!byName[d.name]) byName[d.name] = { total: 0, paid: 0 };
       byName[d.name].total++;
-      if(isDrinkPaid(d.date, d.name)) byName[d.name].paid++;
+      if(isDrinkPaid(d.unitId, d.name)) byName[d.name].paid++;
     });
     var names = Object.keys(byName).sort(function(a,b){ return byName[b].total - byName[a].total; });
 
     var summaryTitle = document.createElement("div");
     summaryTitle.className = "stat-summary";
     summaryTitle.style.marginTop = "14px";
-    summaryTitle.textContent = "🍹 請飲料次數（每天最輸的人請客，同一天算一次）";
+    summaryTitle.textContent = "🍹 請飲料次數（每兩場一組，那組最輸的人一起請）";
     container.appendChild(summaryTitle);
 
     var summaryList = document.createElement("div");
@@ -3197,17 +3223,60 @@
 
     var detailList = document.createElement("div");
     detailList.className = "stat-list";
-    debts.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).forEach(function(d){
-      var paid = isDrinkPaid(d.date, d.name);
+    debts.slice().sort(function(a,b){
+      return drinkDateRangeLabel(b.dates).localeCompare(drinkDateRangeLabel(a.dates));
+    }).forEach(function(d){
+      var paid = isDrinkPaid(d.unitId, d.name);
+      var sharedLabel = d.sharedWith.length ? ('（與'+d.sharedWith.map(escapeHtml).join('、')+'一起請）') : '';
       var row = document.createElement("button");
       row.type = "button";
       row.className = "stat-row drink-debt-row";
-      row.innerHTML = '<div class="stat-name">'+escapeHtml(d.date)+'・'+escapeHtml(d.name)+'</div>' +
+      row.innerHTML = '<div class="stat-name">'+escapeHtml(drinkDateRangeLabel(d.dates))+'・'+escapeHtml(d.name)+sharedLabel+'</div>' +
         '<div class="stat-amt '+(paid?"win":"lose")+'">'+(paid ? "✅ 已請" : "🕗 未請")+'</div>';
-      row.addEventListener("click", function(){ toggleDrinkPaid(d.date, d.name); });
+      row.addEventListener("click", function(){ toggleDrinkPaid(d.unitId, d.name); });
       detailList.appendChild(row);
     });
     container.appendChild(detailList);
+  }
+  // 單場檢視：只看選定的這一場屬於哪一組（跟哪一場配對），那組要不要
+  // 請、誰要請，而不是列出全部的總計。
+  function renderDrinkTreatForSingleGame(container, endedGames, gameId){
+    var game = endedGames.filter(function(g){ return g.id === gameId; })[0];
+    if(!game) return;
+    var title = document.createElement("div");
+    title.className = "stat-summary";
+    title.style.marginTop = "14px";
+    title.textContent = "🍹 這場的請飲料";
+    container.appendChild(title);
+    var body = document.createElement("div");
+    body.className = "stat-list";
+    if(!gameDrinkEnabled(game)){
+      body.innerHTML = '<div class="stat-row"><div class="stat-name">這場沒有開啟「最輸請飲料」。</div></div>';
+      container.appendChild(body);
+      return;
+    }
+    var unit = computeDrinkUnits(endedGames).filter(function(u){ return u.gameIds.indexOf(gameId) !== -1; })[0];
+    if(!unit){
+      body.innerHTML = '<div class="stat-row"><div class="stat-name">這場還在等下一場配對，配對後才會知道要不要請飲料。</div></div>';
+      container.appendChild(body);
+      return;
+    }
+    var infoRow = document.createElement("div");
+    infoRow.className = "stat-row";
+    infoRow.innerHTML = '<div class="stat-name">配對場次：'+escapeHtml(drinkDateRangeLabel(unit.dates))+'</div>';
+    body.appendChild(infoRow);
+    unit.members.forEach(function(n){
+      var paid = isDrinkPaid(unit.id, n);
+      var shared = unit.members.length > 1 ? '（共同請）' : '';
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "stat-row drink-debt-row";
+      row.innerHTML = '<div class="stat-name">'+escapeHtml(n)+shared+'</div>' +
+        '<div class="stat-amt '+(paid?"win":"lose")+'">'+(paid ? "✅ 已請" : "🕗 未請")+'</div>';
+      row.addEventListener("click", function(){ toggleDrinkPaid(unit.id, n); });
+      body.appendChild(row);
+    });
+    container.appendChild(body);
   }
 
   function renderLongTermHtml(endedGames){
@@ -3805,6 +3874,25 @@
     });
   }
 
+  // 場次範圍下拉選單：預設「總計」看全部已結束牌局，也可以選單一場，
+  // 這時候所有分頁（長期統計/門風/歷史牌局/分析/擂台）都只算那一場。
+  function renderStatsGameFilterSelect(endedGames){
+    var row = document.getElementById("statsGameFilterRow");
+    var el = document.getElementById("statsGameFilterSelect");
+    if(!endedGames.length){ row.style.display = "none"; return; }
+    row.style.display = "block";
+    var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
+    var options = ['<option value="">總計（全部場次）</option>'].concat(sorted.map(function(g){
+      var label = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '');
+      return '<option value="'+escapeHtml(g.id)+'">'+label+'</option>';
+    }));
+    el.innerHTML = options.join('');
+    el.value = ui.statsGameFilter || "";
+    el.onchange = function(){
+      ui.statsGameFilter = el.value || null;
+      renderStatsTab();
+    };
+  }
   function renderStatsTab(){
     var btns = document.querySelectorAll(".subtab-btn");
     for(var i=0;i<btns.length;i++){
@@ -3813,14 +3901,19 @@
     renderStatsTargetChips();
     var content = document.getElementById("statsContent");
     var endedGames = state.games.filter(function(g){ return g.status === "ended"; });
-    if(ui.statsSub === "longterm"){
-      content.innerHTML = renderLongTermHtml(endedGames);
-      renderDrinkTreatSection(content, endedGames);
+    if(ui.statsGameFilter && !endedGames.some(function(g){ return g.id === ui.statsGameFilter; })){
+      ui.statsGameFilter = null; // 選到的那場被刪掉了，回到總計
     }
-    else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames, currentStatsTarget());
-    else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, endedGames); }
-    else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames, currentStatsTarget());
-    else if(ui.statsSub === "kings") content.innerHTML = renderKingsHtml(endedGames);
+    renderStatsGameFilterSelect(endedGames);
+    var filteredGames = ui.statsGameFilter ? endedGames.filter(function(g){ return g.id === ui.statsGameFilter; }) : endedGames;
+    if(ui.statsSub === "longterm"){
+      content.innerHTML = renderLongTermHtml(filteredGames);
+      renderDrinkTreatSection(content, endedGames, ui.statsGameFilter);
+    }
+    else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(filteredGames, currentStatsTarget());
+    else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, filteredGames); }
+    else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(filteredGames, currentStatsTarget());
+    else if(ui.statsSub === "kings") content.innerHTML = renderKingsHtml(filteredGames);
   }
 
   // ================= 月曆 =================
