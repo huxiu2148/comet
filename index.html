@@ -240,6 +240,9 @@
   .stat-row2:last-child{ border-bottom:none; }
   .stat-row2-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .stat-row2 .stat-mid{ margin-top:3px; }
+  button.stat-row{ width:100%; background:none; border:none; border-bottom:1px solid var(--border); cursor:pointer; text-align:left; font:inherit; color:inherit; }
+  button.stat-row:last-child{ border-bottom:none; }
+  button.stat-row:active{ background: var(--accent-soft); }
 
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .cal-nav{ padding:8px 16px; min-height:auto; }
@@ -908,7 +911,8 @@
       activeGameId: null,
       defaultBase: 100,
       defaultTai: 20,
-      dutyRotation: { photoIdx: 0, musicIdx: 0 }
+      dutyRotation: { photoIdx: 0, musicIdx: 0 },
+      drinkPaid: {}
     };
   }
 
@@ -1107,6 +1111,12 @@
       photoIdx: typeof rawRotation.photoIdx === "number" ? rawRotation.photoIdx : 0,
       musicIdx: typeof rawRotation.musicIdx === "number" ? rawRotation.musicIdx : 0
     };
+    s.drinkPaid = {};
+    if(parsed.drinkPaid && typeof parsed.drinkPaid === "object"){
+      Object.keys(parsed.drinkPaid).forEach(function(key){
+        if(parsed.drinkPaid[key]) s.drinkPaid[key] = true;
+      });
+    }
     return s;
   }
 
@@ -2905,13 +2915,15 @@
   // 最終輸贏總額，補記的牌局也有算，所以這裡一樣算得出來。同一天如果
   // 打了好幾場、每場最輸的都是同一個人，那天只算他請一次，不會重複疊加。
   // 有些場次開局時（或事後）關掉了「最輸請飲料」，那場就不算進來。
-  function computeDrinkTreatCounts(endedGames){
+  // 回傳每一筆「欠飲料」的明細（哪一天、誰），不是只有總次數，這樣才能
+  // 一筆一筆記錄有沒有真的請過。
+  function computeDrinkDebts(endedGames){
     var byDate = {};
     endedGames.forEach(function(g){
       if(!gameDrinkEnabled(g)) return;
       (byDate[g.date] = byDate[g.date] || []).push(g);
     });
-    var counts = {};
+    var debts = [];
     Object.keys(byDate).forEach(function(date){
       var dayLosers = {};
       byDate[date].forEach(function(g){
@@ -2927,10 +2939,84 @@
         });
       });
       Object.keys(dayLosers).forEach(function(n){
-        counts[n] = (counts[n]||0) + 1;
+        debts.push({ date: date, name: n });
       });
     });
+    return debts;
+  }
+  function computeDrinkTreatCounts(endedGames){
+    var counts = {};
+    computeDrinkDebts(endedGames).forEach(function(d){ counts[d.name] = (counts[d.name]||0) + 1; });
     return counts;
+  }
+  // 誰請了、誰還沒請，是額外記錄的狀態，跟牌局本身的輸贏資料分開放，
+  // 用「日期+名字」當 key（同一天同一個人最多只會欠一次，見上面的
+  // computeDrinkDebts），不用另外配 id。
+  function drinkPaidKey(date, name){ return date + "|" + name; }
+  function isDrinkPaid(date, name){
+    return !!(state.drinkPaid && state.drinkPaid[drinkPaidKey(date, name)]);
+  }
+  function toggleDrinkPaid(date, name){
+    var newState = deepClone(state);
+    if(!newState.drinkPaid) newState.drinkPaid = {};
+    var key = drinkPaidKey(date, name);
+    if(newState.drinkPaid[key]) delete newState.drinkPaid[key];
+    else newState.drinkPaid[key] = true;
+    commitState(newState);
+  }
+  // 長期統計是用字串組 innerHTML 顯示、沒有互動；請飲料明細需要每一筆
+  // 都能點來切換已請／未請，所以另外用 DOM 元素蓋在字串內容後面，
+  // 而不是塞進 renderLongTermHtml 回傳的那段字串裡。
+  function renderDrinkTreatSection(container, endedGames){
+    var debts = computeDrinkDebts(endedGames);
+    if(!debts.length) return;
+    var byName = {};
+    debts.forEach(function(d){
+      if(!byName[d.name]) byName[d.name] = { total: 0, paid: 0 };
+      byName[d.name].total++;
+      if(isDrinkPaid(d.date, d.name)) byName[d.name].paid++;
+    });
+    var names = Object.keys(byName).sort(function(a,b){ return byName[b].total - byName[a].total; });
+
+    var summaryTitle = document.createElement("div");
+    summaryTitle.className = "stat-summary";
+    summaryTitle.style.marginTop = "14px";
+    summaryTitle.textContent = "🍹 請飲料次數（每天最輸的人請客，同一天算一次）";
+    container.appendChild(summaryTitle);
+
+    var summaryList = document.createElement("div");
+    summaryList.className = "stat-list";
+    names.forEach(function(n){
+      var d = byName[n];
+      var owe = d.total - d.paid;
+      var row = document.createElement("div");
+      row.className = "stat-row";
+      row.innerHTML = '<div class="stat-name">'+escapeHtml(n)+'</div>' +
+        '<div class="stat-mid">共'+d.total+'次・已請'+d.paid+'次</div>' +
+        '<div class="stat-amt '+(owe>0?"lose":"zero")+'">'+(owe>0 ? ("還欠"+owe+"次") : "已請清")+'</div>';
+      summaryList.appendChild(row);
+    });
+    container.appendChild(summaryList);
+
+    var detailTitle = document.createElement("div");
+    detailTitle.className = "stat-summary";
+    detailTitle.style.marginTop = "14px";
+    detailTitle.textContent = "請飲料明細（點一下切換已請／未請）";
+    container.appendChild(detailTitle);
+
+    var detailList = document.createElement("div");
+    detailList.className = "stat-list";
+    debts.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).forEach(function(d){
+      var paid = isDrinkPaid(d.date, d.name);
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "stat-row drink-debt-row";
+      row.innerHTML = '<div class="stat-name">'+escapeHtml(d.date)+'・'+escapeHtml(d.name)+'</div>' +
+        '<div class="stat-amt '+(paid?"win":"lose")+'">'+(paid ? "✅ 已請" : "🕗 未請")+'</div>';
+      row.addEventListener("click", function(){ toggleDrinkPaid(d.date, d.name); });
+      detailList.appendChild(row);
+    });
+    container.appendChild(detailList);
   }
 
   function renderLongTermHtml(endedGames){
@@ -2960,17 +3046,8 @@
         '<div class="stat-amt '+cls+'">'+sign+d.net+'<small>平均 '+(avg>=0?'+':'')+avg+'/場</small></div></div>';
     }).join("");
 
-    var drinkCounts = computeDrinkTreatCounts(endedGames);
-    var drinkNames = Object.keys(drinkCounts).sort(function(a,b){ return drinkCounts[b]-drinkCounts[a]; });
-    var drinkSection = drinkNames.length ?
-      ('<div class="stat-summary" style="margin-top:14px;">🍹 請飲料次數（每天最輸的人請客，同一天算一次）</div>' +
-       '<div class="stat-list">' + drinkNames.map(function(n){
-         return '<div class="stat-row"><div class="stat-name">'+escapeHtml(n)+'</div>' +
-           '<div class="stat-amt">🍹 '+drinkCounts[n]+' 次</div></div>';
-       }).join('') + '</div>') : '';
-
     return '<div class="stat-summary">總場次 <b>'+endedGames.length+'</b> ・ 總手數 <b>'+totalHands+'</b></div>' +
-      '<div class="stat-list">'+rows+'</div>' + drinkSection;
+      '<div class="stat-list">'+rows+'</div>';
   }
 
   function statsTargetCandidates(){
@@ -3499,7 +3576,10 @@
     renderStatsTargetChips();
     var content = document.getElementById("statsContent");
     var endedGames = state.games.filter(function(g){ return g.status === "ended"; });
-    if(ui.statsSub === "longterm") content.innerHTML = renderLongTermHtml(endedGames);
+    if(ui.statsSub === "longterm"){
+      content.innerHTML = renderLongTermHtml(endedGames);
+      renderDrinkTreatSection(content, endedGames);
+    }
     else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(endedGames, currentStatsTarget());
     else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, endedGames); }
     else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(endedGames, currentStatsTarget());
