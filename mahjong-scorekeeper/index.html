@@ -527,6 +527,15 @@
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
           <div id="pendingPreviewDetail"></div>
+          <div id="multiWinnerBlock" style="display:none; margin-top:10px;">
+            <div class="section-label" style="margin-top:0;">胡牌的人（點名字切換要編輯台數的人）</div>
+            <div class="chip-row" id="winnersListRow"></div>
+            <button type="button" class="link-btn" id="removeActiveWinnerBtn" style="display:none;">移除目前這位胡牌者</button>
+            <div class="section-label" style="margin-top:8px;">🎯 一炮多響：加入其他也胡牌的人（各自輸入自己的台數）</div>
+            <div class="chip-row" id="addWinnerChips"></div>
+            <div class="section-label" style="margin-top:8px;">🚫 攔胡：標記誰本來也胡得到、但被攔下沒拿到錢（純記錄，不影響金額）</div>
+            <div class="chip-row" id="interceptedChips"></div>
+          </div>
           <div class="undo-row" style="margin-top:10px; margin-bottom:0;">
             <button type="button" class="btn btn-outline" id="cancelPendingBtn">↩️ 取消</button>
             <button type="button" class="btn btn-primary" id="confirmPendingBtn">✅ 確認記錄</button>
@@ -757,6 +766,8 @@
     <h3>🀄 記錄一手</h3>
     <ul>
       <li><b>放槍</b>：長按胡牌者的卡片，拖曳到放槍者的卡片上放開。</li>
+      <li><b>一炮多響</b>：拖完第一位胡牌者之後，在下面「本手預覽」的「🎯 一炮多響」點其他也胡牌的人加進來，每個人各自輸入自己的台數，放槍的人會分別付給每一位；點名字可以切換目前正在編輯台數的是誰。</li>
+      <li><b>攔胡</b>：如果有人本來也胡得到，但被輪序較近的人攔下、沒有真的拿到錢，可以在「🚫 攔胡」點他的名字標記起來，純粹記錄用，不會影響金額。</li>
       <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
@@ -784,7 +795,7 @@
     <h3>📊 戰績・📅 月曆</h3>
     <ul>
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析幾個子分頁，都只統計已經結束的牌局。</li>
-      <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序。</li>
+      <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序；「常胡的牌」則是把每手記錄的胡牌牌型彙整起來，看這位玩家最常胡到哪些牌。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
       <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
@@ -2011,6 +2022,26 @@
     for(var i=0;i<ui.huaCount;i++) labels.push(huapaiTag().label);
     return labels;
   }
+  // 一炮多響時，每位胡牌者的台數/標籤/花牌是各自存在 winner 物件裡
+  // （不是共用 ui.tai 這些全域欄位），所以要另外提供一份可以指定對象
+  // 的版本，算法跟上面兩個函式完全一樣。
+  function computeTotalTaiFor(w){
+    var sum = w.tai;
+    w.tags.forEach(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      if(tag) sum += tagValue(tag);
+    });
+    sum += w.huaCount * huapaiTag().value;
+    return sum;
+  }
+  function taiTagLabelsFor(w){
+    var labels = w.tags.map(function(key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      return tag ? tag.label : key;
+    });
+    for(var i=0;i<w.huaCount;i++) labels.push(huapaiTag().label);
+    return labels;
+  }
 
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
@@ -2021,6 +2052,39 @@
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
+    syncDealerFromHands(ns);
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    commitState(newState);
+  }
+
+  // 一炮多響（同一張牌同時被好幾個人胡）：放槍的人分別付給每一位胡牌者，
+  // 每人台數各自算、各自記一筆手紀錄（不是合成一筆），這樣既有的
+  // computeSetTotals/computeGameTotals/computePlayerHandStats 完全不用改，
+  // 天生就能正確累計金額跟胡牌/放槍次數。每筆記錄上另外附一個
+  // multiWinMates（這組所有胡牌者的名字），純粹給畫面顯示用。
+  // 莊家如果也在這組胡牌者裡，要讓他那筆最後寫入——連莊判斷
+  // （syncDealerFromHands）只看這將最後一手，不管畫面上點的順序，
+  // 這樣排序後永遠能正確判斷連莊。
+  // 攔胡（有人本來也胡得到，但被輪序較近的人攔下、沒有拿到錢）純粹是
+  // 記錄用的標記，不影響金額，附在這組每一筆記錄上。
+  function commitMultiWinnerHand(loserName, winners, intercepted){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    var dealerName = set.seatOrder[set.dealerIndex];
+    var ordered = winners.slice().sort(function(a,b){
+      return (a.name === dealerName ? 1 : 0) - (b.name === dealerName ? 1 : 0);
+    });
+    var mates = ordered.map(function(w){ return w.name; });
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    ordered.forEach(function(w){
+      var record = buildHandRecord(game, ns, w.name, "discard", loserName, computeTotalTaiFor(w), taiTagLabelsFor(w), w.leopard);
+      record.tiles = flattenTileMap(w.tiles || {});
+      if(mates.length > 1) record.multiWinMates = mates;
+      if(intercepted && intercepted.length) record.intercepted = intercepted.slice();
+      ns.hands.push(record);
+    });
     syncDealerFromHands(ns);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     commitState(newState);
@@ -2088,18 +2152,102 @@
     ensurePendingPreviewVisible();
     flashCard(name, "flash-win");
   }
+  // 一炮多響：放槍手勢先跟原本一樣只記一位胡牌者，之後可以在預覽畫面
+  // 點其他人的卡片加入更多胡牌者（見 addWinnerToPendingHand）。每位
+  // 胡牌者自己的台數/標籤/花牌/豹子/記錄的牌都各自存放在 winners[] 裡，
+  // 「正在編輯」的那位才會顯示在畫面共用的台數區塊（ui.tai 等等），
+  // 切換編輯對象時用 snapshotActiveWinner/loadActiveWinnerUi 互相同步。
+  function makeWinnerEntry(name){
+    return { name: name, tai: 0, tags: [], huaCount: 0, leopard: { enabled: false, multiplier: 2 }, tiles: {} };
+  }
   function recordDiscardGesture(winnerName, loserName){
-    ui.pendingHand = { method: "discard", winnerName: winnerName, loserName: loserName };
+    // 不能在這裡把 ui.tai 等等重設成 0——手勢觸發之前使用者可能已經先
+    // 調過台數了（既有的操作習慣：先點台型/台數再拖曳，或先拖曳再調），
+    // 這裡重設會把先調好的台數洗掉。第一位胡牌者的 winners[0] 會在接下來
+    // 第一次重繪時透過 renderPendingPreview 的 snapshotActiveWinner()
+    // 正確同步到當下的 ui.tai，不用在這裡強制歸零。
+    ui.pendingHand = {
+      method: "discard", loserName: loserName,
+      winners: [ makeWinnerEntry(winnerName) ],
+      activeWinnerIdx: 0,
+      intercepted: []
+    };
     renderGameTab();
     ensurePendingPreviewVisible();
     flashCard(winnerName, "flash-win");
     flashCard(loserName, "flash-lose");
   }
+  function snapshotActiveWinner(){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard") return;
+    var w = p.winners[p.activeWinnerIdx];
+    if(!w) return;
+    w.tai = ui.tai; w.tags = ui.taiTags.slice(); w.huaCount = ui.huaCount;
+    w.leopard = { enabled: ui.leopard.enabled, multiplier: ui.leopard.multiplier };
+    w.tiles = deepClone(ui.winningTiles);
+  }
+  function loadActiveWinnerUi(){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard") return;
+    var w = p.winners[p.activeWinnerIdx];
+    if(!w) return;
+    ui.tai = w.tai; ui.taiTags = w.tags.slice(); ui.huaCount = w.huaCount;
+    ui.leopard = { enabled: w.leopard.enabled, multiplier: w.leopard.multiplier };
+    ui.winningTiles = deepClone(w.tiles);
+    ui.tilesPickerOpen = false;
+  }
+  function switchActiveWinner(idx){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard" || idx === p.activeWinnerIdx) return;
+    snapshotActiveWinner();
+    p.activeWinnerIdx = idx;
+    loadActiveWinnerUi();
+    renderGameTab();
+  }
+  function addWinnerToPendingHand(name){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard") return;
+    if(name === p.loserName) return;
+    if(p.winners.some(function(w){ return w.name === name; })) return;
+    snapshotActiveWinner();
+    p.winners.push(makeWinnerEntry(name));
+    p.activeWinnerIdx = p.winners.length - 1;
+    var ii = p.intercepted.indexOf(name);
+    if(ii !== -1) p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
+    loadActiveWinnerUi();
+    renderGameTab();
+    ensurePendingPreviewVisible();
+    flashCard(name, "flash-win");
+  }
+  function removeActiveWinner(){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard" || p.winners.length <= 1) return;
+    p.winners.splice(p.activeWinnerIdx, 1);
+    p.activeWinnerIdx = Math.max(0, p.activeWinnerIdx - 1);
+    loadActiveWinnerUi();
+    renderGameTab();
+  }
+  function toggleIntercepted(name){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard") return;
+    if(name === p.loserName) return;
+    if(p.winners.some(function(w){ return w.name === name; })) return; // 已經是真的胡牌者，不能同時又是被攔的
+    var idx = p.intercepted.indexOf(name);
+    if(idx === -1) p.intercepted.push(name); else p.intercepted.splice(idx, 1);
+    renderGameTab();
+  }
   function commitPendingHand(){
     var p = ui.pendingHand;
     if(!p) return;
-    ui.pendingHand = null;
-    commitHand(p.winnerName, p.method, p.loserName);
+    if(p.method === "discard"){
+      snapshotActiveWinner();
+      var loserName = p.loserName, winners = p.winners, intercepted = p.intercepted;
+      ui.pendingHand = null;
+      commitMultiWinnerHand(loserName, winners, intercepted);
+    }else{
+      ui.pendingHand = null;
+      commitHand(p.winnerName, p.method, p.loserName);
+    }
   }
   function cancelPendingHand(){
     ui.pendingHand = null;
@@ -2406,6 +2554,7 @@
 
   document.getElementById("confirmPendingBtn").addEventListener("click", function(){ commitPendingHand(); });
   document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
+  document.getElementById("removeActiveWinnerBtn").addEventListener("click", function(){ removeActiveWinner(); });
 
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
@@ -2564,6 +2713,7 @@
         detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
       }
       headLine = '第'+(idx+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
+      if(h.multiWinMates && h.multiWinMates.length > 1) headLine = '🎯一炮'+h.multiWinMates.length+'響・' + headLine;
     }
     var tilesLine = "";
     if(h.tiles && h.tiles.length){
@@ -2574,7 +2724,9 @@
       });
       tilesLine = '<div class="log-detail">🀄 '+tileParts.join('、')+'</div>';
     }
-    return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine;
+    var interceptedLine = (h.intercepted && h.intercepted.length) ?
+      ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+h.intercepted.map(escapeHtml).join('、')+'</div>') : '';
+    return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine + interceptedLine;
   }
   function renderHandListInto(container, set){
     container.innerHTML = "";
@@ -2645,32 +2797,102 @@
     return slotOf;
   }
 
+  // 一炮多響／攔胡的管理區塊：列出目前這手的胡牌者（點名字切換要編輯
+  // 台數的對象）、可以再加入其他也胡牌的人，或標記誰被攔胡（不算錢，
+  // 只記錄）。只有正在編輯放槍手（method==="discard"）才會顯示。
+  function renderMultiWinnerBlock(p, game){
+    var block = document.getElementById("multiWinnerBlock");
+    if(!p || p.method !== "discard"){ block.style.display = "none"; return; }
+    block.style.display = "block";
+    var listRow = document.getElementById("winnersListRow");
+    listRow.innerHTML = "";
+    p.winners.forEach(function(w, idx){
+      var b = document.createElement("button");
+      b.type = "button";
+      var isActive = idx === p.activeWinnerIdx;
+      b.className = "chip" + (isActive ? " chip-selected" : "");
+      b.textContent = w.name + (p.winners.length > 1 && isActive ? "（編輯中）" : "");
+      b.addEventListener("click", function(){ switchActiveWinner(idx); });
+      listRow.appendChild(b);
+    });
+    var removeBtn = document.getElementById("removeActiveWinnerBtn");
+    removeBtn.style.display = p.winners.length > 1 ? "block" : "none";
+
+    var addRow = document.getElementById("addWinnerChips");
+    addRow.innerHTML = "";
+    var interceptRow = document.getElementById("interceptedChips");
+    interceptRow.innerHTML = "";
+    game.players.forEach(function(name){
+      if(name === p.loserName) return;
+      var isWinner = p.winners.some(function(w){ return w.name === name; });
+      if(isWinner) return;
+      var ab = document.createElement("button");
+      ab.type = "button"; ab.className = "chip"; ab.textContent = name;
+      ab.addEventListener("click", function(){ addWinnerToPendingHand(name); });
+      addRow.appendChild(ab);
+
+      var ib = document.createElement("button");
+      ib.type = "button";
+      var isIntercepted = p.intercepted.indexOf(name) !== -1;
+      ib.className = "chip" + (isIntercepted ? " chip-selected" : "");
+      ib.textContent = name;
+      ib.addEventListener("click", function(){ toggleIntercepted(name); });
+      interceptRow.appendChild(ib);
+    });
+  }
+
   // 選好放槍還是自摸之後先不記上，只算出這手的預覽金額，等使用者確認
   // （可能還要再調整台數）才真的寫進紀錄——buildHandRecord 是純函式，
   // 這裡呼叫只是拿計算結果來顯示，不會動到實際的 state。
   function renderPendingPreview(game, set){
     var panel = document.getElementById("pendingPreview");
     var p = ui.pendingHand;
-    if(!p){ panel.style.display = "none"; return; }
+    if(!p){ panel.style.display = "none"; renderMultiWinnerBlock(null, game); return; }
     panel.style.display = "block";
-    var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
-    var detail;
     if(p.method === "discard"){
-      detail = escapeHtml(p.loserName) + ' <span class="minus">-'+record.amount+'</span> → ' +
-               escapeHtml(p.winnerName) + ' <span class="plus">+'+record.amount+'</span>';
+      snapshotActiveWinner(); // 讓 winners[] 跟目前畫面上正在調整的台數同步，預覽才會即時反映
+      var interceptedLine = p.intercepted.length ?
+        ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+p.intercepted.map(escapeHtml).join('、')+'</div>') : '';
+      if(p.winners.length === 1){
+        // 只有一位胡牌者時，格式跟原本一模一樣，不因為多人胡牌功能改變。
+        var w0 = p.winners[0];
+        var record0 = buildHandRecord(game, set, w0.name, "discard", p.loserName, computeTotalTaiFor(w0), taiTagLabelsFor(w0), w0.leopard);
+        var detail0 = escapeHtml(p.loserName) + ' <span class="minus">-'+record0.amount+'</span> → ' +
+                 escapeHtml(w0.name) + ' <span class="plus">+'+record0.amount+'</span>';
+        var headLine0 = winMethodLabel(p.method, w0.name, p.loserName) + '・' + record0.effectiveTai + '台' + tagsAndBonusParen(record0.tags, dealerBonusPhrase(record0.dealerBonusTai, w0.name === record0.dealerName), leopardPhrase(record0.leopard));
+        var tilesText0 = tilesSummaryText(w0.tiles);
+        document.getElementById("pendingPreviewDetail").innerHTML =
+          '<div class="log-head">'+headLine0+'</div><div class="log-detail">'+detail0+'</div>' +
+          (tilesText0 ? '<div class="log-detail">🀄 '+escapeHtml(tilesText0)+'</div>' : '') + interceptedLine;
+      }else{
+        // 一炮多響：每位胡牌者各自算各自的台數/金額，分開各一行。
+        var winnerLines = p.winners.map(function(w, idx){
+          var record = buildHandRecord(game, set, w.name, "discard", p.loserName, computeTotalTaiFor(w), taiTagLabelsFor(w), w.leopard);
+          var tilesText = tilesSummaryText(w.tiles);
+          var editingMark = idx === p.activeWinnerIdx ? '　<b>（目前正在調整台數）</b>' : '';
+          return '<div class="log-detail">'+escapeHtml(p.loserName)+' <span class="minus">-'+record.amount+'</span> → '+escapeHtml(w.name)+' <span class="plus">+'+record.amount+'</span>　'+record.effectiveTai+'台'+tagsAndBonusParen(record.tags, "", leopardPhrase(record.leopard))+editingMark+
+            (tilesText ? '<br>🀄 '+escapeHtml(tilesText) : '') + '</div>';
+        }).join('');
+        var headLine = '🎯一炮'+p.winners.length+'響・放槍（'+escapeHtml(p.loserName)+'）';
+        document.getElementById("pendingPreviewDetail").innerHTML =
+          '<div class="log-head">'+headLine+'</div>' + winnerLines + interceptedLine;
+      }
+      renderMultiWinnerBlock(p, game);
     }else{
+      var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
       var parts = [];
       Object.keys(record.deltas).forEach(function(n){
         if(n === p.winnerName) return;
         parts.push(escapeHtml(n)+' <span class="minus">-'+(-record.deltas[n])+'</span>');
       });
-      detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
+      var detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
+      var headLine3 = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
+      var tilesText3 = tilesSummaryText(ui.winningTiles);
+      document.getElementById("pendingPreviewDetail").innerHTML =
+        '<div class="log-head">'+headLine3+'</div><div class="log-detail">'+detail+'</div>' +
+        (tilesText3 ? '<div class="log-detail">🀄 '+escapeHtml(tilesText3)+'</div>' : '');
+      renderMultiWinnerBlock(null, game);
     }
-    var headLine = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
-    var tilesText = tilesSummaryText(ui.winningTiles);
-    document.getElementById("pendingPreviewDetail").innerHTML =
-      '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' +
-      (tilesText ? '<div class="log-detail">🀄 '+escapeHtml(tilesText)+'</div>' : '');
     // 調整台數／開豹子這些操作都會讓預覽框內容變長、把「確認記錄」推得
     // 更下面，光靠手勢剛觸發那一次的捲動不夠，每次重繪都要重新檢查一次，
     // 不然按鈕可能被底部分頁列擋住點不到（ensurePendingPreviewVisible 內部
@@ -2709,7 +2931,10 @@
       var card = document.createElement("div");
       var cardCls = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
       if(pending){
-        if(pending.winnerName === name) cardCls += " pending-winner";
+        var isPendingWinner = pending.method === "discard"
+          ? pending.winners.some(function(w){ return w.name === name; })
+          : pending.winnerName === name;
+        if(isPendingWinner) cardCls += " pending-winner";
         if(pending.loserName === name) cardCls += " pending-loser";
       }
       card.className = cardCls;
@@ -3418,6 +3643,7 @@
     var drawCount=0;
     var maxWin=null, maxDealIn=null; // {amt, detail}
     var tagFreq = {}; // 台型標籤 -> 這位玩家胡牌時用到這個台型的次數
+    var tileFreq = {}; // 記錄的牌 -> 這位玩家胡牌時記錄到這張牌的次數
     var venueMap = {}; // name -> {count, winCount, loseCount, drawCount, netAmt}
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
@@ -3441,6 +3667,7 @@
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
           (h.tags || []).forEach(function(label){ tagFreq[label] = (tagFreq[label] || 0) + 1; });
+          (h.tiles || []).forEach(function(t){ tileFreq[t] = (tileFreq[t] || 0) + 1; });
           // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
           // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
           // 排「單手最大」才準。下面第二行的台型拆解只是說明這手怎麼
@@ -3509,6 +3736,16 @@
     var tagFreqSection = tagFreqNames.length ?
       ('<div class="stat-summary" style="margin-top:14px;">常胡台型</div><div class="stat-list">'+tagFreqRows+'</div>') : '';
 
+    // 常胡的牌：跟常胡台型算法一樣，只是改成用「記錄胡的牌」那個功能存的
+    // 每張牌，依次數由多到少排序；沒特別去記錄過牌的人這裡就不會顯示。
+    var tileFreqNames = Object.keys(tileFreq).sort(function(a,b){ return tileFreq[b]-tileFreq[a]; });
+    var tileFreqRows = tileFreqNames.map(function(label){
+      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(label)+'</div>' +
+        '<div class="stat-amt">'+tileFreq[label]+' 次</div></div>';
+    }).join('');
+    var tileFreqSection = tileFreqNames.length ?
+      ('<div class="stat-summary" style="margin-top:14px;">常胡的牌</div><div class="stat-list">'+tileFreqRows+'</div>') : '';
+
     var venueNames = Object.keys(venueMap);
     var MIN_VENUE_GAMES = 2; // 場次太少的地點排除在「最高」評選外，避免單場就跳出100%
     var bestVenue=null, worstVenue=null;
@@ -3549,6 +3786,7 @@
       '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>' +
       tagFreqSection +
+      tileFreqSection +
       venueSection;
   }
 
