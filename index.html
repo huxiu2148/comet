@@ -198,6 +198,19 @@
   .expand-hint{ float:right; color: var(--ink-faint); }
   .empty-hint{ text-align:center; color: var(--ink-faint); padding: 14px 0; font-size:.83rem; }
 
+  /* 泛用的加減錢上色，不侷限在 .log-detail 底下——本手清單以外（例如
+     歷史牌局標頭）的金額也要照贏/輸上色，不然數字看起來都一樣黑。 */
+  .plus{ color: var(--win); font-weight:700; }
+  .minus{ color: var(--lose); font-weight:700; }
+  .player-chip-row{ display:flex; flex-wrap:wrap; gap:5px; margin:4px 0; }
+  .player-chip{
+    font-size:.78rem; font-weight:700; padding:3px 9px; border-radius:999px;
+    background: var(--accent-soft); color: var(--ink-soft);
+  }
+  .player-chip.plus{ background: rgba(58,125,92,.12); color: var(--win); }
+  .player-chip.minus{ background: rgba(177,80,62,.12); color: var(--lose); }
+  .history-set-row{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+
   .footer-note{ text-align:center; font-size:.72rem; color: var(--ink-faint); margin-top:10px; }
 
   .cloud-badge{
@@ -3654,7 +3667,7 @@
   // 用的算法一致，不能用固定值。手動用「其他台」加減、沒對到任何
   // 台型標籤的部分，就顯示成「其他台」。
   function handTaiBreakdownText(h){
-    var parts = [];
+    var chips = [];
     var tagSum = 0;
     var grouped = groupTagCounts(h.tags);
     grouped.order.forEach(function(label){
@@ -3663,15 +3676,15 @@
       var count = grouped.counts[label];
       var val = perVal * count;
       tagSum += val;
-      parts.push(escapeHtml(label) + (count > 1 ? ("×"+count) : "") + "+" + val);
+      chips.push('<span class="tag-chip">'+escapeHtml(label) + (count > 1 ? ("×"+count) : "") + "+" + val+'</span>');
     });
     var other = h.tai - tagSum;
-    if(other !== 0) parts.push("其他台"+(other>0?"+":"")+other);
+    if(other !== 0) chips.push('<span class="tag-chip">其他台'+(other>0?"+":"")+other+'</span>');
     var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
-    if(bonusPhrase) parts.push(bonusPhrase);
+    if(bonusPhrase) chips.push('<span class="tag-chip tag-chip-bonus">'+bonusPhrase+'</span>');
     var lp = leopardPhrase(h.leopard);
-    if(lp) parts.push(lp);
-    return parts.join("、");
+    if(lp) chips.push('<span class="tag-chip tag-chip-leopard">'+lp+'</span>');
+    return chips.length ? ('<div class="log-tags-row">'+chips.join('')+'</div>') : '';
   }
 
   function renderAnalysisHtml(endedGames, targetName){
@@ -4035,23 +4048,31 @@
         var cls = net>0?"plus":(net<0?"minus":"");
         headline = '<span class="'+cls+'">'+(net>0?'+':'')+net+'</span>';
       }else{
-        headline = g.players.map(function(n){ return escapeHtml(n)+' '+((totals[n]||0)>0?'+':'')+(totals[n]||0); }).join('、');
+        headline = g.players.map(function(n){
+          var t = totals[n]||0, tcls = t>0?"plus":(t<0?"minus":"");
+          return '<span class="player-chip '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+        }).join('');
       }
       var head = document.createElement("div");
       head.className = "log-head";
       head.style.cursor = "pointer";
       var setsCount = g.manualSetsCount || g.sets.length;
-      head.innerHTML = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '') + '・共'+setsCount+'將・' + headline + ' <span class="expand-hint">▾</span>';
+      var gameMetaRow = '<div class="log-meta-row">' +
+        '<span class="log-hand-badge">📅 '+escapeHtml(g.date)+(g.time?' '+escapeHtml(g.time):'')+'</span>' +
+        (g.venue ? '<span class="log-dealer-chip">📍 '+escapeHtml(g.venue)+'</span>' : '') +
+        '<span class="log-tai-chip">共'+setsCount+'將</span>' +
+        '</div>';
+      head.innerHTML = gameMetaRow + '<div class="log-result-row">'+headline+' <span class="expand-hint">▾</span></div>';
       var detail = document.createElement("div");
       detail.className = "log-detail";
       var isExpanded = ui.expandedHistoryGameId === g.id;
       detail.style.display = isExpanded ? "block" : "none";
       var isBackfilled = allHandsOf(g).some(function(h){ return h.method === "manual"; });
       var summaryEl = document.createElement("div");
-      summaryEl.innerHTML = g.players.map(function(n){
+      summaryEl.innerHTML = '<div class="player-chip-row">' + g.players.map(function(n){
         var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
-        return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-      }).join('　') + '<br>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
+        return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+      }).join('') + '</div>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
       detail.appendChild(summaryEl);
 
       var dutiesText = dutiesSummaryText(g.duties);
@@ -4068,14 +4089,15 @@
         g.sets.forEach(function(s, sIdx){
           var setTotals = computeSetTotals(s);
           var setRow = document.createElement("div");
-          setRow.style.marginTop = "6px";
-          setRow.style.paddingTop = "6px";
-          setRow.style.borderTop = "1px solid #e6e3dc";
+          setRow.className = "history-set-row";
           var setSummary = s.seatOrder.map(function(n){
             var t = setTotals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
-            return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-          }).join('　');
-          setRow.innerHTML = '第'+(sIdx+1)+'將・共'+s.hands.length+'手・'+setSummary;
+            return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+          }).join('');
+          setRow.innerHTML = '<div class="log-meta-row">' +
+            '<span class="log-hand-badge">第'+(sIdx+1)+'將</span>' +
+            '<span class="log-tai-chip">共'+s.hands.length+'手</span>' +
+            '</div><div class="player-chip-row">'+setSummary+'</div>';
           var setKey = g.id + "|" + s.id;
           var setHandsOpen = ui.historyHandLogKey === setKey;
           var setHandsBtn = document.createElement("button");
