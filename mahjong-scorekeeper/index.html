@@ -3801,7 +3801,7 @@
       stats[n] = {
         name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
         dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
-        dealerHands: 0, dealerNet: 0, maxStreak: 0,
+        dealerHands: 0, dealerNet: 0, maxStreak: 0, interceptCount: 0,
         maxWin: null, maxDealIn: null
       };
     });
@@ -3851,6 +3851,11 @@
           var winDetail = whenStr+'・'+winWhat+(breakdown ? '<br>'+breakdown : '');
           if(!s.maxWin || myDelta > s.maxWin.amt) s.maxWin = { amt: myDelta, detail: winDetail };
           if(!overallMaxWin || myDelta > overallMaxWin.amt) overallMaxWin = { name: h.winnerName, amt: myDelta, detail: winDetail };
+          // 攔胡：這手記錄了「本來也胡得到、但被這位贏家攔下」的人，算這位
+          // 贏家攔到別人一次（不是算被攔的人幾次，那個是被攔的次數，不是
+          // 攔胡王）。一炮多響時每個贏家各自一筆手紀錄、各自的 winnerName
+          // 不同，天生就不會重複算到同一次攔胡。
+          if(h.intercepted && h.intercepted.length) s.interceptCount++;
         }
         if(h.method === "discard" && stats[h.loserName]){
           var s2 = stats[h.loserName];
@@ -3913,6 +3918,7 @@
       titleRow('🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
       titleRow('🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
