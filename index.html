@@ -3918,7 +3918,7 @@
       titleRow('🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
       titleRow('🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
