@@ -1381,14 +1381,6 @@
     var label = n <= 10 ? cn[n-1] : n;
     return "連" + label;
   }
-  // 本手預覽跟已記錄的本手清單都用這個組出「贏家怎麼贏的」文字，
-  // 兩處文字才會長得一樣，不會一邊寫「贏家 X」一邊寫「胡牌（X）」。自摸
-  // 不在這裡另外寫「自摸」，因為「自摸」本身就是台型標籤之一（觸發手勢
-  // 時會自動加選），會跟其他台型一起出現在後面的括號裡，不用寫兩次。
-  function winMethodLabel(method, winnerName, loserName){
-    var who = "胡牌（"+escapeHtml(winnerName)+"）";
-    return method === "self" ? who : (who+"・放槍（"+escapeHtml(loserName)+"）");
-  }
   // 自摸的拉莊台加成，莊家自己自摸贏、跟別人自摸打斷莊家連莊，意義不一樣：
   // 莊家自摸時這是贏家自己多贏的台數，三家都照這個台數多付；別人自摸時
   // 這其實是莊家單獨要多付的錢（賠連莊被打斷），不是贏家胡牌的台數變大，
@@ -1403,8 +1395,6 @@
     var baseTai = Math.round(leopard.baseTai * 100) / 100;
     return "🐆豹子×"+leopard.multiplier+(baseTai ? ("+"+baseTai) : "");
   }
-  // 把台型標籤跟拉莊台加成說明合併成同一組括號，例如「（自摸、含拉莊台 +5台）」，
-  // 而不是分開兩組括號；沒有任何標籤也沒有拉莊台加成時就不顯示括號。
   // 像花牌這種同一手可能出現好幾次的台型，tags 陣列裡會重複放好幾個
   // 同樣的標籤（例如三張花就是 ["花牌","花牌","花牌"]），這裡先合併算
   // 出現幾次，顯示成「花牌×3」而不是重複寫三次「花牌」。
@@ -1416,15 +1406,23 @@
     });
     return { counts: counts, order: order };
   }
-  function tagsAndBonusParen(tags, bonusPhrase, extraPhrase){
+  // 把台型標籤跟拉莊台加成說明組成分開上色的小標籤（chip），給本手清單
+  // 跟預覽畫面共用，不用兩邊各寫一次、容易漏改到其中一邊。
+  function tagsRowHtml(tags, bonusPhrase, extraPhrase){
     var grouped = groupTagCounts(tags);
-    var parts = grouped.order.map(function(label){
+    var chips = grouped.order.map(function(label){
       var c = grouped.counts[label];
-      return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
+      return '<span class="tag-chip">'+escapeHtml(label)+(c>1?('×'+c):'')+'</span>';
     });
-    if(bonusPhrase) parts.push(bonusPhrase);
-    if(extraPhrase) parts.push(extraPhrase);
-    return parts.length ? ("（"+parts.join("、")+"）") : "";
+    if(bonusPhrase) chips.push('<span class="tag-chip tag-chip-bonus">'+bonusPhrase+'</span>');
+    if(extraPhrase) chips.push('<span class="tag-chip tag-chip-leopard">'+extraPhrase+'</span>');
+    return chips.length ? ('<div class="log-tags-row">'+chips.join('')+'</div>') : '';
+  }
+  function resultRowHtml(method, winnerName, loserName){
+    var text = (method === "discard") ?
+      ('<span class="lose-name">'+escapeHtml(loserName)+'</span> 放槍 → <span class="win-name">'+escapeHtml(winnerName)+'</span> 胡牌') :
+      ('<span class="win-name">'+escapeHtml(winnerName)+'</span> 胡牌');
+    return '<div class="log-result-row">'+text+'</div>';
   }
   function activeGame(){
     if(!state.activeGameId) return null;
@@ -2724,7 +2722,7 @@
       return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
     }
     var dealerChip = '<span class="log-dealer-chip'+(h.streak>0?' streak':'')+'">'+
-      (h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName))) +
+      (h.streak > 0 ? ('莊家 '+escapeHtml(h.dealerName)+'（'+streakLabel(h.streak)+'）') : ('莊家 '+escapeHtml(h.dealerName))) +
       '</span>';
     var handBadge = '<span class="log-hand-badge">第'+(idx+1)+'手</span>';
     if(h.method === "draw"){
@@ -2747,21 +2745,9 @@
       var multiChip = (h.multiWinMates && h.multiWinMates.length > 1) ? ('<span class="log-multi-chip">🎯一炮'+h.multiWinMates.length+'響</span>') : '';
       var taiChip = '<span class="log-tai-chip">'+h.effectiveTai+'台</span>';
       var metaRow2 = '<div class="log-meta-row">'+handBadge+multiChip+dealerChip+taiChip+'</div>';
-      var resultText = (h.method === "discard") ?
-        ('<span class="lose-name">'+escapeHtml(h.loserName)+'</span> 放槍 → <span class="win-name">'+escapeHtml(h.winnerName)+'</span> 胡牌') :
-        ('<span class="win-name">'+escapeHtml(h.winnerName)+'</span> 胡牌');
-      var resultRow2 = '<div class="log-result-row">'+resultText+'</div>';
       var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
       var lp = leopardPhrase(h.leopard);
-      var grouped = groupTagCounts(h.tags);
-      var tagChips = grouped.order.map(function(label){
-        var c = grouped.counts[label];
-        return '<span class="tag-chip">'+escapeHtml(label)+(c>1?('×'+c):'')+'</span>';
-      });
-      if(bonusPhrase) tagChips.push('<span class="tag-chip tag-chip-bonus">'+bonusPhrase+'</span>');
-      if(lp) tagChips.push('<span class="tag-chip tag-chip-leopard">'+lp+'</span>');
-      var tagsRow = tagChips.length ? ('<div class="log-tags-row">'+tagChips.join('')+'</div>') : '';
-      headLine = metaRow2 + resultRow2 + tagsRow;
+      headLine = metaRow2 + resultRowHtml(h.method, h.winnerName, h.loserName) + tagsRowHtml(h.tags, bonusPhrase, lp);
     }
     var tilesLine = "";
     if(h.tiles && h.tiles.length){
@@ -2902,12 +2888,14 @@
       var interceptedLine = p.intercepted.length ?
         ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+p.intercepted.map(escapeHtml).join('、')+'</div>') : '';
       if(p.winners.length === 1){
-        // 只有一位胡牌者時，格式跟原本一模一樣，不因為多人胡牌功能改變。
+        // 只有一位胡牌者時，跟本手清單用同一套排版（分區塊、分顏色）。
         var w0 = p.winners[0];
         var record0 = buildHandRecord(game, set, w0.name, "discard", p.loserName, computeTotalTaiFor(w0), taiTagLabelsFor(w0), w0.leopard);
         var detail0 = escapeHtml(p.loserName) + ' <span class="minus">-'+record0.amount+'</span> → ' +
                  escapeHtml(w0.name) + ' <span class="plus">+'+record0.amount+'</span>';
-        var headLine0 = winMethodLabel(p.method, w0.name, p.loserName) + '・' + record0.effectiveTai + '台' + tagsAndBonusParen(record0.tags, dealerBonusPhrase(record0.dealerBonusTai, w0.name === record0.dealerName), leopardPhrase(record0.leopard));
+        var metaRow0 = '<div class="log-meta-row"><span class="log-tai-chip">'+record0.effectiveTai+'台</span></div>';
+        var headLine0 = metaRow0 + resultRowHtml(p.method, w0.name, p.loserName) +
+          tagsRowHtml(record0.tags, dealerBonusPhrase(record0.dealerBonusTai, w0.name === record0.dealerName), leopardPhrase(record0.leopard));
         var tilesText0 = tilesSummaryText(w0.tiles);
         document.getElementById("pendingPreviewDetail").innerHTML =
           '<div class="log-head">'+headLine0+'</div><div class="log-detail">'+detail0+'</div>' +
@@ -2917,11 +2905,13 @@
         var winnerLines = p.winners.map(function(w, idx){
           var record = buildHandRecord(game, set, w.name, "discard", p.loserName, computeTotalTaiFor(w), taiTagLabelsFor(w), w.leopard);
           var tilesText = tilesSummaryText(w.tiles);
-          var editingMark = idx === p.activeWinnerIdx ? '　<b>（目前正在調整台數）</b>' : '';
-          return '<div class="log-detail">'+escapeHtml(p.loserName)+' <span class="minus">-'+record.amount+'</span> → '+escapeHtml(w.name)+' <span class="plus">+'+record.amount+'</span>　'+record.effectiveTai+'台'+tagsAndBonusParen(record.tags, "", leopardPhrase(record.leopard))+editingMark+
-            (tilesText ? '<br>🀄 '+escapeHtml(tilesText) : '') + '</div>';
+          var editingMark = idx === p.activeWinnerIdx ? ' <b>（目前正在調整台數）</b>' : '';
+          return '<div class="log-detail"><span class="win-name">'+escapeHtml(w.name)+'</span> <span class="plus">+'+record.amount+'</span> <span class="log-tai-chip">'+record.effectiveTai+'台</span>'+editingMark+'</div>' +
+            tagsRowHtml(record.tags, "", leopardPhrase(record.leopard)) +
+            (tilesText ? '<div class="log-detail">🀄 '+escapeHtml(tilesText)+'</div>' : '');
         }).join('');
-        var headLine = '🎯一炮'+p.winners.length+'響・放槍（'+escapeHtml(p.loserName)+'）';
+        var metaRow = '<div class="log-meta-row"><span class="log-multi-chip">🎯一炮'+p.winners.length+'響</span></div>';
+        var headLine = metaRow + '<div class="log-result-row"><span class="lose-name">'+escapeHtml(p.loserName)+'</span> 放槍</div>';
         document.getElementById("pendingPreviewDetail").innerHTML =
           '<div class="log-head">'+headLine+'</div>' + winnerLines + interceptedLine;
       }
@@ -2934,7 +2924,9 @@
         parts.push(escapeHtml(n)+' <span class="minus">-'+(-record.deltas[n])+'</span>');
       });
       var detail = parts.join('、') + ' → ' + escapeHtml(p.winnerName) + ' <span class="plus">+'+record.deltas[p.winnerName]+'</span>';
-      var headLine3 = winMethodLabel(p.method, p.winnerName, p.loserName) + '・' + record.effectiveTai + '台' + tagsAndBonusParen(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
+      var metaRow3 = '<div class="log-meta-row"><span class="log-tai-chip">'+record.effectiveTai+'台</span></div>';
+      var headLine3 = metaRow3 + resultRowHtml(p.method, p.winnerName, p.loserName) +
+        tagsRowHtml(record.tags, dealerBonusPhrase(record.dealerBonusTai, p.winnerName === record.dealerName), leopardPhrase(record.leopard));
       var tilesText3 = tilesSummaryText(ui.winningTiles);
       document.getElementById("pendingPreviewDetail").innerHTML =
         '<div class="log-head">'+headLine3+'</div><div class="log-detail">'+detail+'</div>' +
