@@ -749,6 +749,7 @@
     <h3>🎬 今天的分工</h3>
     <ul>
       <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。</li>
+      <li>如果輪到的那個人這場是找別人代打（沒有出現在這場的四個人裡），這場就先不自動指派那個工作、順序也不會往前跳，等他下次真的有打的時候還是輪到他，不會因為代打就被跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
       <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
     </ul>
@@ -1102,6 +1103,11 @@
       var v = rawDuties[key];
       duties[key] = (typeof v === "string" && players.indexOf(v) !== -1) ? v : null;
     });
+    var rawAdvanced = (g.dutyRotationAdvanced && typeof g.dutyRotationAdvanced === "object") ? g.dutyRotationAdvanced : null;
+    var dutyRotationAdvanced = rawAdvanced ? {
+      photo: rawAdvanced.photo !== false,
+      music: rawAdvanced.music !== false
+    } : null; // 舊資料沒有這個欄位，取消牌局時用「兩個都退」的舊行為
     return {
       id: g.id || genId("g"),
       date: (typeof g.date === "string" && g.date) ? g.date : todayISO(),
@@ -1110,7 +1116,7 @@
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       drinkEnabled: g.drinkEnabled !== false,
       status: g.status === "ended" ? "ended" : "active",
-      sets: sets, duties: duties,
+      sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null
@@ -1671,9 +1677,14 @@
         for(var i=0;i<baseState.games.length;i++){ if(baseState.games[i].id === baseState.activeGameId){ already = baseState.games[i]; break; } }
         if(already && already.status === "active") return undefined;
       }
+      // 如果輪到的那個人這場沒有來打（來的是代打的客人），這場就不指派、
+      // 輪值也不往前推進，這樣他下次真的有來打的時候，還是輪到他，不會
+      // 因為這次代打就被跳過、把順序洗掉。
       var rotation = baseState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
-      var photoName = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
-      var musicName = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+      var photoCandidate = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+      var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+      var photoPlaying = players.indexOf(photoCandidate) !== -1;
+      var musicPlaying = players.indexOf(musicCandidate) !== -1;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
         hands: [], status: "active", createdAt: Date.now(), endedAt: null
@@ -1681,15 +1692,17 @@
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
-        status: "active", sets: [firstSet], duties: {record: DEFAULT_RECORD_NAME, music: musicName, photo: photoName},
+        status: "active", sets: [firstSet],
+        duties: {record: DEFAULT_RECORD_NAME, music: musicPlaying ? musicCandidate : null, photo: photoPlaying ? photoCandidate : null},
+        dutyRotationAdvanced: { photo: photoPlaying, music: musicPlaying },
         createdAt: Date.now(), endedAt: null
       };
       var ns = deepClone(baseState);
       ns.games.push(newGame);
       ns.activeGameId = newGame.id;
       ns.dutyRotation = {
-        photoIdx: (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length,
-        musicIdx: (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length
+        photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
+        musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx
       };
       ns.defaultBase = newGame.base;
       ns.defaultTai = newGame.tai;
@@ -2463,10 +2476,14 @@
       var newState = deepClone(state);
       newState.games = newState.games.filter(function(g){ return g.id !== game.id; });
       newState.activeGameId = null;
+      // 只退回這場實際有讓輪值前進的部分（代打那場本來就沒有前進，見
+      // buildStartedState），不然客人代打那場如果被取消，會多退一格、
+      // 順序又亂了。舊資料沒有這個欄位的話，維持原本「兩個都退」的行為。
+      var advanced = game.dutyRotationAdvanced || { photo: true, music: true };
       var rot = newState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
       newState.dutyRotation = {
-        photoIdx: (rot.photoIdx - 1 + PHOTO_ROTATION_NAMES.length) % PHOTO_ROTATION_NAMES.length,
-        musicIdx: (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length
+        photoIdx: advanced.photo ? (rot.photoIdx - 1 + PHOTO_ROTATION_NAMES.length) % PHOTO_ROTATION_NAMES.length : rot.photoIdx,
+        musicIdx: advanced.music ? (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length : rot.musicIdx
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
