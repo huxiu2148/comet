@@ -209,6 +209,7 @@
   }
   .player-chip.plus{ background: rgba(58,125,92,.12); color: var(--win); }
   .player-chip.minus{ background: rgba(177,80,62,.12); color: var(--lose); }
+  .player-chip.is-me{ box-shadow: inset 0 0 0 1.5px var(--accent); }
   .history-set-row{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 
   .footer-note{ text-align:center; font-size:.72rem; color: var(--ink-faint); margin-top:10px; }
@@ -259,7 +260,7 @@
   .roster-name{ flex:1; font-weight:700; font-size:.92rem; display:flex; align-items:center; gap:6px; }
   .me-badge{ font-size:.63rem; background: var(--win); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700; }
   .roster-actions{ display:flex; gap:10px; }
-  .link-btn{ border:none; background:none; color: var(--ink); font-size:.78rem; font-weight:700; cursor:pointer; padding:4px; }
+  .link-btn{ border:none; background:none; color: var(--ink); font-size:.78rem; font-weight:700; cursor:pointer; padding:7px 4px; }
   .link-btn.danger{ color: var(--lose); }
 
   .subtab-row{ display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px; }
@@ -3077,8 +3078,8 @@
       var handsBtn = document.createElement("button");
       handsBtn.type = "button";
       handsBtn.className = "link-btn";
+      handsBtn.style.display = "block";
       handsBtn.style.marginTop = "6px";
-      handsBtn.style.marginRight = "12px";
       var handsOpen = ui.pastSetLogOpenId === s.id;
       handsBtn.textContent = handsOpen ? "🀄 收起本手" : "🀄 顯示本手";
       handsBtn.addEventListener("click", function(){
@@ -3088,18 +3089,20 @@
       var seatBtn = document.createElement("button");
       seatBtn.type = "button";
       seatBtn.className = "link-btn";
-      seatBtn.style.marginTop = "6px";
-      seatBtn.style.marginRight = "12px";
+      seatBtn.style.display = "block";
+      seatBtn.style.marginTop = "8px";
       var editingThis = ui.editSeatSetId === s.id;
       seatBtn.textContent = editingThis ? "🔁 完成編輯座位" : "🔁 編輯座位";
       seatBtn.addEventListener("click", function(){
         ui.editSeatSetId = editingThis ? null : s.id;
         renderGameTab();
       });
+      // 跟上面兩個一般操作拉開明顯距離，避免點「顯示本手」時手滑點到刪除。
       var delBtn = document.createElement("button");
       delBtn.type = "button";
       delBtn.className = "link-btn danger";
-      delBtn.style.marginTop = "6px";
+      delBtn.style.display = "block";
+      delBtn.style.marginTop = "16px";
       delBtn.textContent = "🗑️ 刪除這將";
       delBtn.addEventListener("click", function(){
         showConfirm("確定要刪除第"+(idx+1)+"將的紀錄嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
@@ -4041,18 +4044,11 @@
       var totals = computeGameTotals(g);
       var item = document.createElement("div");
       item.className = "log-item";
-      var meIn = me && g.players.indexOf(me.name) !== -1;
-      var headline;
-      if(meIn){
-        var net = totals[me.name] || 0;
-        var cls = net>0?"plus":(net<0?"minus":"");
-        headline = '<span class="'+cls+'">'+(net>0?'+':'')+net+'</span>';
-      }else{
-        headline = g.players.map(function(n){
-          var t = totals[n]||0, tcls = t>0?"plus":(t<0?"minus":"");
-          return '<span class="player-chip '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
-        }).join('');
-      }
+      var headline = g.players.map(function(n){
+        var t = totals[n]||0, tcls = t>0?"plus":(t<0?"minus":"");
+        var isMe = me && n === me.name;
+        return '<span class="player-chip'+(isMe?' is-me':'')+' '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+      }).join('');
       var head = document.createElement("div");
       head.className = "log-head";
       head.style.cursor = "pointer";
@@ -4068,11 +4064,10 @@
       var isExpanded = ui.expandedHistoryGameId === g.id;
       detail.style.display = isExpanded ? "block" : "none";
       var isBackfilled = allHandsOf(g).some(function(h){ return h.method === "manual"; });
+      // 每人金額已經在上面的標頭（收合狀態就看得到）用 chip 顯示過一次了，
+      // 展開後這裡不用重複列一次，只補充標頭沒有的資訊（手數／補記標記）。
       var summaryEl = document.createElement("div");
-      summaryEl.innerHTML = '<div class="player-chip-row">' + g.players.map(function(n){
-        var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
-        return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
-      }).join('') + '</div>' + (isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手'));
+      summaryEl.textContent = isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手');
       detail.appendChild(summaryEl);
 
       var dutiesText = dutiesSummaryText(g.duties);
@@ -4103,18 +4098,19 @@
           var setHandsBtn = document.createElement("button");
           setHandsBtn.type = "button";
           setHandsBtn.className = "link-btn";
-          setHandsBtn.style.marginTop = "4px";
-          setHandsBtn.style.marginRight = "12px";
+          setHandsBtn.style.display = "block";
+          setHandsBtn.style.marginTop = "6px";
           setHandsBtn.textContent = setHandsOpen ? "🀄 收起本手" : "🀄 顯示本手";
           setHandsBtn.addEventListener("click", function(e){
             e.stopPropagation();
             ui.historyHandLogKey = setHandsOpen ? null : setKey;
             renderStatsTab();
           });
+          // 跟上面「顯示本手」拉開明顯距離，避免點本手時手滑點到刪除。
           var delSetBtn = document.createElement("button");
           delSetBtn.type = "button";
           delSetBtn.className = "link-btn danger";
-          delSetBtn.style.marginTop = "4px";
+          delSetBtn.style.marginTop = "16px";
           delSetBtn.style.display = "block";
           delSetBtn.textContent = "🗑️ 刪除第"+(sIdx+1)+"將";
           delSetBtn.addEventListener("click", function(e){
@@ -4175,10 +4171,11 @@
       });
       detail.appendChild(drinkBtn);
 
+      // 跟上面的按鍵拉開明顯距離，避免手滑點到刪除整場牌局。
       var delBtn = document.createElement("button");
       delBtn.type = "button";
       delBtn.className = "link-btn danger";
-      delBtn.style.marginTop = "6px";
+      delBtn.style.marginTop = "16px";
       delBtn.textContent = "🗑️ 刪除這場牌局";
       delBtn.addEventListener("click", function(e){
         e.stopPropagation();
