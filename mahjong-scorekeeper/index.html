@@ -168,6 +168,33 @@
   .log-detail{ color: var(--ink-soft); line-height:1.5; }
   .log-detail .plus{ color: var(--win); font-weight:700; }
   .log-detail .minus{ color: var(--lose); font-weight:700; }
+
+  .log-meta-row{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-bottom:5px; }
+  .log-hand-badge{
+    font-size:.72rem; font-weight:800; color: var(--ink-soft); background: var(--bg);
+    border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-variant-numeric: tabular-nums;
+  }
+  .log-dealer-chip{ font-size:.74rem; font-weight:600; color: var(--ink-soft); }
+  .log-dealer-chip.streak{ color:#a3690a; font-weight:800; }
+  .log-tai-chip{
+    font-size:.76rem; font-weight:800; color:#fff; background: var(--accent);
+    border-radius:999px; padding:2px 9px; margin-left:auto;
+  }
+  .log-multi-chip{
+    font-size:.72rem; font-weight:800; color:#a3690a; background:#f5e6cd;
+    border-radius:999px; padding:2px 8px;
+  }
+  .log-result-row{ font-size:.95rem; font-weight:700; color: var(--ink); margin-bottom:4px; }
+  .log-result-row.log-result-draw{ font-weight:600; color: var(--ink-soft); }
+  .log-result-row .win-name{ color: var(--win); }
+  .log-result-row .lose-name{ color: var(--lose); }
+  .log-tags-row{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
+  .tag-chip{
+    font-size:.72rem; font-weight:600; color: var(--ink-soft); background: var(--accent-soft);
+    border-radius:7px; padding:2px 7px;
+  }
+  .tag-chip-bonus{ color:#a3690a; background:#f5e6cd; }
+  .tag-chip-leopard{ color:#7a4fae; background:#ece3f7; }
   .expand-hint{ float:right; color: var(--ink-faint); }
   .empty-hint{ text-align:center; color: var(--ink-faint); padding: 14px 0; font-size:.83rem; }
 
@@ -2696,9 +2723,14 @@
       detail = parts0.join('、');
       return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>';
     }
-    var dealerPart = h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName));
+    var dealerChip = '<span class="log-dealer-chip'+(h.streak>0?' streak':'')+'">'+
+      (h.streak > 0 ? ('莊家 '+streakLabel(h.streak)+'（'+escapeHtml(h.dealerName)+'）') : ('莊家 '+escapeHtml(h.dealerName))) +
+      '</span>';
+    var handBadge = '<span class="log-hand-badge">第'+(idx+1)+'手</span>';
     if(h.method === "draw"){
-      headLine = '第'+(idx+1)+'手・'+dealerPart+'・流局（沒人胡牌）';
+      var metaRow = '<div class="log-meta-row">'+handBadge+dealerChip+'</div>';
+      var resultRow = '<div class="log-result-row log-result-draw">流局（沒人胡牌）</div>';
+      headLine = metaRow + resultRow;
       detail = '不換錢，莊家連莊。';
     }else{
       if(h.method === "discard"){
@@ -2712,8 +2744,24 @@
         });
         detail = parts.join('、') + ' → ' + escapeHtml(h.winnerName) + ' <span class="plus">+'+h.deltas[h.winnerName]+'</span>';
       }
-      headLine = '第'+(idx+1)+'手・'+dealerPart+'・'+winMethodLabel(h.method, h.winnerName, h.loserName)+'・'+h.effectiveTai+'台'+tagsAndBonusParen(h.tags, dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName), leopardPhrase(h.leopard));
-      if(h.multiWinMates && h.multiWinMates.length > 1) headLine = '🎯一炮'+h.multiWinMates.length+'響・' + headLine;
+      var multiChip = (h.multiWinMates && h.multiWinMates.length > 1) ? ('<span class="log-multi-chip">🎯一炮'+h.multiWinMates.length+'響</span>') : '';
+      var taiChip = '<span class="log-tai-chip">'+h.effectiveTai+'台</span>';
+      var metaRow2 = '<div class="log-meta-row">'+handBadge+multiChip+dealerChip+taiChip+'</div>';
+      var resultText = (h.method === "discard") ?
+        ('<span class="lose-name">'+escapeHtml(h.loserName)+'</span> 放槍 → <span class="win-name">'+escapeHtml(h.winnerName)+'</span> 胡牌') :
+        ('<span class="win-name">'+escapeHtml(h.winnerName)+'</span> 胡牌');
+      var resultRow2 = '<div class="log-result-row">'+resultText+'</div>';
+      var bonusPhrase = dealerBonusPhrase(h.dealerBonusTai, h.winnerName === h.dealerName);
+      var lp = leopardPhrase(h.leopard);
+      var grouped = groupTagCounts(h.tags);
+      var tagChips = grouped.order.map(function(label){
+        var c = grouped.counts[label];
+        return '<span class="tag-chip">'+escapeHtml(label)+(c>1?('×'+c):'')+'</span>';
+      });
+      if(bonusPhrase) tagChips.push('<span class="tag-chip tag-chip-bonus">'+bonusPhrase+'</span>');
+      if(lp) tagChips.push('<span class="tag-chip tag-chip-leopard">'+lp+'</span>');
+      var tagsRow = tagChips.length ? ('<div class="log-tags-row">'+tagChips.join('')+'</div>') : '';
+      headLine = metaRow2 + resultRow2 + tagsRow;
     }
     var tilesLine = "";
     if(h.tiles && h.tiles.length){
