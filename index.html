@@ -209,8 +209,14 @@
   }
   .player-chip.plus{ background: rgba(58,125,92,.12); color: var(--win); }
   .player-chip.minus{ background: rgba(177,80,62,.12); color: var(--lose); }
-  .player-chip.is-me{ box-shadow: inset 0 0 0 1.5px var(--accent); }
-  .history-set-row{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .history-set-row{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); position:relative; }
+  /* 刪除用小小的✕圖示放在角落，跟「點空白處展開本手」的觸控區明顯分開，
+     才不會手滑把整將/整場牌局刪掉。 */
+  .row-delete-x{
+    float:right; border:none; background:none; color: var(--ink-faint);
+    font-size:1rem; font-weight:800; cursor:pointer; padding:4px 6px; line-height:1; margin-left:8px;
+  }
+  .row-delete-x:active{ color: var(--lose); }
 
   .footer-note{ text-align:center; font-size:.72rem; color: var(--ink-faint); margin-top:10px; }
 
@@ -3065,46 +3071,30 @@
       var totals = computeSetTotals(s);
       var item = document.createElement("div");
       item.className = "log-item";
+      item.style.cursor = "pointer";
       var summary = s.seatOrder.map(function(n){
         var t = totals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
-        return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-      }).join('　');
-      var head = document.createElement("div");
-      head.className = "log-head";
-      head.textContent = "第"+(idx+1)+"將・共"+s.hands.length+"手";
-      var detail = document.createElement("div");
-      detail.className = "log-detail";
-      detail.innerHTML = summary;
-      var handsBtn = document.createElement("button");
-      handsBtn.type = "button";
-      handsBtn.className = "link-btn";
-      handsBtn.style.display = "block";
-      handsBtn.style.marginTop = "6px";
+        return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+      }).join('');
       var handsOpen = ui.pastSetLogOpenId === s.id;
-      handsBtn.textContent = handsOpen ? "🀄 收起本手" : "🀄 顯示本手";
-      handsBtn.addEventListener("click", function(){
+      item.innerHTML = '<div class="log-meta-row">' +
+        '<span class="log-hand-badge">第'+(idx+1)+'將</span>' +
+        '<span class="log-hand-badge">共'+s.hands.length+'手</span>' +
+        '<span class="expand-hint">'+(handsOpen ? '▴ 收起本手' : '▾ 顯示本手')+'</span>' +
+        '</div><div class="player-chip-row">'+summary+'</div>';
+      // 點這排空白處展開/收起本手，刪除改成獨立的✕圖示放在角落，
+      // 不再跟「顯示本手」上下疊在一起，才不會手滑點到刪除。
+      item.addEventListener("click", function(){
         ui.pastSetLogOpenId = handsOpen ? null : s.id;
         renderGameTab();
       });
-      var seatBtn = document.createElement("button");
-      seatBtn.type = "button";
-      seatBtn.className = "link-btn";
-      seatBtn.style.display = "block";
-      seatBtn.style.marginTop = "8px";
-      var editingThis = ui.editSeatSetId === s.id;
-      seatBtn.textContent = editingThis ? "🔁 完成編輯座位" : "🔁 編輯座位";
-      seatBtn.addEventListener("click", function(){
-        ui.editSeatSetId = editingThis ? null : s.id;
-        renderGameTab();
-      });
-      // 跟上面兩個一般操作拉開明顯距離，避免點「顯示本手」時手滑點到刪除。
       var delBtn = document.createElement("button");
       delBtn.type = "button";
-      delBtn.className = "link-btn danger";
-      delBtn.style.display = "block";
-      delBtn.style.marginTop = "16px";
-      delBtn.textContent = "🗑️ 刪除這將";
-      delBtn.addEventListener("click", function(){
+      delBtn.className = "row-delete-x";
+      delBtn.setAttribute("aria-label", "刪除第"+(idx+1)+"將");
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
         showConfirm("確定要刪除第"+(idx+1)+"將的紀錄嗎？裡面的所有紀錄都會一起消失，且無法復原。", function(){
           var newState = deepClone(state);
           var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -3112,14 +3102,24 @@
           commitState(newState);
         });
       });
-      item.appendChild(head);
-      item.appendChild(detail);
-      item.appendChild(handsBtn);
-      item.appendChild(seatBtn);
       item.appendChild(delBtn);
+      var seatBtn = document.createElement("button");
+      seatBtn.type = "button";
+      seatBtn.className = "link-btn";
+      seatBtn.style.display = "block";
+      seatBtn.style.marginTop = "8px";
+      var editingThis = ui.editSeatSetId === s.id;
+      seatBtn.textContent = editingThis ? "🔁 完成編輯座位" : "🔁 編輯座位";
+      seatBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        ui.editSeatSetId = editingThis ? null : s.id;
+        renderGameTab();
+      });
+      item.appendChild(seatBtn);
       if(handsOpen){
         var handsContainer = document.createElement("div");
         handsContainer.style.marginTop = "6px";
+        handsContainer.addEventListener("click", function(e){ e.stopPropagation(); });
         renderHandListInto(handsContainer, s);
         item.appendChild(handsContainer);
       }
@@ -4039,15 +4039,13 @@
       return;
     }
     var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
-    var me = meRoster();
     sorted.forEach(function(g){
       var totals = computeGameTotals(g);
       var item = document.createElement("div");
       item.className = "log-item";
       var headline = g.players.map(function(n){
         var t = totals[n]||0, tcls = t>0?"plus":(t<0?"minus":"");
-        var isMe = me && n === me.name;
-        return '<span class="player-chip'+(isMe?' is-me':'')+' '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+        return '<span class="player-chip '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
       }).join('');
       var head = document.createElement("div");
       head.className = "log-head";
@@ -4085,34 +4083,30 @@
           var setTotals = computeSetTotals(s);
           var setRow = document.createElement("div");
           setRow.className = "history-set-row";
+          setRow.style.cursor = "pointer";
           var setSummary = s.seatOrder.map(function(n){
             var t = setTotals[n] || 0; var cls = t>0?"plus":(t<0?"minus":"");
             return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
           }).join('');
-          setRow.innerHTML = '<div class="log-meta-row">' +
-            '<span class="log-hand-badge">第'+(sIdx+1)+'將</span>' +
-            '<span class="log-tai-chip">共'+s.hands.length+'手</span>' +
-            '</div><div class="player-chip-row">'+setSummary+'</div>';
           var setKey = g.id + "|" + s.id;
           var setHandsOpen = ui.historyHandLogKey === setKey;
-          var setHandsBtn = document.createElement("button");
-          setHandsBtn.type = "button";
-          setHandsBtn.className = "link-btn";
-          setHandsBtn.style.display = "block";
-          setHandsBtn.style.marginTop = "6px";
-          setHandsBtn.textContent = setHandsOpen ? "🀄 收起本手" : "🀄 顯示本手";
-          setHandsBtn.addEventListener("click", function(e){
-            e.stopPropagation();
+          setRow.innerHTML = '<div class="log-meta-row">' +
+            '<span class="log-hand-badge">第'+(sIdx+1)+'將</span>' +
+            '<span class="log-hand-badge">共'+s.hands.length+'手</span>' +
+            '<span class="expand-hint">'+(setHandsOpen ? '▴ 收起本手' : '▾ 顯示本手')+'</span>' +
+            '</div><div class="player-chip-row">'+setSummary+'</div>';
+          // 點這排空白處展開/收起本手（跟上面整場牌局的標頭一樣），刪除
+          // 改成獨立的✕圖示放在角落，不再跟「顯示本手」上下疊在一起，
+          // 才不會手滑點到刪除。
+          setRow.addEventListener("click", function(){
             ui.historyHandLogKey = setHandsOpen ? null : setKey;
             renderStatsTab();
           });
-          // 跟上面「顯示本手」拉開明顯距離，避免點本手時手滑點到刪除。
           var delSetBtn = document.createElement("button");
           delSetBtn.type = "button";
-          delSetBtn.className = "link-btn danger";
-          delSetBtn.style.marginTop = "16px";
-          delSetBtn.style.display = "block";
-          delSetBtn.textContent = "🗑️ 刪除第"+(sIdx+1)+"將";
+          delSetBtn.className = "row-delete-x";
+          delSetBtn.setAttribute("aria-label", "刪除第"+(sIdx+1)+"將");
+          delSetBtn.textContent = "✕";
           delSetBtn.addEventListener("click", function(e){
             e.stopPropagation();
             showConfirm("確定要刪除第"+(sIdx+1)+"將的紀錄嗎？此動作無法復原。", function(){
@@ -4122,11 +4116,11 @@
               commitState(ns);
             });
           });
-          setRow.appendChild(setHandsBtn);
           setRow.appendChild(delSetBtn);
           if(setHandsOpen){
             var setHandsContainer = document.createElement("div");
             setHandsContainer.style.marginTop = "6px";
+            setHandsContainer.addEventListener("click", function(e){ e.stopPropagation(); });
             renderHandListInto(setHandsContainer, s);
             setRow.appendChild(setHandsContainer);
           }
