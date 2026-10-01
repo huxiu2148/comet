@@ -1026,8 +1026,8 @@
     var dd = String(d.getDate()); if(dd.length<2) dd="0"+dd;
     return d.getFullYear()+"-"+mm+"-"+dd;
   }
-  function nowTimeStr(){
-    var d = new Date();
+  function nowTimeStr(){ return timeStrOf(new Date()); }
+  function timeStrOf(d){
     var hh = String(d.getHours()); if(hh.length<2) hh="0"+hh;
     var mm = String(d.getMinutes()); if(mm.length<2) mm="0"+mm;
     return hh+":"+mm;
@@ -1464,6 +1464,20 @@
     game.sets.forEach(function(set){ set.hands.forEach(function(h){ out.push(h); }); });
     return out;
   }
+  // 補記的牌局，endedAt 只是使用者事後打開 App 補記的當下時間，跟那場
+  // 牌局實際幾點打完完全無關，所以只有「即時記錄、真的是按下結束牌局
+  // 那一刻」的牌局才顯示結束時間，補記的一律不顯示，避免誤導。
+  function gameEndedTimeStr(game){
+    if(game.status !== "ended" || typeof game.endedAt !== "number") return null;
+    if(allHandsOf(game).some(function(h){ return h.method === "manual"; })) return null;
+    return timeStrOf(new Date(game.endedAt));
+  }
+  // 牌局標頭共用的「日期 開始時間–結束時間」格式，列表、篩選選單、
+  // 月曆、分享文字都用這個，確保四個地方長得一樣。
+  function gameDateTimeLabel(game){
+    var endTime = gameEndedTimeStr(game);
+    return game.date + (game.time ? ' '+game.time+(endTime ? '–'+endTime : '') : (endTime ? ' '+endTime : ''));
+  }
   function computeSetTotals(set){
     var totals = {};
     set.seatOrder.forEach(function(n){ totals[n]=0; });
@@ -1487,7 +1501,7 @@
     var totals = computeGameTotals(game);
     var setsCount = game.manualSetsCount || game.sets.length;
     var lines = [];
-    lines.push(game.date + (game.time ? ' ' + game.time : '') + (game.venue ? '・' + game.venue : ''));
+    lines.push(gameDateTimeLabel(game) + (game.venue ? '・' + game.venue : ''));
     lines.push('共' + setsCount + '將・' + allHandsOf(game).length + '手');
     game.players.slice().sort(function(a,b){ return (totals[b]||0) - (totals[a]||0); }).forEach(function(n){
       var t = totals[n] || 0;
@@ -4087,7 +4101,7 @@
       head.style.cursor = "pointer";
       var setsCount = g.manualSetsCount || g.sets.length;
       var gameMetaRow = '<div class="log-meta-row">' +
-        '<span class="log-hand-badge">📅 '+escapeHtml(g.date)+(g.time?' '+escapeHtml(g.time):'')+'</span>' +
+        '<span class="log-hand-badge">📅 '+escapeHtml(gameDateTimeLabel(g))+'</span>' +
         (g.venue ? '<span class="log-dealer-chip">📍 '+escapeHtml(g.venue)+'</span>' : '') +
         '<span class="log-tai-chip">共'+setsCount+'將</span>' +
         '</div>';
@@ -4264,7 +4278,7 @@
       return '<option value="m:'+m+'">'+m.slice(0,4)+'年'+mm+'月（'+monthCounts[m]+'場）</option>';
     }).join('');
     var gameOptions = sorted.map(function(g){
-      var label = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '');
+      var label = escapeHtml(gameDateTimeLabel(g)) + (g.venue ? '・'+escapeHtml(g.venue) : '');
       return '<option value="g:'+escapeHtml(g.id)+'">'+label+'</option>';
     }).join('');
 
@@ -4354,8 +4368,10 @@
         var row = document.createElement("div");
         row.className = "log-item";
         var statusText = g.status === "active" ? "進行中" : "已結束";
+        var endTime = gameEndedTimeStr(g);
+        var timeLabel = g.time ? (g.time + (endTime ? '–'+endTime : '')) : endTime;
         row.innerHTML = '<div class="log-meta-row">' +
-            (g.time ? '<span class="log-hand-badge">🕐 '+escapeHtml(g.time)+'</span>' : '') +
+            (timeLabel ? '<span class="log-hand-badge">🕐 '+escapeHtml(timeLabel)+'</span>' : '') +
             '<span class="log-dealer-chip">📍 '+(g.venue?escapeHtml(g.venue):"未填場地")+'</span>' +
             '<span class="log-tai-chip">'+statusText+'</span>' +
           '</div><div class="player-chip-row">' + g.players.map(function(n){
