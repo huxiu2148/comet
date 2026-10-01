@@ -1482,6 +1482,41 @@
     });
     return totals;
   }
+  // 把一場牌局整理成一段方便貼到群組聊天室的純文字，贏最多的排最前面。
+  function gameShareText(game){
+    var totals = computeGameTotals(game);
+    var setsCount = game.manualSetsCount || game.sets.length;
+    var lines = [];
+    lines.push(game.date + (game.time ? ' ' + game.time : '') + (game.venue ? '・' + game.venue : ''));
+    lines.push('共' + setsCount + '將・' + allHandsOf(game).length + '手');
+    game.players.slice().sort(function(a,b){ return (totals[b]||0) - (totals[a]||0); }).forEach(function(n){
+      var t = totals[n] || 0;
+      lines.push(n + ' ' + (t > 0 ? '+' : '') + t);
+    });
+    return lines.join('\n');
+  }
+  // navigator.clipboard 在部分瀏覽器/非 https 情境下不存在，用隱藏的
+  // textarea + execCommand("copy") 當保險，確保分享按鈕在舊手機瀏覽器
+  // 上也能用。
+  function copyTextToClipboard(text, successMsg){
+    successMsg = successMsg || "已複製到剪貼簿！";
+    function fallbackCopy(){
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0"; ta.style.top = "0"; ta.style.left = "0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      var ok = false;
+      try{ ok = document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta);
+      showToast(ok ? successMsg : "複製失敗，請手動選取文字複製。");
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ showToast(successMsg); }, fallbackCopy);
+    }else{
+      fallbackCopy();
+    }
+  }
   function computePlayerHandStats(set, name){
     var s = {self:0, win:0, discard:0};
     set.hands.forEach(function(h){
@@ -4068,6 +4103,18 @@
       summaryEl.textContent = isBackfilled ? '📝 補記（只有最終輸贏，無逐手紀錄）' : ('共 '+allHandsOf(g).length+' 手');
       detail.appendChild(summaryEl);
 
+      var shareBtn = document.createElement("button");
+      shareBtn.type = "button";
+      shareBtn.className = "link-btn";
+      shareBtn.style.display = "block";
+      shareBtn.style.marginTop = "6px";
+      shareBtn.textContent = "📋 分享這場結果";
+      shareBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        copyTextToClipboard(gameShareText(g), "結果已複製，可以直接貼到群組聊天室！");
+      });
+      detail.appendChild(shareBtn);
+
       var dutiesText = dutiesSummaryText(g.duties);
       if(dutiesText){
         var dutiesEl = document.createElement("div");
@@ -4198,11 +4245,33 @@
     if(!endedGames.length){ row.style.display = "none"; return; }
     row.style.display = "block";
     var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
-    var options = ['<option value="">總計（全部場次）</option>'].concat(sorted.map(function(g){
+
+    // 場次一多，一場一場選太慢，所以場次清單之外也依年份／月份分組；
+    // 只有一個年份（或一個月份）時沒有分組的意義，就不顯示那一層。
+    var yearCounts = {}, monthCounts = {};
+    endedGames.forEach(function(g){
+      var y = g.date.slice(0,4), m = g.date.slice(0,7);
+      yearCounts[y] = (yearCounts[y]||0) + 1;
+      monthCounts[m] = (monthCounts[m]||0) + 1;
+    });
+    var years = Object.keys(yearCounts).sort().reverse();
+    var months = Object.keys(monthCounts).sort().reverse();
+    var yearOptions = years.map(function(y){
+      return '<option value="y:'+y+'">'+y+'年（'+yearCounts[y]+'場）</option>';
+    }).join('');
+    var monthOptions = months.map(function(m){
+      var mm = parseInt(m.slice(5,7), 10);
+      return '<option value="m:'+m+'">'+m.slice(0,4)+'年'+mm+'月（'+monthCounts[m]+'場）</option>';
+    }).join('');
+    var gameOptions = sorted.map(function(g){
       var label = escapeHtml(g.date) + (g.time ? ' '+escapeHtml(g.time) : '') + (g.venue ? '・'+escapeHtml(g.venue) : '');
-      return '<option value="'+escapeHtml(g.id)+'">'+label+'</option>';
-    }));
-    el.innerHTML = options.join('');
+      return '<option value="g:'+escapeHtml(g.id)+'">'+label+'</option>';
+    }).join('');
+
+    el.innerHTML = '<option value="">總計（全部場次）</option>' +
+      (years.length > 1 ? ('<optgroup label="依年份">'+yearOptions+'</optgroup>') : '') +
+      (months.length > 1 ? ('<optgroup label="依月份">'+monthOptions+'</optgroup>') : '') +
+      '<optgroup label="依單場">'+gameOptions+'</optgroup>';
     el.value = ui.statsGameFilter || "";
     el.onchange = function(){
       ui.statsGameFilter = el.value || null;
@@ -4217,14 +4286,35 @@
     renderStatsTargetChips();
     var content = document.getElementById("statsContent");
     var endedGames = state.games.filter(function(g){ return g.status === "ended"; });
-    if(ui.statsGameFilter && !endedGames.some(function(g){ return g.id === ui.statsGameFilter; })){
-      ui.statsGameFilter = null; // 選到的那場被刪掉了，回到總計
+    // 月份/年份篩選不會因為裡面某場被刪掉就整個失效（頂多那段期間變
+    // 空），只有「選到的那一場本身」被刪掉時才需要重置回總計。
+    if(ui.statsGameFilter && ui.statsGameFilter.indexOf("g:") === 0){
+      var filterGameId = ui.statsGameFilter.slice(2);
+      if(!endedGames.some(function(g){ return g.id === filterGameId; })) ui.statsGameFilter = null;
     }
     renderStatsGameFilterSelect(endedGames);
-    var filteredGames = ui.statsGameFilter ? endedGames.filter(function(g){ return g.id === ui.statsGameFilter; }) : endedGames;
+    var filteredGames = endedGames;
+    var singleGameId = null;
+    if(ui.statsGameFilter){
+      var kind = ui.statsGameFilter.slice(0,2), key = ui.statsGameFilter.slice(2);
+      if(kind === "g:"){
+        singleGameId = key;
+        filteredGames = endedGames.filter(function(g){ return g.id === key; });
+      }else if(kind === "m:"){
+        filteredGames = endedGames.filter(function(g){ return g.date.slice(0,7) === key; });
+      }else if(kind === "y:"){
+        filteredGames = endedGames.filter(function(g){ return g.date.slice(0,4) === key; });
+      }
+    }
     if(ui.statsSub === "longterm"){
       content.innerHTML = renderLongTermHtml(filteredGames);
-      renderDrinkTreatSection(content, endedGames, ui.statsGameFilter);
+      // 請飲料是跨場配對的統計，月份/年度篩選沒辦法只看那段期間裡的
+      // 配對（配對本身可能橫跨期間邊界），所以只在「總計」或「單場」
+      // 時顯示，月份/年度篩選時先不顯示，避免看起來像是只算那段期間、
+      // 實際上卻混了全部場次的配對結果。
+      if(!ui.statsGameFilter || singleGameId){
+        renderDrinkTreatSection(content, endedGames, singleGameId);
+      }
     }
     else if(ui.statsSub === "wind") content.innerHTML = renderWindHtml(filteredGames, currentStatsTarget());
     else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, filteredGames); }
@@ -4264,11 +4354,14 @@
         var row = document.createElement("div");
         row.className = "log-item";
         var statusText = g.status === "active" ? "進行中" : "已結束";
-        row.innerHTML = '<div class="log-head">'+(g.time?escapeHtml(g.time)+' ・ ':'')+(g.venue?escapeHtml(g.venue):"（未填場地）")+' ・ '+statusText+'</div>' +
-          '<div class="log-detail">'+g.players.map(function(n){
+        row.innerHTML = '<div class="log-meta-row">' +
+            (g.time ? '<span class="log-hand-badge">🕐 '+escapeHtml(g.time)+'</span>' : '') +
+            '<span class="log-dealer-chip">📍 '+(g.venue?escapeHtml(g.venue):"未填場地")+'</span>' +
+            '<span class="log-tai-chip">'+statusText+'</span>' +
+          '</div><div class="player-chip-row">' + g.players.map(function(n){
             var t = totals[n]||0; var cls = t>0?"plus":(t<0?"minus":"");
-            return escapeHtml(n)+' <span class="'+cls+'">'+(t>0?'+':'')+t+'</span>';
-          }).join('　')+'</div>';
+            return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
+          }).join('') + '</div>';
         contentEl.appendChild(row);
       });
     }
@@ -4395,11 +4488,11 @@
   }
 
   // ---------- 版本檢查（有新版本強制要求重新整理） ----------
-  // 這是純靜態網頁，沒有 service worker，瀏覽器分頁只要開著就不會自己
-  // 知道又部署了新版本。定期把 index.html 重新抓一次（用 cache:no-store
-  // 繞過快取），比對裡面寫死的建置版本字串，兩者不一樣就代表已經有新
-  // 版本上線了——蓋滿全螢幕強制要求按下更新，不給忽略或關掉的選項，
-  // 避免使用者沒注意到小按鈕、繼續用著有已知問題的舊版。
+  // 瀏覽器分頁只要開著就不會自己知道又部署了新版本（下面的 service
+  // worker 是網路優先，不會擋到這裡用 cache:no-store 抓到的最新內容）。
+  // 定期把 index.html 重新抓一次，比對裡面寫死的建置版本字串，兩者不
+  // 一樣就代表已經有新版本上線了——蓋滿全螢幕強制要求按下更新，不給
+  // 忽略或關掉的選項，避免使用者沒注意到小按鈕、繼續用著有已知問題的舊版。
   function checkForUpdate(){
     fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
       .then(function(r){ return r.text(); })
@@ -4424,6 +4517,14 @@
   renderAll();
   initFirebase();
   checkForUpdate();
+
+  // 只負責「完全沒網路時網頁本身還叫得出來」（資料一直都存在 localStorage，
+  // 跟這個無關）；註冊失敗（例如瀏覽器不支援）就當作沒這回事，不影響其他功能。
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
 })();
 
 </script>
