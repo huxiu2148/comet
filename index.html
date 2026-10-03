@@ -474,8 +474,9 @@
       </div>
 
       <div id="ngSeatBlock" style="display:none;">
-        <div class="section-label">抓位門風 <button type="button" class="link-btn" id="ngReshuffleBtn">🔀 重新抓位</button></div>
-        <p class="hint-text">已照選人順序排好座位，坐東的那位是第一位莊家（開局後還能改）。想隨機排可以按上面「重新抓位」；也可以點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
+        <div class="section-label">抓位門風</div>
+        <button type="button" class="btn btn-outline btn-block" id="ngReshuffleBtn" style="margin-bottom:8px;">🔀 隨機排座位（重新抓東南西北）</button>
+        <p class="hint-text">已照選人順序排好座位，坐東的那位是第一位莊家（開局後還能改）。想重新隨機排可以再按一次上面的按鈕；也可以點 ▲▼ 一格一格換，或開啟「點兩人互換」直接對調。</p>
         <button type="button" class="btn btn-outline btn-block" id="ngSwapModeBtn" style="margin-bottom:8px;">🔁 點兩人互換：關閉</button>
         <div id="ngSeatList"></div>
       </div>
@@ -533,6 +534,33 @@
       <div class="card">
         <div class="gesture-grid" id="gestureGrid"></div>
 
+        <div class="toggle-row" style="margin-top:14px;">
+          <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
+        </div>
+        <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
+          <div class="stepper">
+            <button type="button" id="leopardMultMinus">－</button>
+            <div class="val" id="leopardMultVal">2<small>倍數</small></div>
+            <button type="button" id="leopardMultPlus">＋</button>
+          </div>
+        </div>
+        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
+
+        <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:10px;">🌊 流局（沒人胡牌，莊家連莊）</button>
+
+        <div class="toggle-row" style="margin-top:10px;">
+          <button type="button" class="btn btn-outline" id="tilesToggleBtn">🀄 記錄胡的牌</button>
+        </div>
+        <div id="tilesPickerBlock" style="display:none; margin-top:8px;">
+          <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
+          <p class="hint-text" id="tilesSummary">還沒選牌</p>
+          <div class="chip-row" id="tilesGrid"></div>
+          <p class="hint-text">點一下牌加一張，點到第5下會清掉那張牌重新算（一張牌最多算4張）。這只是記錄用，不會影響台數或金額計算。</p>
+        </div>
+
+        <!-- 台數選擇放在豹子／流局／記錄胡的牌下面，這樣點台型標籤讓這
+             區塊變高（選到長名字的台型換行、或選了很多種）時，不會把
+             上面那幾顆常用按鈕的位置往下擠，點起來比較穩定。 -->
         <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
         <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
         <div class="chip-row" id="taiTagRow"></div>
@@ -547,28 +575,6 @@
             <div class="val" id="huaVal">0<small>花牌</small></div>
             <button type="button" id="huaPlus">＋</button>
           </div>
-        </div>
-
-        <div class="toggle-row" style="margin-top:10px;">
-          <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
-        </div>
-        <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
-          <div class="stepper">
-            <button type="button" id="leopardMultMinus">－</button>
-            <div class="val" id="leopardMultVal">2<small>倍數</small></div>
-            <button type="button" id="leopardMultPlus">＋</button>
-          </div>
-        </div>
-        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
-
-        <div class="toggle-row" style="margin-top:10px;">
-          <button type="button" class="btn btn-outline" id="tilesToggleBtn">🀄 記錄胡的牌</button>
-        </div>
-        <div id="tilesPickerBlock" style="display:none; margin-top:8px;">
-          <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
-          <p class="hint-text" id="tilesSummary">還沒選牌</p>
-          <div class="chip-row" id="tilesGrid"></div>
-          <p class="hint-text">點一下牌加一張，點到第5下會清掉那張牌重新算（一張牌最多算4張）。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
@@ -588,8 +594,6 @@
             <button type="button" class="btn btn-primary" id="confirmPendingBtn">✅ 確認記錄</button>
           </div>
         </div>
-
-        <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:12px;">🌊 流局（沒人胡牌，莊家連莊）</button>
 
         <div class="toggle-row">
           <button type="button" class="btn btn-outline" id="swapModeBtn">🔁 換位</button>
