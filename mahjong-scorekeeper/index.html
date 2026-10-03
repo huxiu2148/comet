@@ -254,6 +254,8 @@
   }
   .chip-selected{ background: var(--accent); border-color: var(--accent); color:#fff; }
   .chip:disabled{ opacity:.35; cursor:not-allowed; }
+  .suit-chip.suit-red{ color: var(--lose); border-color: rgba(177,80,62,.35); }
+  .suit-chip.suit-red.chip-selected{ background: var(--lose); border-color: var(--lose); color:#fff; }
 
   .add-row{ display:flex; gap:8px; margin-bottom:12px; }
   .add-row input{ flex:1; }
@@ -320,6 +322,8 @@
   .dice-result{ margin-top:8px; font-size:1.3rem; font-weight:800; letter-spacing:2px; }
   .dice-result .dice-sum{ display:block; margin-top:2px; font-size:.72rem; font-weight:600; color: var(--ink-soft); letter-spacing:0; }
   .dice-result.leopard-hit{ color: var(--win); }
+  .dice-result.rolling{ animation: diceshake .25s ease-in-out infinite; }
+  @keyframes diceshake{ 0%{ transform: translateX(0) rotate(0); } 25%{ transform: translateX(-3px) rotate(-4deg); } 75%{ transform: translateX(3px) rotate(4deg); } 100%{ transform: translateX(0) rotate(0); } }
 
   /* seat draw list (new game) */
   .seat-row{
@@ -612,6 +616,15 @@
       </div>
 
       <div class="card">
+        <h2>🃏 撲克牌花色 <button type="button" class="link-btn" id="toggleSuitsBtn" style="margin-left:auto;">展開</button></h2>
+        <div id="suitsSummaryLine" class="hint-text" style="margin:0;"></div>
+        <div id="suitsBody" style="display:none;">
+          <p class="hint-text">拿撲克牌代替算點數的話，可以記一下這將每個人拿到的花色，之後在「分析」可以看帶哪個花色比較容易贏/輸。點一下指定，再點一次取消；下一將要重新指定。</p>
+          <div id="suitAssignRows"></div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>🎬 今天的分工 <button type="button" class="link-btn" id="toggleDutiesBtn" style="margin-left:auto;">展開</button></h2>
         <div id="dutiesSummaryLine" class="hint-text" style="margin:0;"></div>
         <div id="dutiesBody" style="display:none;">
@@ -900,6 +913,12 @@
   var MUSIC_ROTATION_NAMES = ["綺","儒","彗"];
   var DEFAULT_RECORD_NAME = "彗";
   var WINDS = ["東","南","西","北"];
+  // 有些牌友實際上拿撲克牌代替麻將牌算點數，每個人每將各自記一張牌的
+  // 花色，之後可以在分析頁回頭看「帶哪個花色時比較容易贏/輸」。跟座位、
+  // 莊家一樣是「這將」的狀態，不是整場牌局共用一份。
+  var SUIT_KEYS = ["spade","heart","diamond","club"];
+  var SUIT_LABELS = { spade: "♠", heart: "♥", diamond: "♦", club: "♣" };
+  var SUIT_NAMES = { spade: "黑桃", heart: "紅心", diamond: "方塊", club: "梅花" };
   var TAI_TAGS = [
     { key: "zhuangjia", label: "莊家", value: 1 },
     { key: "lianzhuang", label: "連莊", value: 1 },
@@ -1131,6 +1150,12 @@
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
       endedAt: typeof s.endedAt==="number" ? s.endedAt : null
     };
+    var rawSuits = (s.suits && typeof s.suits === "object") ? s.suits : {};
+    var suits = {};
+    Object.keys(rawSuits).forEach(function(n){
+      if(out.seatOrder.indexOf(n) !== -1 && SUIT_KEYS.indexOf(rawSuits[n]) !== -1) suits[n] = rawSuits[n];
+    });
+    out.suits = suits;
     return out;
   }
 
@@ -1152,12 +1177,12 @@
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
         hands: hands, status: g.status==="ended" ? "ended" : "active",
         createdAt: typeof g.createdAt==="number" ? g.createdAt : Date.now(),
-        endedAt: g.endedAt || null
+        endedAt: g.endedAt || null, suits: {}
       };
       syncDealerFromHands(oneSet);
       sets = [oneSet];
     }else{
-      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
+      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null, suits:{} }];
     }
     var rawDuties = (g.duties && typeof g.duties === "object") ? g.duties : {};
     var duties = {};
@@ -1582,6 +1607,7 @@
     showSetLog: true,
     endSetPanelOpen: false,
     showDuties: true,
+    showSuits: false,
     taiSortMode: loadTaiSortMode(),
     pendingHand: null,
     editSeatSetId: null,
@@ -1796,7 +1822,7 @@
       var musicPlaying = players.indexOf(musicCandidate) !== -1;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
-        hands: [], status: "active", createdAt: Date.now(), endedAt: null
+        hands: [], status: "active", createdAt: Date.now(), endedAt: null, suits: {}
       };
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
@@ -1993,7 +2019,7 @@
       status: "ended",
       sets: [{
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
-        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
+        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now(), suits: {}
       }],
       duties: {record:null, music:null, photo:null},
       manualSetsCount: setsCount,
@@ -2687,7 +2713,7 @@
     // 想換座位可以在新的一將裡用「換位」調整。
     ng.sets.push({
       id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
-      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null, suits: {}
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
@@ -2744,16 +2770,38 @@
   // 骰骰子：純粹的小工具，跟台數計算完全無關（不會自動幫「豹子」設定
   // 倍數），只是需要的時候按一下、看看骰出來的點數，方便自己決定要不要
   // 開豹子、開幾倍。骰三顆，因為「豹子」原本就是骰寶那種三顆一樣的說法。
+  // 按下去先用隨機點數閃幾下做出「正在骰」的感覺，停下來才是真正結果，
+  // 不要一按就直接顯示答案。
   var DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  var diceRolling = false;
   document.getElementById("diceRollBtn").addEventListener("click", function(){
-    var values = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
-    var sum = values[0] + values[1] + values[2];
-    var isLeopard = values[0] === values[1] && values[1] === values[2];
-    var facesText = values.map(function(v){ return DICE_FACES[v] + v; }).join("　");
+    if(diceRolling) return;
+    diceRolling = true;
+    var btn = document.getElementById("diceRollBtn");
     var resultEl = document.getElementById("diceResult");
+    btn.disabled = true;
     resultEl.style.display = "block";
-    resultEl.classList.toggle("leopard-hit", isLeopard);
-    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
+    resultEl.classList.remove("leopard-hit");
+    resultEl.classList.add("rolling");
+    var finalValues = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
+    var ticks = 0, maxTicks = 10;
+    var timer = setInterval(function(){
+      ticks++;
+      if(ticks >= maxTicks){
+        clearInterval(timer);
+        var sum = finalValues[0] + finalValues[1] + finalValues[2];
+        var isLeopard = finalValues[0] === finalValues[1] && finalValues[1] === finalValues[2];
+        var facesText = finalValues.map(function(v){ return DICE_FACES[v] + v; }).join("　");
+        resultEl.classList.remove("rolling");
+        resultEl.classList.toggle("leopard-hit", isLeopard);
+        resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
+        btn.disabled = false;
+        diceRolling = false;
+        return;
+      }
+      var flashValues = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
+      resultEl.innerHTML = flashValues.map(function(v){ return DICE_FACES[v] + v; }).join("　");
+    }, 70);
   });
 
   // 這場最輸的要不要請飲料，開局時先決定，本局畫面跟歷史牌局都能再改
@@ -2891,6 +2939,56 @@
     });
   }
 
+  // 撲克牌花色：跟分工一樣掛在「這局」畫面，但資料存在「這將」（set）上
+  // 面，不是整場共用，因為每將通常會重新發牌／重新算點數。
+  function assignSuit(gameId, setId, name, suitKey){
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
+    if(!ng) return;
+    var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
+    if(!ns) return;
+    if(!ns.suits) ns.suits = {};
+    if(ns.suits[name] === suitKey) delete ns.suits[name];
+    else ns.suits[name] = suitKey;
+    commitState(newState);
+  }
+  function suitsSummaryText(suits, seatOrder){
+    var parts = seatOrder.filter(function(n){ return suits && suits[n]; }).map(function(n){
+      return escapeHtml(n)+' '+SUIT_LABELS[suits[n]];
+    });
+    return parts.join('　');
+  }
+  function renderSuits(game, set){
+    var suits = set.suits || {};
+    document.getElementById("toggleSuitsBtn").textContent = ui.showSuits ? "收起" : "展開";
+    document.getElementById("suitsBody").style.display = ui.showSuits ? "block" : "none";
+    var summaryText = suitsSummaryText(suits, set.seatOrder);
+    document.getElementById("suitsSummaryLine").innerHTML = summaryText || "還沒有人記花色，點「展開」指派。";
+    var container = document.getElementById("suitAssignRows");
+    container.innerHTML = "";
+    set.seatOrder.forEach(function(name){
+      var row = document.createElement("div");
+      row.className = "section-label";
+      row.style.marginTop = "8px";
+      row.textContent = name;
+      container.appendChild(row);
+      var chipRow = document.createElement("div");
+      chipRow.className = "chip-row";
+      SUIT_KEYS.forEach(function(suitKey){
+        var b = document.createElement("button");
+        b.type = "button";
+        var selected = suits[name] === suitKey;
+        var isRed = (suitKey === "heart" || suitKey === "diamond");
+        b.className = "chip suit-chip" + (isRed ? " suit-red" : "") + (selected ? " chip-selected" : "");
+        b.textContent = SUIT_LABELS[suitKey] + ' ' + SUIT_NAMES[suitKey];
+        b.addEventListener("click", function(){ assignSuit(game.id, set.id, name, suitKey); });
+        chipRow.appendChild(b);
+      });
+      container.appendChild(chipRow);
+    });
+  }
+  document.getElementById("toggleSuitsBtn").addEventListener("click", function(){ ui.showSuits = !ui.showSuits; renderGameTab(); });
+
   // 牌桌固定畫成菱形（中間留空模擬桌面），「我」永遠在最下面；下家在右邊、
   // 對家在最上面、上家在左邊——跟著座位陣列（seatOrder）目前的順序轉，
   // 換位／換莊家改變座位陣列時，這裡會自動重新算，門風本身不受影響
@@ -3023,6 +3121,7 @@
     document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
 
     renderDuties(game);
+    renderSuits(game, set);
     renderTaiVal();
     renderHuaVal();
     renderLeopardUi(game);
@@ -3891,11 +3990,42 @@
       ('<div class="stat-summary" style="margin-top:14px;">地點戰績</div><div class="stat-list">'+venueHighlightRows+'</div>' +
        '<div class="stat-list" style="margin-top:8px;">'+venueListRows+'</div>') : '';
 
+    // 撲克牌花色：花色是「這將」的，不是每一手自己的，所以另外照 set
+    // 掃一次，而不是沿用上面已經攤平成單手的迴圈。沒人記過花色的話
+    // 整段不顯示，不會讓沒在用這個功能的人看到一堆空資料。
+    var suitBuckets = {};
+    SUIT_KEYS.forEach(function(k){ suitBuckets[k] = {hands:0, net:0}; });
+    var hasSuitData = false;
+    endedGames.forEach(function(g){
+      if(g.players.indexOf(targetName) === -1) return;
+      g.sets.forEach(function(set){
+        var suitKey = set.suits && set.suits[targetName];
+        if(!suitKey) return;
+        hasSuitData = true;
+        set.hands.forEach(function(h){
+          if(h.method === "manual") return;
+          if(h.seatOrderAtHand.indexOf(targetName) === -1) return;
+          suitBuckets[suitKey].hands += 1;
+          suitBuckets[suitKey].net += (h.deltas[targetName]||0);
+        });
+      });
+    });
+    var suitRows = SUIT_KEYS.map(function(k){
+      var d = suitBuckets[k];
+      var cls = d.net>0?"win":(d.net<0?"lose":"zero");
+      var sign = d.net>0?"+":"";
+      return '<div class="stat-row"><div class="stat-name">'+SUIT_LABELS[k]+' '+SUIT_NAMES[k]+'</div><div class="stat-mid">'+d.hands+' 手</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+d.net+'</div></div>';
+    }).join('');
+    var suitSection = hasSuitData ?
+      ('<div class="stat-summary" style="margin-top:14px;">🃏 依撲克牌花色總輸贏（依手數）</div><div class="stat-list">'+suitRows+'</div>') : '';
+
     return '<div class="stat-summary">「'+escapeHtml(targetName)+'」整體表現・共 '+totalHands+' 手</div><div class="stat-list">'+overallRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">贏在哪、輸在哪</div><div class="stat-list">'+detailRows+'</div>' +
       '<div class="stat-summary" style="margin-top:14px;">單手紀錄</div><div class="stat-list">'+extremeRows+'</div>' +
       tagFreqSection +
       tileFreqSection +
+      suitSection +
       venueSection;
   }
 
