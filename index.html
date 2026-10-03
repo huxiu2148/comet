@@ -2363,6 +2363,13 @@
   function commitPendingHand(){
     var p = ui.pendingHand;
     if(!p) return;
+    // 「記錄胡的牌」展開了卻一張都還沒選，大多是忘記選、不是真的不想記，
+    // 擋下來提醒一下，不要讓這手悄悄地沒記到牌。真的不想記的話，把這塊
+    // 收起來（再點一次「記錄胡的牌」）就能照常確認。
+    if(ui.tilesPickerOpen && Object.keys(ui.winningTiles).length === 0){
+      showToast("「記錄胡的牌」還沒選牌，選好牌或是再點一次「記錄胡的牌」收起來，才能確認記錄。");
+      return;
+    }
     if(p.method === "discard"){
       snapshotActiveWinner();
       var loserName = p.loserName, winners = p.winners, intercepted = p.intercepted;
