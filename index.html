@@ -619,7 +619,7 @@
         <h2>🃏 撲克牌花色 <button type="button" class="link-btn" id="toggleSuitsBtn" style="margin-left:auto;">展開</button></h2>
         <div id="suitsSummaryLine" class="hint-text" style="margin:0;"></div>
         <div id="suitsBody" style="display:none;">
-          <p class="hint-text">拿撲克牌代替算點數的話，可以記一下這將每個人拿到的花色，之後在「分析」可以看帶哪個花色比較容易贏/輸。點一下指定，再點一次取消；下一將要重新指定。</p>
+          <p class="hint-text">拿撲克牌代替算點數的話，可以記一下每個人拿到的花色，之後在「分析」可以看帶哪個花色比較容易贏/輸。點一下指定，再點一次取消；整場都算同一份花色，開新的一將不用重新指定，直到這場結束才會重新開始。</p>
           <div id="suitAssignRows"></div>
         </div>
       </div>
@@ -913,9 +913,9 @@
   var MUSIC_ROTATION_NAMES = ["綺","儒","彗"];
   var DEFAULT_RECORD_NAME = "彗";
   var WINDS = ["東","南","西","北"];
-  // 有些牌友實際上拿撲克牌代替麻將牌算點數，每個人每將各自記一張牌的
-  // 花色，之後可以在分析頁回頭看「帶哪個花色時比較容易贏/輸」。跟座位、
-  // 莊家一樣是「這將」的狀態，不是整場牌局共用一份。
+  // 有些牌友實際上拿撲克牌代替麻將牌算點數，每個人記一張牌的花色，
+  // 之後可以在分析頁回頭看「帶哪個花色時比較容易贏/輸」。跟座位、莊家
+  // 不同，花色整場都固定（牌拿著不會每將重新換），要到這場結束才重置。
   var SUIT_KEYS = ["spade","heart","diamond","club"];
   var SUIT_LABELS = { spade: "♠", heart: "♥", diamond: "♦", club: "♣" };
   var SUIT_NAMES = { spade: "黑桃", heart: "紅心", diamond: "方塊", club: "梅花" };
@@ -1150,12 +1150,6 @@
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
       endedAt: typeof s.endedAt==="number" ? s.endedAt : null
     };
-    var rawSuits = (s.suits && typeof s.suits === "object") ? s.suits : {};
-    var suits = {};
-    Object.keys(rawSuits).forEach(function(n){
-      if(out.seatOrder.indexOf(n) !== -1 && SUIT_KEYS.indexOf(rawSuits[n]) !== -1) suits[n] = rawSuits[n];
-    });
-    out.suits = suits;
     return out;
   }
 
@@ -1177,13 +1171,18 @@
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
         hands: hands, status: g.status==="ended" ? "ended" : "active",
         createdAt: typeof g.createdAt==="number" ? g.createdAt : Date.now(),
-        endedAt: g.endedAt || null, suits: {}
+        endedAt: g.endedAt || null
       };
       syncDealerFromHands(oneSet);
       sets = [oneSet];
     }else{
-      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null, suits:{} }];
+      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
     }
+    var rawSuits = (g.suits && typeof g.suits === "object") ? g.suits : {};
+    var suits = {};
+    Object.keys(rawSuits).forEach(function(n){
+      if(players.indexOf(n) !== -1 && SUIT_KEYS.indexOf(rawSuits[n]) !== -1) suits[n] = rawSuits[n];
+    });
     var rawDuties = (g.duties && typeof g.duties === "object") ? g.duties : {};
     var duties = {};
     ["record","music","photo"].forEach(function(key){
@@ -1203,7 +1202,7 @@
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       drinkEnabled: g.drinkEnabled !== false,
       status: g.status === "ended" ? "ended" : "active",
-      sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced,
+      sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced, suits: suits,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null
@@ -1822,7 +1821,7 @@
       var musicPlaying = players.indexOf(musicCandidate) !== -1;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
-        hands: [], status: "active", createdAt: Date.now(), endedAt: null, suits: {}
+        hands: [], status: "active", createdAt: Date.now(), endedAt: null
       };
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
@@ -1830,7 +1829,7 @@
         status: "active", sets: [firstSet],
         duties: {record: DEFAULT_RECORD_NAME, music: musicPlaying ? musicCandidate : null, photo: photoPlaying ? photoCandidate : null},
         dutyRotationAdvanced: { photo: photoPlaying, music: musicPlaying },
-        createdAt: Date.now(), endedAt: null
+        createdAt: Date.now(), endedAt: null, suits: {}
       };
       var ns = deepClone(baseState);
       ns.games.push(newGame);
@@ -2019,11 +2018,11 @@
       status: "ended",
       sets: [{
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
-        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now(), suits: {}
+        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
       }],
       duties: {record:null, music:null, photo:null},
       manualSetsCount: setsCount,
-      createdAt: Date.now(), endedAt: Date.now()
+      createdAt: Date.now(), endedAt: Date.now(), suits: {}
     };
     var newState = deepClone(state);
     newState.games.push(newGame);
@@ -2723,7 +2722,7 @@
     // 想換座位可以在新的一將裡用「換位」調整。
     ng.sets.push({
       id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
-      hands: [], status: "active", createdAt: Date.now(), endedAt: null, suits: {}
+      hands: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
@@ -2949,34 +2948,33 @@
     });
   }
 
-  // 撲克牌花色：跟分工一樣掛在「這局」畫面，但資料存在「這將」（set）上
-  // 面，不是整場共用，因為每將通常會重新發牌／重新算點數。
-  function assignSuit(gameId, setId, name, suitKey){
+  // 撲克牌花色：跟分工一樣掛在「這局」畫面，但資料存在「整場」（game）上
+  // 面，不是每將重新算——拿撲克牌算點數的話，花色是整場都固定拿著同一副
+  // 牌，不會每將重新發牌換花色，所以指派一次就整場沿用，直到這場結束。
+  function assignSuit(gameId, name, suitKey){
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
     if(!ng) return;
-    var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
-    if(!ns) return;
-    if(!ns.suits) ns.suits = {};
-    if(ns.suits[name] === suitKey) delete ns.suits[name];
-    else ns.suits[name] = suitKey;
+    if(!ng.suits) ng.suits = {};
+    if(ng.suits[name] === suitKey) delete ng.suits[name];
+    else ng.suits[name] = suitKey;
     commitState(newState);
   }
-  function suitsSummaryText(suits, seatOrder){
-    var parts = seatOrder.filter(function(n){ return suits && suits[n]; }).map(function(n){
+  function suitsSummaryText(suits, players){
+    var parts = players.filter(function(n){ return suits && suits[n]; }).map(function(n){
       return escapeHtml(n)+' '+SUIT_LABELS[suits[n]];
     });
     return parts.join('　');
   }
-  function renderSuits(game, set){
-    var suits = set.suits || {};
+  function renderSuits(game){
+    var suits = game.suits || {};
     document.getElementById("toggleSuitsBtn").textContent = ui.showSuits ? "收起" : "展開";
     document.getElementById("suitsBody").style.display = ui.showSuits ? "block" : "none";
-    var summaryText = suitsSummaryText(suits, set.seatOrder);
+    var summaryText = suitsSummaryText(suits, game.players);
     document.getElementById("suitsSummaryLine").innerHTML = summaryText || "還沒有人記花色，點「展開」指派。";
     var container = document.getElementById("suitAssignRows");
     container.innerHTML = "";
-    set.seatOrder.forEach(function(name){
+    game.players.forEach(function(name){
       var row = document.createElement("div");
       row.className = "section-label";
       row.style.marginTop = "8px";
@@ -2991,7 +2989,7 @@
         var isRed = (suitKey === "heart" || suitKey === "diamond");
         b.className = "chip suit-chip" + (isRed ? " suit-red" : "") + (selected ? " chip-selected" : "");
         b.textContent = SUIT_LABELS[suitKey] + ' ' + SUIT_NAMES[suitKey];
-        b.addEventListener("click", function(){ assignSuit(game.id, set.id, name, suitKey); });
+        b.addEventListener("click", function(){ assignSuit(game.id, name, suitKey); });
         chipRow.appendChild(b);
       });
       container.appendChild(chipRow);
@@ -3133,7 +3131,7 @@
     document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
 
     renderDuties(game);
-    renderSuits(game, set);
+    renderSuits(game);
     renderTaiVal();
     renderHuaVal();
     renderLeopardUi(game);
@@ -4002,7 +4000,7 @@
       ('<div class="stat-summary" style="margin-top:14px;">地點戰績</div><div class="stat-list">'+venueHighlightRows+'</div>' +
        '<div class="stat-list" style="margin-top:8px;">'+venueListRows+'</div>') : '';
 
-    // 撲克牌花色：花色是「這將」的，不是每一手自己的，所以另外照 set
+    // 撲克牌花色：花色是「整場」的，不是每一手自己的，所以另外照 game
     // 掃一次，而不是沿用上面已經攤平成單手的迴圈。沒人記過花色的話
     // 整段不顯示，不會讓沒在用這個功能的人看到一堆空資料。
     var suitBuckets = {};
@@ -4010,10 +4008,10 @@
     var hasSuitData = false;
     endedGames.forEach(function(g){
       if(g.players.indexOf(targetName) === -1) return;
+      var suitKey = g.suits && g.suits[targetName];
+      if(!suitKey) return;
+      hasSuitData = true;
       g.sets.forEach(function(set){
-        var suitKey = set.suits && set.suits[targetName];
-        if(!suitKey) return;
-        hasSuitData = true;
         set.hands.forEach(function(h){
           if(h.method === "manual") return;
           if(h.seatOrderAtHand.indexOf(targetName) === -1) return;
