@@ -2272,6 +2272,7 @@
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
+    ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
     ensurePendingPreviewVisible();
     flashCard(name, "flash-win");
@@ -2296,6 +2297,7 @@
       activeWinnerIdx: 0,
       intercepted: []
     };
+    ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
     ensurePendingPreviewVisible();
     flashCard(winnerName, "flash-win");
@@ -2318,7 +2320,7 @@
     ui.tai = w.tai; ui.taiTags = w.tags.slice(); ui.huaCount = w.huaCount;
     ui.leopard = { enabled: w.leopard.enabled, multiplier: w.leopard.multiplier };
     ui.winningTiles = deepClone(w.tiles);
-    ui.tilesPickerOpen = false;
+    ui.tilesPickerOpen = true; // 換到哪一位胡牌者，就直接展開那位的「記錄胡的牌」
   }
   function switchActiveWinner(idx){
     var p = ui.pendingHand;
