@@ -2329,6 +2329,7 @@
     p.activeWinnerIdx = idx;
     loadActiveWinnerUi();
     renderGameTab();
+    ensurePendingPreviewVisible();
   }
   function addWinnerToPendingHand(name){
     var p = ui.pendingHand;
@@ -3113,11 +3114,13 @@
         (tilesText3 ? '<div class="log-detail">🀄 '+escapeHtml(tilesText3)+'</div>' : '');
       renderMultiWinnerBlock(null, game);
     }
-    // 調整台數／開豹子這些操作都會讓預覽框內容變長、把「確認記錄」推得
-    // 更下面，光靠手勢剛觸發那一次的捲動不夠，每次重繪都要重新檢查一次，
-    // 不然按鈕可能被底部分頁列擋住點不到（ensurePendingPreviewVisible 內部
-    // 已經有 overflow<=0 就不動的判斷，不會每次都跳一下）。
-    ensurePendingPreviewVisible();
+    // 這裡故意不每次重繪都呼叫 ensurePendingPreviewVisible：點台型標籤、
+    // 調台數、開豹子這些小調整也會讓預覽框變長一點，如果每次都因此跳著
+    // 捲動畫面，使用者會覺得「怎麼點個台型畫面又往下跑」。只在真的會讓
+    // 預覽內容整個換掉的結構性操作（手勢剛做完、加入/切換一炮多響的
+    // 胡牌者）才主動捲動，見 recordSelfDrawGesture／recordDiscardGesture／
+    // addWinnerToPendingHand／switchActiveWinner。平常調整台數如果多到
+    // 把「確認記錄」擋住，使用者自己手動捲一下就看得到了。
   }
 
   function renderActiveSet(game, set){
