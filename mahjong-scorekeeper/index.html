@@ -3859,6 +3859,7 @@
     var gotDiscardedCount=0, gotDiscardedAmt=0, paidSelfDrawCount=0, paidSelfDrawAmt=0;
     var dealerNet=0, dealerHands=0, nonDealerNet=0, nonDealerHands=0;
     var drawCount=0;
+    var gotInterceptedCount=0; // 本來也胡得到、卻被攔下沒拿到錢的次數（跟輸贏金額無關，純記錄）
     var maxWin=null, maxDealIn=null; // {amt, detail}
     var tagFreq = {}; // 台型標籤 -> 這位玩家胡牌時用到這個台型的次數
     var tileFreq = {}; // 記錄的牌 -> 這位玩家胡牌時記錄到這張牌的次數
@@ -3881,6 +3882,7 @@
         if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
         else{ nonDealerNet+=myDelta; nonDealerHands++; }
         if(h.method === "draw"){ drawCount++; return; }
+        if(h.intercepted && h.intercepted.indexOf(targetName) !== -1) gotInterceptedCount++;
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
@@ -3920,6 +3922,11 @@
       return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-mid">'+sub+'</div>' +
         '<div class="stat-amt">'+rateText+'</div></div>';
     }
+    // 攔胡純粹是記錄，不影響金額，跟其他有輸贏金額的 card() 不一樣，這裡
+    // 只單純顯示次數，不要硬套上一個永遠是 0 的金額欄位。
+    function plainCountRow(label, count){
+      return '<div class="stat-row"><div class="stat-name">'+label+'</div><div class="stat-amt zero">'+count+' 次</div></div>';
+    }
     function extremeCard(label, item){
       // 標籤 + 金額同一行，日期/對手/台數等較長的說明文字獨立一行放在下面，
       // 避免跟其他統計列一樣塞進三欄 flex，窄螢幕上把標籤擠到逐字換行。
@@ -3940,7 +3947,8 @@
                card("放槍賠錢", gotDiscardedCount, gotDiscardedAmt) +
                card("被別人自摸", paidSelfDrawCount, paidSelfDrawAmt) +
                card("當莊時", dealerHands, dealerNet) +
-               card("非莊時", nonDealerHands, nonDealerNet);
+               card("非莊時", nonDealerHands, nonDealerNet) +
+               (gotInterceptedCount ? plainCountRow("🚫 被攔胡（本來也胡得到，沒拿到錢）", gotInterceptedCount) : '');
     var extremeRows = extremeCard("單手最大胡牌", maxWin) + extremeCard("單手最大放槍", maxDealIn);
 
     // 常胡台型：算這位玩家胡牌時每個台型標籤各出現幾次，依次數排序，
@@ -4050,7 +4058,7 @@
       stats[n] = {
         name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
         dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
-        dealerHands: 0, dealerNet: 0, maxStreak: 0, interceptCount: 0,
+        dealerHands: 0, dealerNet: 0, maxStreak: 0, interceptCount: 0, gotInterceptedCount: 0,
         maxWin: null, maxDealIn: null
       };
     });
@@ -4106,6 +4114,12 @@
           // 不同，天生就不會重複算到同一次攔胡。
           if(h.intercepted && h.intercepted.length) s.interceptCount++;
         }
+        // 被攔胡的次數算在被攔的人自己身上，跟上面攔胡別人的次數是分開
+        // 的兩件事：這手不管誰贏，只要名字出現在 h.intercepted 裡，就是
+        // 「這手其實也胡得到、卻被攔下沒拿到錢」一次。
+        (h.intercepted || []).forEach(function(n){
+          if(stats[n]) stats[n].gotInterceptedCount++;
+        });
         if(h.method === "discard" && stats[h.loserName]){
           var s2 = stats[h.loserName];
           s2.dealIns++;
@@ -4168,6 +4182,7 @@
       titleRow('🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('🥶','最衰被攔胡（本來也胡得到、卻被攔次數最多）', topBy(function(s){ return s.gotInterceptedCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
       titleRow('🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
