@@ -592,7 +592,6 @@
             <div class="chip-row" id="addWinnerChips"></div>
             <div class="section-label" style="margin-top:8px;">🚫 攔胡：標記誰本來也胡得到、但被攔下沒拿到錢（純記錄，不影響金額）</div>
             <div class="chip-row" id="interceptedChips"></div>
-            <div id="interceptedTilesBlock"></div>
           </div>
           <div class="undo-row" style="margin-top:10px; margin-bottom:0;">
             <button type="button" class="btn btn-outline" id="cancelPendingBtn">↩️ 取消</button>
@@ -981,26 +980,6 @@
       if(c) parts.push(t.label + (c>1 ? ("×"+c) : ""));
     });
     return parts.join("、");
-  }
-  // 攔胡清單共用的那一行：每個被攔的人後面，如果有記他當時手上的牌，
-  // 就用括號附在名字後面；本手預覽（傳 count map）跟已確認的本手紀錄
-  // （傳已經攤平的牌名陣列）資料形狀不同，所以用 tilesOf(name) 這個
-  // callback 統一轉成攤平陣列，兩邊都能共用這個函式畫同一行。
-  function interceptedSummaryHtml(names, tilesOf){
-    if(!names || !names.length) return "";
-    var parts = names.map(function(n){
-      var arr = tilesOf(n) || [];
-      var tileText = "";
-      if(arr.length){
-        var g = groupTagCounts(arr);
-        tileText = g.order.map(function(label){
-          var c = g.counts[label];
-          return escapeHtml(label) + (c > 1 ? ("×"+c) : "");
-        }).join("、");
-      }
-      return escapeHtml(n) + (tileText ? ('（🀄'+tileText+'）') : '');
-    });
-    return '<div class="log-detail">🚫 攔胡（沒拿到錢）：'+parts.join('、')+'</div>';
   }
   var TAI_SORT_KEY = "twmj_tai_sort_v1";
   function loadTaiSortMode(){
@@ -1633,7 +1612,6 @@
     editSeatSetId: null,
     tilesPickerOpen: false,
     winningTiles: {},
-    interceptedTilesOpenFor: {},
     pastSetLogOpenId: null,
     historyHandLogKey: null,
     expandedHistoryGameId: null
@@ -1868,7 +1846,7 @@
 
     function resetNewGameUi(){
       ui.newGameFormReady = false;
-      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {}; ui.interceptedTilesOpenFor = {};
+      ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     }
 
@@ -2198,7 +2176,7 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {}; ui.interceptedTilesOpenFor = {};
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     commitState(newState);
   }
 
@@ -2212,7 +2190,7 @@
   // 這樣排序後永遠能正確判斷連莊。
   // 攔胡（有人本來也胡得到，但被輪序較近的人攔下、沒有拿到錢）純粹是
   // 記錄用的標記，不影響金額，附在這組每一筆記錄上。
-  function commitMultiWinnerHand(loserName, winners, intercepted, interceptedTiles){
+  function commitMultiWinnerHand(loserName, winners, intercepted){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
     var dealerName = set.seatOrder[set.dealerIndex];
@@ -2220,14 +2198,6 @@
       return (a.name === dealerName ? 1 : 0) - (b.name === dealerName ? 1 : 0);
     });
     var mates = ordered.map(function(w){ return w.name; });
-    // 被攔胡的人各自記的牌（如果有的話）攤平成跟 record.tiles 一樣的
-    // 陣列格式，一樣附在這組每一筆記錄上給畫面顯示，跟 intercepted 這份
-    // 名單共用、不影響金額。
-    var flatInterceptedTiles = {};
-    (intercepted || []).forEach(function(n){
-      var arr = flattenTileMap((interceptedTiles && interceptedTiles[n]) || {});
-      if(arr.length) flatInterceptedTiles[n] = arr;
-    });
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
@@ -2235,14 +2205,11 @@
       var record = buildHandRecord(game, ns, w.name, "discard", loserName, computeTotalTaiFor(w), taiTagLabelsFor(w), w.leopard);
       record.tiles = flattenTileMap(w.tiles || {});
       if(mates.length > 1) record.multiWinMates = mates;
-      if(intercepted && intercepted.length){
-        record.intercepted = intercepted.slice();
-        if(Object.keys(flatInterceptedTiles).length) record.interceptedTiles = flatInterceptedTiles;
-      }
+      if(intercepted && intercepted.length) record.intercepted = intercepted.slice();
       ns.hands.push(record);
     });
     syncDealerFromHands(ns);
-    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {}; ui.interceptedTilesOpenFor = {};
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     commitState(newState);
   }
 
@@ -2327,8 +2294,7 @@
       method: "discard", loserName: loserName,
       winners: [ makeWinnerEntry(winnerName) ],
       activeWinnerIdx: 0,
-      intercepted: [],
-      interceptedTiles: {}
+      intercepted: []
     };
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
@@ -2373,11 +2339,7 @@
     p.winners.push(makeWinnerEntry(name));
     p.activeWinnerIdx = p.winners.length - 1;
     var ii = p.intercepted.indexOf(name);
-    if(ii !== -1){
-      p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
-      delete p.interceptedTiles[name];
-      delete ui.interceptedTilesOpenFor[name];
-    }
+    if(ii !== -1) p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
     loadActiveWinnerUi();
     renderGameTab();
     ensurePendingPreviewVisible();
@@ -2397,33 +2359,7 @@
     if(name === p.loserName) return;
     if(p.winners.some(function(w){ return w.name === name; })) return; // 已經是真的胡牌者，不能同時又是被攔的
     var idx = p.intercepted.indexOf(name);
-    if(idx === -1){
-      p.intercepted.push(name);
-      p.interceptedTiles[name] = {};
-    }else{
-      p.intercepted.splice(idx, 1);
-      delete p.interceptedTiles[name]; // 取消標記攔胡，連同記錄的牌一起清掉，不然殘留著沒意義
-      delete ui.interceptedTilesOpenFor[name];
-    }
-    renderGameTab();
-  }
-  // 被攔胡的人本來也胡得到、只是沒拿到錢，但他當時手上拿的是什麼牌還是
-  // 可能想記一下（跟真的胡牌者一樣）。每個被攔的人各自一個收合的小牌
-  // 盤，直接記在 p.interceptedTiles[name] 上，不需要像胡牌者那樣有
-  // 「目前正在編輯」的概念——攔胡的人之間互相獨立，可以同時展開好幾個。
-  function toggleInterceptedTilesPicker(name){
-    var p = ui.pendingHand;
-    if(!p || p.method !== "discard" || p.intercepted.indexOf(name) === -1) return;
-    ui.interceptedTilesOpenFor[name] = !ui.interceptedTilesOpenFor[name];
-    renderGameTab();
-  }
-  function setInterceptedTileCount(name, code){
-    var p = ui.pendingHand;
-    if(!p || p.method !== "discard" || p.intercepted.indexOf(name) === -1) return;
-    var tiles = p.interceptedTiles[name] || (p.interceptedTiles[name] = {});
-    var c = (tiles[code] || 0) + 1;
-    if(c > 4) c = 0;
-    if(c === 0) delete tiles[code]; else tiles[code] = c;
+    if(idx === -1) p.intercepted.push(name); else p.intercepted.splice(idx, 1);
     renderGameTab();
   }
   function commitPendingHand(){
@@ -2438,9 +2374,9 @@
     }
     if(p.method === "discard"){
       snapshotActiveWinner();
-      var loserName = p.loserName, winners = p.winners, intercepted = p.intercepted, interceptedTiles = p.interceptedTiles;
+      var loserName = p.loserName, winners = p.winners, intercepted = p.intercepted;
       ui.pendingHand = null;
-      commitMultiWinnerHand(loserName, winners, intercepted, interceptedTiles);
+      commitMultiWinnerHand(loserName, winners, intercepted);
     }else{
       ui.pendingHand = null;
       commitHand(p.winnerName, p.method, p.loserName);
@@ -2790,7 +2726,7 @@
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
-    ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {}; ui.interceptedTilesOpenFor = {};
+    ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2833,7 +2769,7 @@
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
-      ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {}; ui.interceptedTilesOpenFor = {};
+      ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
       ui.pendingHand = null;
       commitState(newState);
       showToast("已取消這場牌局。");
@@ -2952,7 +2888,8 @@
       });
       tilesLine = '<div class="log-detail">🀄 '+tileParts.join('、')+'</div>';
     }
-    var interceptedLine = interceptedSummaryHtml(h.intercepted, function(n){ return (h.interceptedTiles && h.interceptedTiles[n]) || []; });
+    var interceptedLine = (h.intercepted && h.intercepted.length) ?
+      ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+h.intercepted.map(escapeHtml).join('、')+'</div>') : '';
     return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine + interceptedLine;
   }
   function renderHandListInto(container, set){
@@ -3115,39 +3052,6 @@
       ib.addEventListener("click", function(){ toggleIntercepted(name); });
       interceptRow.appendChild(ib);
     });
-
-    var tilesBlock = document.getElementById("interceptedTilesBlock");
-    tilesBlock.innerHTML = "";
-    p.intercepted.forEach(function(name){
-      var tiles = p.interceptedTiles[name] || {};
-      var total = 0;
-      Object.keys(tiles).forEach(function(k){ total += tiles[k]; });
-      var open = !!ui.interceptedTilesOpenFor[name];
-      var wrap = document.createElement("div");
-      wrap.style.marginTop = "6px";
-      var toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "link-btn";
-      toggle.textContent = "🀄 "+name+" 被攔時的牌" + (total ? (" ("+total+")") : "");
-      toggle.addEventListener("click", function(){ toggleInterceptedTilesPicker(name); });
-      wrap.appendChild(toggle);
-      if(open){
-        var grid = document.createElement("div");
-        grid.className = "chip-row";
-        grid.style.marginTop = "4px";
-        TILE_DEFS.forEach(function(t){
-          var count = tiles[t.code] || 0;
-          var tb = document.createElement("button");
-          tb.type = "button";
-          tb.className = "chip" + (count > 0 ? " chip-selected" : "");
-          tb.textContent = t.label + (count > 1 ? ("×"+count) : "");
-          tb.addEventListener("click", function(){ setInterceptedTileCount(name, t.code); });
-          grid.appendChild(tb);
-        });
-        wrap.appendChild(grid);
-      }
-      tilesBlock.appendChild(wrap);
-    });
   }
 
   // 選好放槍還是自摸之後先不記上，只算出這手的預覽金額，等使用者確認
@@ -3160,7 +3064,8 @@
     panel.style.display = "block";
     if(p.method === "discard"){
       snapshotActiveWinner(); // 讓 winners[] 跟目前畫面上正在調整的台數同步，預覽才會即時反映
-      var interceptedLine = interceptedSummaryHtml(p.intercepted, function(n){ return flattenTileMap(p.interceptedTiles[n] || {}); });
+      var interceptedLine = p.intercepted.length ?
+        ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+p.intercepted.map(escapeHtml).join('、')+'</div>') : '';
       if(p.winners.length === 1){
         // 只有一位胡牌者時，跟本手清單用同一套排版（分區塊、分顏色）。
         var w0 = p.winners[0];
