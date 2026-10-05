@@ -562,6 +562,23 @@
           <p class="hint-text">點一下牌加一張，點到第5下會清掉那張牌重新算（一張牌最多算4張）。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
+        <button type="button" class="btn btn-outline btn-block" id="baxianToggleBtn" style="margin-top:10px;">🎐 八仙過海（花胡）</button>
+        <div id="baxianPanelBlock" style="display:none; margin-top:8px;">
+          <div class="section-label" style="margin-top:0;">是誰八仙過海（拿滿8張花）？</div>
+          <div class="chip-row" id="baxianAchieverChips"></div>
+          <div class="section-label" style="margin-top:8px;">怎麼算錢？</div>
+          <div class="toggle-row">
+            <button type="button" class="btn btn-outline" id="baxianStyleSelfBtn">自摸式（其他三家都付）</button>
+            <button type="button" class="btn btn-outline" id="baxianStyleDiscardBtn">點胡式（指定一人付）</button>
+          </div>
+          <div id="baxianPayerRow" style="display:none; margin-top:8px;">
+            <div class="section-label" style="margin-top:0;">誰付錢？</div>
+            <div class="chip-row" id="baxianPayerChips"></div>
+          </div>
+          <p class="hint-text" style="margin-top:8px;">拿滿8張花牌的額外結算，固定8台（不含底）。確認之後這手照常繼續摸，莊家／連莊都不受影響，也不算一手；之後誰真的胡牌還是要另外正常記一手。</p>
+          <button type="button" class="btn btn-primary btn-block" id="baxianConfirmBtn" style="margin-top:8px;" disabled>✅ 確認八仙過海</button>
+        </div>
+
         <!-- 台數選擇放在豹子／流局／記錄胡的牌下面，這樣點台型標籤讓這
              區塊變高（選到長名字的台型換行、或選了很多種）時，不會把
              上面那幾顆常用按鈕的位置往下擠，點起來比較穩定。 -->
@@ -835,6 +852,7 @@
       <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
+      <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台。</li>
@@ -1146,6 +1164,7 @@
       dealerIndex: typeof s.dealerIndex==="number" ? s.dealerIndex : 0,
       streak: typeof s.streak==="number" ? s.streak : 0,
       hands: Array.isArray(s.hands) ? s.hands : [],
+      sideEvents: Array.isArray(s.sideEvents) ? s.sideEvents : [],
       status: s.status==="ended" ? "ended" : "active",
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
       endedAt: typeof s.endedAt==="number" ? s.endedAt : null
@@ -1169,14 +1188,14 @@
         : rawHands;
       var oneSet = {
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
-        hands: hands, status: g.status==="ended" ? "ended" : "active",
+        hands: hands, sideEvents: [], status: g.status==="ended" ? "ended" : "active",
         createdAt: typeof g.createdAt==="number" ? g.createdAt : Date.now(),
         endedAt: g.endedAt || null
       };
       syncDealerFromHands(oneSet);
       sets = [oneSet];
     }else{
-      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], status:"active", createdAt:Date.now(), endedAt:null }];
+      sets = [{ id: genId("s"), seatOrder: players.slice(), dealerIndex:0, streak:0, hands:[], sideEvents:[], status:"active", createdAt:Date.now(), endedAt:null }];
     }
     var rawSuits = (g.suits && typeof g.suits === "object") ? g.suits : {};
     var suits = {};
@@ -1512,6 +1531,11 @@
     set.hands.forEach(function(h){
       Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
     });
+    // 八仙過海這類額外結算（見 commitBaxian）不算一手、不進 set.hands，
+    // 但金錢上是真的換了手，輸贏總額還是要算進去。
+    (set.sideEvents || []).forEach(function(ev){
+      Object.keys(ev.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
+    });
     return totals;
   }
   function computeGameTotals(game){
@@ -1520,6 +1544,9 @@
     game.sets.forEach(function(set){
       set.hands.forEach(function(h){
         Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+      });
+      (set.sideEvents || []).forEach(function(ev){
+        Object.keys(ev.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
       });
     });
     return totals;
@@ -1612,6 +1639,10 @@
     editSeatSetId: null,
     tilesPickerOpen: false,
     winningTiles: {},
+    baxianPanelOpen: false,
+    baxianAchiever: null,
+    baxianStyle: "self",
+    baxianPayer: null,
     pastSetLogOpenId: null,
     historyHandLogKey: null,
     expandedHistoryGameId: null
@@ -1821,7 +1852,7 @@
       var musicPlaying = players.indexOf(musicCandidate) !== -1;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
-        hands: [], status: "active", createdAt: Date.now(), endedAt: null
+        hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
       };
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
@@ -1847,6 +1878,7 @@
     function resetNewGameUi(){
       ui.newGameFormReady = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+      ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
     }
 
@@ -2018,7 +2050,7 @@
       status: "ended",
       sets: [{
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
-        hands: [hand], status: "ended", createdAt: Date.now(), endedAt: Date.now()
+        hands: [hand], sideEvents: [], status: "ended", createdAt: Date.now(), endedAt: Date.now()
       }],
       duties: {record:null, music:null, photo:null},
       manualSetsCount: setsCount,
@@ -2241,6 +2273,93 @@
     commitState(newState);
   }
   document.getElementById("drawBtn").addEventListener("click", function(){ commitDraw(); });
+
+  // 八仙過海（花胡）：拿滿八張花牌，純粹是這整副牌裡的花牌額外結算，
+  // 跟「胡牌」是分開的兩件事——拿滿花的人可以選擇要不要繼續摸這手，
+  // 繼續摸的話，之後誰真的胡牌還是要另外正常記一手。所以這裡故意不
+  // 算進 set.hands（不計手數、不影響胡牌率/陪打手數等統計），也不呼叫
+  // syncDealerFromHands（莊家、連莊、這將摸到第幾手，都完全不受影響，
+  // 牌照原來的人接著摸）。金額上是真的換了手，所以 computeSetTotals／
+  // computeGameTotals 另外把 sideEvents 也算進去，總輸贏才會正確。
+  function baxianUnitAmount(game){
+    var tag = TAI_TAGS.filter(function(t){ return t.key === "baxianguohai"; })[0];
+    return tag.value * game.tai; // 花胡不算底，純粹台數×每台的錢
+  }
+  function buildBaxianRecord(game, set, achieverName, style, payerName){
+    var unit = baxianUnitAmount(game);
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    if(style === "self"){
+      var gain = 0;
+      set.seatOrder.forEach(function(n){
+        if(n === achieverName) return;
+        deltas[n] -= unit;
+        gain += unit;
+      });
+      deltas[achieverName] += gain;
+    }else{
+      deltas[payerName] -= unit;
+      deltas[achieverName] += unit;
+    }
+    return {
+      type: "baxian", achieverName: achieverName, style: style,
+      payerName: style === "discard" ? payerName : null,
+      unitAmount: unit,
+      dealerName: set.seatOrder[set.dealerIndex], streak: set.streak,
+      seatOrderAtHand: set.seatOrder.slice(),
+      deltas: deltas, ts: Date.now()
+    };
+  }
+  function commitBaxian(achieverName, style, payerName){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    var record = buildBaxianRecord(game, set, achieverName, style, payerName);
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    if(!ns.sideEvents) ns.sideEvents = [];
+    ns.sideEvents.push(record);
+    ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
+    commitState(newState);
+  }
+  function renderBaxianPanel(game){
+    var open = ui.baxianPanelOpen;
+    document.getElementById("baxianToggleBtn").classList.toggle("selected", open);
+    document.getElementById("baxianPanelBlock").style.display = open ? "block" : "none";
+    if(!open) return;
+    renderChipRow("baxianAchieverChips", game.players, function(name){
+      ui.baxianAchiever = name;
+      if(ui.baxianPayer === name) ui.baxianPayer = null; // 付錢的人不能跟拿滿花的人是同一個
+      renderGameTab();
+    });
+    // renderChipRow 不認識「目前選的是誰」，手動補上選取樣式。
+    Array.prototype.forEach.call(document.querySelectorAll("#baxianAchieverChips .chip"), function(b){
+      b.classList.toggle("chip-selected", b.textContent === ui.baxianAchiever);
+    });
+    document.getElementById("baxianStyleSelfBtn").classList.toggle("selected", ui.baxianStyle === "self");
+    document.getElementById("baxianStyleDiscardBtn").classList.toggle("selected", ui.baxianStyle === "discard");
+    var payerRow = document.getElementById("baxianPayerRow");
+    payerRow.style.display = ui.baxianStyle === "discard" ? "block" : "none";
+    if(ui.baxianStyle === "discard"){
+      var candidates = game.players.filter(function(n){ return n !== ui.baxianAchiever; });
+      renderChipRow("baxianPayerChips", candidates, function(name){ ui.baxianPayer = name; renderGameTab(); });
+      Array.prototype.forEach.call(document.querySelectorAll("#baxianPayerChips .chip"), function(b){
+        b.classList.toggle("chip-selected", b.textContent === ui.baxianPayer);
+      });
+    }
+    var ready = !!ui.baxianAchiever && (ui.baxianStyle === "self" || !!ui.baxianPayer);
+    document.getElementById("baxianConfirmBtn").disabled = !ready;
+  }
+  document.getElementById("baxianToggleBtn").addEventListener("click", function(){ ui.baxianPanelOpen = !ui.baxianPanelOpen; renderGameTab(); });
+  document.getElementById("baxianStyleSelfBtn").addEventListener("click", function(){ ui.baxianStyle = "self"; renderGameTab(); });
+  document.getElementById("baxianStyleDiscardBtn").addEventListener("click", function(){ ui.baxianStyle = "discard"; renderGameTab(); });
+  document.getElementById("baxianConfirmBtn").addEventListener("click", function(){
+    if(!ui.baxianAchiever) return;
+    if(ui.baxianStyle === "discard" && !ui.baxianPayer) return;
+    commitBaxian(ui.baxianAchiever, ui.baxianStyle, ui.baxianPayer);
+  });
 
   function flashCard(name, cls){
     var el = document.querySelector('.gesture-card[data-player="' + cssEscape(name) + '"]');
@@ -2722,11 +2841,12 @@
     // 想換座位可以在新的一將裡用「換位」調整。
     ng.sets.push({
       id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
-      hands: [], status: "active", createdAt: Date.now(), endedAt: null
+      hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
     ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.showSetLog = true; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
     ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
     ui.pendingHand = null;
     commitState(newState);
   });
@@ -2770,6 +2890,7 @@
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
       ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+      ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
       ui.pendingHand = null;
       commitState(newState);
       showToast("已取消這場牌局。");
@@ -2892,18 +3013,39 @@
       ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+h.intercepted.map(escapeHtml).join('、')+'</div>') : '';
     return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine + interceptedLine;
   }
+  // 八仙過海（花胡）是額外結算，不算一手、不編號，跟逐手紀錄用同一套
+  // log-item 排版，但在「本手」清單裡用時間排序插進正確的位置，而不是
+  // 永遠排在逐手紀錄最後面。
+  function baxianLogItemHtml(ev){
+    var dealerChip = '<span class="log-dealer-chip'+(ev.streak>0?' streak':'')+'">'+
+      (ev.streak > 0 ? ('莊家 '+escapeHtml(ev.dealerName)+'（'+streakLabel(ev.streak)+'）') : ('莊家 '+escapeHtml(ev.dealerName))) +
+      '</span>';
+    var metaRow = '<div class="log-meta-row"><span class="log-hand-badge">🎐 八仙過海</span>'+dealerChip+'<span class="log-tai-chip">'+TAI_TAGS.filter(function(t){return t.key==="baxianguohai";})[0].value+'台</span></div>';
+    var detail;
+    if(ev.style === "self"){
+      detail = '其他三家 <span class="minus">各-'+ev.unitAmount+'</span> → ' + escapeHtml(ev.achieverName) + ' <span class="plus">+'+(ev.unitAmount*3)+'</span>';
+    }else{
+      detail = escapeHtml(ev.payerName) + ' <span class="minus">-'+ev.unitAmount+'</span> → ' + escapeHtml(ev.achieverName) + ' <span class="plus">+'+ev.unitAmount+'</span>';
+    }
+    var hint = '<div class="log-detail" style="opacity:.7;">花胡額外結算，這手繼續摸，不影響莊家／連莊，也不算一手。</div>';
+    return '<div class="log-head">'+metaRow+'</div><div class="log-detail">'+detail+'</div>' + hint;
+  }
   function renderHandListInto(container, set){
     container.innerHTML = "";
-    if(!set.hands.length){
+    var sideEvents = set.sideEvents || [];
+    if(!set.hands.length && !sideEvents.length){
       container.innerHTML = '<div class="empty-hint">這將沒有逐手紀錄。</div>';
       return;
     }
-    for(var i=set.hands.length-1; i>=0; i--){
+    var items = set.hands.map(function(h, i){ return { ts: h.ts, html: handLogItemHtml(h, i) }; })
+      .concat(sideEvents.map(function(ev){ return { ts: ev.ts, html: baxianLogItemHtml(ev) }; }));
+    items.sort(function(a,b){ return b.ts - a.ts; });
+    items.forEach(function(it){
       var item = document.createElement("div");
       item.className = "log-item";
-      item.innerHTML = handLogItemHtml(set.hands[i], i);
+      item.innerHTML = it.html;
       container.appendChild(item);
-    }
+    });
   }
   function renderSetLog(set){
     renderHandListInto(document.getElementById("setLogList"), set);
@@ -3137,6 +3279,7 @@
     renderLeopardUi(game);
     renderTaiTags();
     renderTilesPicker();
+    renderBaxianPanel(game);
     renderDrinkToggle(game);
 
     var setTotals = computeSetTotals(set);
@@ -4128,6 +4271,23 @@
           if(!s2.maxDealIn || loseDelta < s2.maxDealIn.amt) s2.maxDealIn = { amt: loseDelta, detail: dealDetail };
           if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail };
         }
+      });
+      // 八仙過海額外結算的錢也是真的換了手，排行榜的淨輸贏要算進去，
+      // 但故意不碰 hands/wins/dealIns 這些逐手統計——它不是一手真正的
+      // 胡牌，陪打手數、胡牌率等數字不該被這個算進去。
+      g.sets.forEach(function(set){
+        (set.sideEvents || []).forEach(function(ev){
+          Object.keys(ev.deltas).forEach(function(n){
+            if(stats[n]) stats[n].netAmt += (ev.deltas[n] || 0);
+          });
+          if(ev.style === "discard"){
+            addPair(ev.payerName, ev.achieverName, ev.unitAmount);
+          }else{
+            set.seatOrder.forEach(function(n){
+              if(n !== ev.achieverName) addPair(n, ev.achieverName, ev.unitAmount);
+            });
+          }
+        });
       });
     });
     return { stats: stats, overallMaxWin: overallMaxWin, overallMaxDealIn: overallMaxDealIn, pairwise: pairwise };
