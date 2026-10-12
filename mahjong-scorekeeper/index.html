@@ -442,8 +442,13 @@
 
   <!-- ============ 本局 ============ -->
   <section id="tab-game" class="tab-page active">
+    <div id="tableSwitcherBar" class="card" style="display:none;">
+      <div class="section-label" style="margin-top:0;">進行中的牌桌</div>
+      <div class="chip-row" id="tableSwitcherChips"></div>
+    </div>
     <div id="newGamePanel" class="card">
       <h2>🀄 開新牌局</h2>
+      <button type="button" class="link-btn" id="ngReturnToActiveBtn" style="display:none; margin-bottom:10px;">← 回去看進行中的牌桌</button>
       <div class="section-label">日期與時間</div>
       <div class="grid2 dt-row">
         <input type="date" id="ngDate">
@@ -468,8 +473,8 @@
       <div id="ngNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能開新牌局。</div>
 
       <div id="ngOpponentPickBlock">
-        <div class="section-label">選 3 位對手 <span id="ngOppCount" class="badge">0/3</span></div>
-        <p class="hint-text">你自己會自動入座，只要選 3 位對手。要換人請到「名單」分頁改。</p>
+        <div class="section-label">選 4 位玩家 <span id="ngOppCount" class="badge">0/4</span></div>
+        <p class="hint-text">自由選 4 位，不一定要含「我」（如果同時開了另一桌，這桌可以完全是別人在打）。已經在別的進行中牌桌的人不能重複選。要新增牌友可以用下面的輸入框。</p>
         <div class="chip-row" id="ngOpponentChips"></div>
         <div class="add-row">
           <input type="text" id="ngNewOpponentInput" placeholder="新增牌友名字" maxlength="8">
@@ -709,7 +714,7 @@
   <section id="tab-roster" class="tab-page">
     <div class="card">
       <h2>👥 常用對手</h2>
-      <p class="hint-text">點 ⭐ 標成常用，開局選人時會排在最前面。標「我」的那位是負責記錄的人，用於開局自動入座與門風／月曆／分析統計。</p>
+      <p class="hint-text">點 ⭐ 標成常用，開局選人時會排在最前面。標「我」的那位只是固定記錄身份的人，不代表一定要坐在場上（開新牌局時可以自由選4位玩家），用於門風／月曆／分析統計的預設對象。</p>
       <div class="add-row">
         <input type="text" id="rosterNameInput" placeholder="新增牌友名字" maxlength="8">
         <button class="btn btn-primary" id="rosterAddBtn">新增</button>
@@ -830,10 +835,11 @@
 
     <h3>🎬 開新牌局</h3>
     <ul>
-      <li>先到「名單」分頁標好誰是「我」，開局才能自動幫你入座。</li>
-      <li>選 3 位對手、設定底／台，就能按「開局」。</li>
-      <li>座位預設照選人的順序排，第一個選的（通常是「我」）坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
+      <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
+      <li>自由選 4 位玩家、設定底／台，就能按「開局」。</li>
+      <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
+      <li><b>同時開兩桌</b>：只要兩桌的玩家完全不重疊，可以同時各自有一桌在「進行中」。只要有任何一桌在進行，「本局」最上面會出現「進行中的牌桌」切換列，點 chip 切換目前要看、要記錄的是哪一桌；點「➕ 開新桌」可以在別桌還在打的時候開新的一桌。已經在其他進行中牌桌的人，選人時會標「・進行中」且不能重複選。每台裝置（手機）各自記住自己正在看哪一桌，互不影響，適合兩個人各拿自己的手機分別記錄兩桌。</li>
     </ul>
 
     <h3>🎬 今天的分工</h3>
@@ -1491,11 +1497,24 @@
       ('<span class="win-name">'+escapeHtml(winnerName)+'</span> 胡牌');
     return '<div class="log-result-row">'+text+'</div>';
   }
+  // 可能同時有不只一桌在進行（例如8個人分兩桌同時打），所以「進行中」
+  // 不再只看 state.activeGameId 這一個值，而是看 status==="active" 的
+  // 全部牌局。activeGame() 回傳「目前這台裝置正在看的那一桌」：優先用
+  // ui.viewingGameId（裝置本地、不會同步），找不到或還沒選就退回第一桌，
+  // 這樣只開一桌的人完全感覺不出差異。ui.wantNewGame 是使用者明確按了
+  // 「開新桌」，這時故意回傳 null，讓開局表單顯示出來，即使其他桌還在打。
+  function activeGames(){
+    return state.games.filter(function(g){ return g.status === "active"; });
+  }
   function activeGame(){
-    if(!state.activeGameId) return null;
-    var g = null;
-    for(var i=0;i<state.games.length;i++){ if(state.games[i].id === state.activeGameId){ g = state.games[i]; break; } }
-    return (g && g.status === "active") ? g : null;
+    if(ui.wantNewGame) return null;
+    var games = activeGames();
+    if(!games.length) return null;
+    if(ui.viewingGameId){
+      var found = games.filter(function(g){ return g.id === ui.viewingGameId; })[0];
+      if(found) return found;
+    }
+    return games[0];
   }
   function activeSet(game){
     if(!game) return null;
@@ -1616,9 +1635,11 @@
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     calSelectedDate: null,
+    viewingGameId: null,
+    wantNewGame: false,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    newGame: { opponents: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
+    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
     backfillFormOpen: false,
     backfillFormReady: false,
     backfill: { opponents: [] },
@@ -1674,6 +1695,7 @@
     document.getElementById("ngNoMeWarning").style.display = me ? "none" : "block";
     document.getElementById("ngOpponentPickBlock").style.display = me ? "block" : "none";
     document.getElementById("startGameBtn").disabled = !me;
+    renderNgReturnLink();
 
     if(!ui.newGameFormReady){
       document.getElementById("ngDate").value = ui.calSelectedDate || todayISO();
@@ -1682,7 +1704,7 @@
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
-      ui.newGame = { opponents: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true };
+      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true };
       ui.newGameFormReady = true;
     }
     renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
@@ -1694,28 +1716,33 @@
 
     if(!me){ document.getElementById("ngSeatBlock").style.display = "none"; return; }
 
-    var candidates = state.roster.filter(function(r){ return !r.isMe; });
-    candidates = candidates.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
+    // 「我」只是固定記錄身份的那個人，不代表真的在場上——如果同時開了
+    // 另一桌，這桌的四個人可以完全不含「我」。候選名單是整份名單自由選
+    // 4位，已經在其他進行中牌桌的人不能重複選（不能一人同時坐兩桌）。
+    var busyNames = {};
+    activeGames().forEach(function(g){ g.players.forEach(function(n){ busyNames[n] = true; }); });
+    var candidates = state.roster.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
     var chipsEl = document.getElementById("ngOpponentChips");
     chipsEl.innerHTML = "";
     candidates.forEach(function(r){
       var b = document.createElement("button");
       b.type = "button";
-      var selected = ui.newGame.opponents.indexOf(r.name) !== -1;
+      var selected = ui.newGame.selectedPlayers.indexOf(r.name) !== -1;
+      var busy = !selected && busyNames[r.name];
       b.className = "chip" + (selected ? " chip-selected" : "");
-      b.textContent = (r.favorite ? "★ " : "") + r.name;
-      if(!selected && ui.newGame.opponents.length >= 3) b.disabled = true;
-      b.addEventListener("click", function(){ toggleOpponent(r.name); });
+      b.textContent = (r.favorite ? "★ " : "") + r.name + (r.isMe ? "（我）" : "") + (busy ? "・進行中" : "");
+      if(busy || (!selected && ui.newGame.selectedPlayers.length >= 4)) b.disabled = true;
+      b.addEventListener("click", function(){ toggleSelectedPlayer(r.name); });
       chipsEl.appendChild(b);
     });
-    document.getElementById("ngOppCount").textContent = ui.newGame.opponents.length + "/3";
+    document.getElementById("ngOppCount").textContent = ui.newGame.selectedPlayers.length + "/4";
 
     var seatBlock = document.getElementById("ngSeatBlock");
-    if(ui.newGame.opponents.length === 3){
+    if(ui.newGame.selectedPlayers.length === 4){
       seatBlock.style.display = "block";
-      // 預設不隨機洗牌，照選人的順序排（我最先選、排最前面，就坐東當第一位莊家）；
+      // 預設不隨機洗牌，照選人順序排（第一個選的坐東，當第一位莊家）；
       // 想要隨機排的話可以按「重新抓位」。
-      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = [me.name].concat(ui.newGame.opponents);
+      if(!ui.newGame.seatOrder) ui.newGame.seatOrder = ui.newGame.selectedPlayers.slice();
       renderNgSeatList();
     }else{
       seatBlock.style.display = "none";
@@ -1723,10 +1750,10 @@
     }
   }
 
-  function toggleOpponent(name){
-    var idx = ui.newGame.opponents.indexOf(name);
-    if(idx !== -1){ ui.newGame.opponents.splice(idx,1); }
-    else if(ui.newGame.opponents.length < 3){ ui.newGame.opponents.push(name); }
+  function toggleSelectedPlayer(name){
+    var idx = ui.newGame.selectedPlayers.indexOf(name);
+    if(idx !== -1){ ui.newGame.selectedPlayers.splice(idx,1); }
+    else if(ui.newGame.selectedPlayers.length < 4){ ui.newGame.selectedPlayers.push(name); }
     ui.newGame.seatOrder = null;
     renderGameTab();
   }
@@ -1739,17 +1766,16 @@
     var ns = deepClone(state);
     if(!exists) ns.roster.push({ id: genId("r"), name: name, favorite:false, isMe:false });
     input.value = "";
-    if(ui.newGame.opponents.length < 3 && ui.newGame.opponents.indexOf(name) === -1){
-      ui.newGame.opponents.push(name);
+    if(ui.newGame.selectedPlayers.length < 4 && ui.newGame.selectedPlayers.indexOf(name) === -1){
+      ui.newGame.selectedPlayers.push(name);
       ui.newGame.seatOrder = null;
     }
     commitState(ns);
   });
 
   document.getElementById("ngReshuffleBtn").addEventListener("click", function(){
-    if(ui.newGame.opponents.length !== 3) return;
-    var me = meRoster();
-    ui.newGame.seatOrder = shuffle([me.name].concat(ui.newGame.opponents));
+    if(ui.newGame.selectedPlayers.length !== 4) return;
+    ui.newGame.seatOrder = shuffle(ui.newGame.selectedPlayers.slice());
     renderGameTab();
   });
 
@@ -1818,30 +1844,32 @@
   document.getElementById("startGameBtn").addEventListener("click", function(){
     var me = meRoster();
     if(!me) return;
-    if(ui.newGame.opponents.length !== 3){ showToast("請選滿 3 位對手"); return; }
+    if(ui.newGame.selectedPlayers.length !== 4){ showToast("請選滿 4 位玩家"); return; }
     if(!ui.newGame.seatOrder) return;
     var date = document.getElementById("ngDate").value || todayISO();
     var time = document.getElementById("ngTime").value || nowTimeStr();
     var venue = document.getElementById("ngVenue").value.trim();
     var base = parseInt(document.getElementById("ngBase").value, 10);
     var tai = parseInt(document.getElementById("ngTai").value, 10);
-    var players = [me.name].concat(ui.newGame.opponents);
+    var players = ui.newGame.selectedPlayers.slice();
     var seatOrderSnapshot = ui.newGame.seatOrder.slice();
     var selfDrawMode = ui.newGameSelfDrawMode;
     var drinkEnabled = ui.newGame.drinkEnabled !== false;
     var baseVal = isNaN(base) ? 0 : Math.max(0, base);
     var taiVal = isNaN(tai) ? 0 : Math.max(0, tai);
+    var newGameId = null; // buildStartedState 裡才會真的產生 id，記下來給成功後切換畫面用
 
     // 根據「當下」的狀態組出開局後的新狀態；用在 Firebase transaction 重試
-    // 時，baseState 會是伺服器當下最新的資料。如果那個當下已經有別人開好
-    // 局了，回傳 undefined 表示放棄這次開局——注意不能回傳 null，
-    // Firebase transaction 會把 null 當成「把整個資料清空」處理。
+    // 時，baseState 會是伺服器當下最新的資料。可能同時有別的桌在進行中，
+    // 只要玩家名單完全不重疊就能一起開；如果這4個人裡有人已經在別桌，
+    // 回傳 undefined 放棄這次開局——注意不能回傳 null，Firebase transaction
+    // 會把 null 當成「把整個資料清空」處理。
     function buildStartedState(baseState){
-      if(baseState.activeGameId){
-        var already = null;
-        for(var i=0;i<baseState.games.length;i++){ if(baseState.games[i].id === baseState.activeGameId){ already = baseState.games[i]; break; } }
-        if(already && already.status === "active") return undefined;
-      }
+      var alreadyActive = baseState.games.filter(function(g){ return g.status === "active"; });
+      var overlapping = alreadyActive.some(function(g){
+        return g.players.some(function(n){ return players.indexOf(n) !== -1; });
+      });
+      if(overlapping) return undefined;
       // 如果輪到的那個人這場沒有來打（來的是代打的客人），這場就不指派、
       // 輪值也不往前推進，這樣他下次真的有來打的時候，還是輪到他，不會
       // 因為這次代打就被跳過、把順序洗掉。
@@ -1862,6 +1890,7 @@
         dutyRotationAdvanced: { photo: photoPlaying, music: musicPlaying },
         createdAt: Date.now(), endedAt: null, suits: {}
       };
+      newGameId = newGame.id;
       var ns = deepClone(baseState);
       ns.games.push(newGame);
       ns.activeGameId = newGame.id;
@@ -1880,13 +1909,16 @@
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null; ui.dealerBonusEnabled = true; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
       ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
+      ui.wantNewGame = false;
+      if(newGameId) ui.viewingGameId = newGameId; // 剛開好的桌子自動切到那一桌看
     }
 
     if(db && cloudReady){
       // 用 Firebase 的 transaction 而不是平常的 commitState()：兩人幾乎同時
-      // 按「開局」時，先寫進伺服器的那個人會成功；晚一步的那個人的更新函式
-      // 重跑時會看到 activeGameId 已經有人設好了，於是放棄這次開局，並顯示
-      // 提示、直接帶去看已經開好的那一局，而不是把對方剛開的局覆蓋掉。
+      // 按「開局」、又剛好選了同一批人時，先寫進伺服器的那個人會成功；
+      // 晚一步的那個人的更新函式重跑時會看到這些人已經在進行中的桌上了，
+      // 於是放棄這次開局，並顯示提示、直接帶去看目前進行中的牌局，而不是
+      // 把對方剛開的局覆蓋掉。玩家名單完全不重疊的兩桌不會互相卡到。
       syncing = true; setCloudBadge();
       db.ref(STATE_PATH).transaction(function(current){
         if(!current) return current;
@@ -1908,7 +1940,7 @@
         }else{
           resetNewGameUi();
           applyLocally(normalized);
-          showAlert("已經有人開局了，帶你去看目前進行中的牌局。", function(){
+          showAlert("你選的玩家裡有人已經在其他進行中的牌桌，這次開局沒有成功，帶你去看目前進行中的牌局。", function(){
             ui.tab = "game";
             updateTabVisibility();
             renderAll();
@@ -3475,7 +3507,44 @@
     commitState(newState);
   }
 
+  // 可能同時有不只一桌在進行中，這裡列出來給使用者切換「目前這台裝置
+  // 正在看哪一桌」，以及隨時開新的一桌（即使其他桌還在打）。只開一桌的
+  // 人也會看到這排（至少有「➕ 開新桌」可以點），但不會看到多餘的切換
+  // 選項造成困惑——chip 數量就是正在進行的桌數+1。
+  function renderTableSwitcher(){
+    var games = activeGames();
+    var bar = document.getElementById("tableSwitcherBar");
+    if(!games.length){ bar.style.display = "none"; return; }
+    bar.style.display = "block";
+    var chipsEl = document.getElementById("tableSwitcherChips");
+    chipsEl.innerHTML = "";
+    var viewingId = ui.wantNewGame ? null : (activeGame() ? activeGame().id : null);
+    games.forEach(function(g, idx){
+      var b = document.createElement("button");
+      b.type = "button";
+      var isViewing = g.id === viewingId;
+      b.className = "chip" + (isViewing ? " chip-selected" : "");
+      b.textContent = "桌"+(idx+1)+"："+g.players.join("/");
+      b.addEventListener("click", function(){ ui.viewingGameId = g.id; ui.wantNewGame = false; renderGameTab(); });
+      chipsEl.appendChild(b);
+    });
+    var newBtn = document.createElement("button");
+    newBtn.type = "button";
+    newBtn.className = "chip" + (ui.wantNewGame ? " chip-selected" : "");
+    newBtn.textContent = "➕ 開新桌";
+    newBtn.addEventListener("click", function(){ ui.wantNewGame = true; renderGameTab(); });
+    chipsEl.appendChild(newBtn);
+  }
+  function renderNgReturnLink(){
+    var btn = document.getElementById("ngReturnToActiveBtn");
+    var games = activeGames();
+    var show = ui.wantNewGame && games.length > 0;
+    btn.style.display = show ? "block" : "none";
+    if(!show) return;
+    btn.onclick = function(){ ui.viewingGameId = games[0].id; ui.wantNewGame = false; renderGameTab(); };
+  }
   function renderGameTab(){
+    renderTableSwitcher();
     var game = activeGame();
     // 這個彈出視窗獨立掛在畫面最外層（不是本局卡片的子元素），這樣才能蓋住
     // 整個畫面而不是被卡進捲動內容裡；因此開關狀態要在這裡統一同步，
@@ -4704,11 +4773,12 @@
     addBtn.type = "button";
     addBtn.className = "btn btn-outline btn-block";
     addBtn.style.marginTop = "10px";
-    var hasActive = !!activeGame();
-    addBtn.textContent = hasActive ? "請先結束目前進行中的牌局" : "🎬 在這天開新牌局";
-    addBtn.disabled = hasActive;
+    addBtn.textContent = "🎬 在這天開新牌局";
+    // 現在可能同時有別桌在進行中，不用因此擋住開新的一桌——強制顯示開局
+    // 表單（即使有別桌在看），真正的衝突檢查在送出開局時，看玩家名單是
+    // 否跟別桌重疊。
     addBtn.addEventListener("click", function(){
-      if(hasActive) return;
+      ui.wantNewGame = true;
       ui.newGameFormReady = false;
       ui.tab = "game";
       updateTabVisibility();
