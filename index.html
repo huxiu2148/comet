@@ -543,17 +543,19 @@
       <div class="card">
         <div class="gesture-grid" id="gestureGrid"></div>
 
-        <div class="toggle-row" style="margin-top:14px;">
-          <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
-        </div>
-        <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
-          <div class="stepper">
-            <button type="button" id="leopardMultMinus">－</button>
-            <div class="val" id="leopardMultVal">2<small>倍數</small></div>
-            <button type="button" id="leopardMultPlus">＋</button>
+        <div id="leopardSection">
+          <div class="toggle-row" style="margin-top:14px;">
+            <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
           </div>
+          <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
+            <div class="stepper">
+              <button type="button" id="leopardMultMinus">－</button>
+              <div class="val" id="leopardMultVal">2<small>倍數</small></div>
+              <button type="button" id="leopardMultPlus">＋</button>
+            </div>
+          </div>
+          <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
         </div>
-        <p class="hint-text" id="leopardHint" style="display:none;">開豹子的時候，這手最後的台數會變成「倍數×台數+底」（含莊家台、連莊台全部一起算進去再乘）。底不用另外輸入，直接用開局設定的「底」換算成台數（底÷每台）。</p>
 
         <button type="button" class="btn btn-outline btn-block" id="drawBtn" style="margin-top:10px;">🌊 流局（沒人胡牌，莊家連莊）</button>
 
@@ -587,21 +589,24 @@
         <!-- 台數選擇放在豹子／流局／記錄胡的牌下面，這樣點台型標籤讓這
              區塊變高（選到長名字的台型換行、或選了很多種）時，不會把
              上面那幾顆常用按鈕的位置往下擠，點起來比較穩定。 -->
-        <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
-        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
-        <div class="chip-row" id="taiTagRow"></div>
-        <div class="stepper-row">
-          <div class="stepper">
-            <button type="button" id="taiMinus">－</button>
-            <div class="val" id="taiVal">0<small>其他台</small></div>
-            <button type="button" id="taiPlus">＋</button>
-          </div>
-          <div class="stepper">
-            <button type="button" id="huaMinus">－</button>
-            <div class="val" id="huaVal">0<small>花牌</small></div>
-            <button type="button" id="huaPlus">＋</button>
+        <div id="taiCountSection">
+          <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
+          <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
+          <div class="chip-row" id="taiTagRow"></div>
+          <div class="stepper-row">
+            <div class="stepper">
+              <button type="button" id="taiMinus">－</button>
+              <div class="val" id="taiVal">0<small>其他台</small></div>
+              <button type="button" id="taiPlus">＋</button>
+            </div>
+            <div class="stepper">
+              <button type="button" id="huaMinus">－</button>
+              <div class="val" id="huaVal">0<small>花牌</small></div>
+              <button type="button" id="huaPlus">＋</button>
+            </div>
           </div>
         </div>
+        <p class="hint-text" id="waitingForTilesHint" style="display:none;color:var(--lose);font-weight:600;">👆 請先記錄胡的牌，才能繼續算台數。</p>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
@@ -2294,6 +2299,7 @@
   function commitDraw(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfSuitsMissing(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var record = buildDrawRecord(set);
@@ -2345,6 +2351,7 @@
   function commitBaxian(achieverName, style, payerName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfSuitsMissing(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var record = buildBaxianRecord(game, set, achieverName, style, payerName);
@@ -2516,11 +2523,13 @@
   function commitPendingHand(){
     var p = ui.pendingHand;
     if(!p) return;
-    // 「記錄胡的牌」展開了卻一張都還沒選，大多是忘記選、不是真的不想記，
-    // 擋下來提醒一下，不要讓這手悄悄地沒記到牌。真的不想記的話，把這塊
-    // 收起來（再點一次「記錄胡的牌」）就能照常確認。
-    if(ui.tilesPickerOpen && Object.keys(ui.winningTiles).length === 0){
-      showToast("「記錄胡的牌」還沒選牌，選好牌或是再點一次「記錄胡的牌」收起來，才能確認記錄。");
+    var game = activeGame();
+    if(blockIfSuitsMissing(game)) return;
+    // 胡牌一定要先選好胡的牌才能確認——畫面上豹子／台數／本手預覽本來就
+    // 收起來逼著先選牌（見 pendingWaitingForTiles），這裡是防呆：萬一透過
+    // 什麼奇怪的路徑還是點到確認，一樣要擋下來，不讓這手悄悄地沒記到牌。
+    if(Object.keys(ui.winningTiles).length === 0){
+      showToast("請先記錄胡的牌，才能確認記錄。");
       return;
     }
     if(p.method === "discard"){
@@ -2729,10 +2738,12 @@
 
   function renderTilesPicker(){
     var btn = document.getElementById("tilesToggleBtn");
-    var open = ui.tilesPickerOpen;
+    var waiting = pendingWaitingForTiles();
+    var open = waiting ? true : ui.tilesPickerOpen;
     var total = 0;
     Object.keys(ui.winningTiles).forEach(function(k){ total += ui.winningTiles[k]; });
     btn.classList.toggle("selected", open);
+    btn.disabled = waiting; // 還沒選牌的時候，面板強制展開，收合按鈕先鎖住
     btn.textContent = "🀄 記錄胡的牌" + (total ? (" ("+total+")") : "");
     document.getElementById("tilesPickerBlock").style.display = open ? "block" : "none";
     if(!open) return;
@@ -2745,10 +2756,13 @@
       b.className = "chip" + (count > 0 ? " chip-selected" : "");
       b.textContent = t.label + (count > 1 ? ("×"+count) : "");
       b.addEventListener("click", function(){
+        var wasEmpty = Object.keys(ui.winningTiles).length === 0;
         var c = (ui.winningTiles[t.code] || 0) + 1;
         if(c > 4) c = 0;
         if(c === 0) delete ui.winningTiles[t.code]; else ui.winningTiles[t.code] = c;
         renderGameTab();
+        // 選了第一張牌，豹子／台數／本手預覽這幾個區塊才剛展開，捲到看得到。
+        if(wasEmpty && Object.keys(ui.winningTiles).length > 0) ensurePendingPreviewVisible();
       });
       grid.appendChild(b);
     });
@@ -2760,6 +2774,19 @@
   // 標籤要鎖起來（順便把可能殘留的選取清掉），只有放槍胡牌才需要手動點。
   function dealerTagsLocked(){
     return !!(ui.pendingHand && ui.pendingHand.method === "self" && ui.dealerBonusEnabled);
+  }
+  // 胡牌（自摸或放槍）時，要先選好胡的牌，才能繼續算豹子／台數——豹子
+  // 區塊、台數區塊、本手預覽都先收起來，逼著先記錄胡的牌，記了至少一張
+  // 之後才會展開。流局、八仙過海跟胡牌完全無關，不受這個影響。一炮多響
+  // 切換到新的胡牌者時，只要那位的牌還沒選，也一樣要先選牌。
+  function pendingWaitingForTiles(){
+    return !!ui.pendingHand && Object.keys(ui.winningTiles).length === 0;
+  }
+  function renderWaitingForTiles(){
+    var waiting = pendingWaitingForTiles();
+    document.getElementById("leopardSection").style.display = waiting ? "none" : "block";
+    document.getElementById("taiCountSection").style.display = waiting ? "none" : "block";
+    document.getElementById("waitingForTilesHint").style.display = waiting ? "block" : "none";
   }
   function renderTaiTags(){
     var el = document.getElementById("taiTagRow");
@@ -3122,6 +3149,21 @@
     });
   }
 
+  // 這家都是拿撲克牌算點數，花色要先指派好才能開始記這場的任何一手
+  // （自摸、放槍、流局、八仙過海都算），不然算到一半才回頭補花色，容易
+  // 忘記、也搞不清楚哪手該算哪個花色。
+  function allSuitsAssigned(game){
+    if(!game) return false;
+    var suits = game.suits || {};
+    return game.players.every(function(n){ return !!suits[n]; });
+  }
+  function blockIfSuitsMissing(game){
+    if(allSuitsAssigned(game)) return false;
+    ui.showSuits = true; // 順便展開花色區塊，不用自己再去點「展開」找
+    showToast("請先在「撲克牌花色」填好每個人的花色，才能開始記錄。");
+    renderGameTab();
+    return true;
+  }
   // 撲克牌花色：跟分工一樣掛在「這局」畫面，但資料存在「整場」（game）上
   // 面，不是每將重新算——拿撲克牌算點數的話，花色是整場都固定拿著同一副
   // 牌，不會每將重新發牌換花色，所以指派一次就整場沿用，直到這場結束。
@@ -3234,7 +3276,7 @@
   function renderPendingPreview(game, set){
     var panel = document.getElementById("pendingPreview");
     var p = ui.pendingHand;
-    if(!p){ panel.style.display = "none"; renderMultiWinnerBlock(null, game); return; }
+    if(!p || pendingWaitingForTiles()){ panel.style.display = "none"; renderMultiWinnerBlock(null, game); return; }
     panel.style.display = "block";
     if(p.method === "discard"){
       snapshotActiveWinner(); // 讓 winners[] 跟目前畫面上正在調整的台數同步，預覽才會即時反映
@@ -3311,6 +3353,7 @@
     renderLeopardUi(game);
     renderTaiTags();
     renderTilesPicker();
+    renderWaitingForTiles();
     renderBaxianPanel(game);
     renderDrinkToggle(game);
 
