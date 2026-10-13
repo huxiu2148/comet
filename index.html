@@ -2408,27 +2408,30 @@
     return String(s).replace(/[^a-zA-Z0-9_ -￿-]/g, "\\$&");
   }
 
-  // 固定在畫面最下面的分頁列會蓋住捲動位置剛好落在最下面的內容；預覽
-  // 剛跳出來、或後續調整台數／豹子讓預覽變高時，都要把「確認記錄」按鈕
-  // 捲到分頁列上方，才不會被擋住點不到。這裡改用瞬間捲動（不用 smooth
-  // 動畫）：這個函式現在每次重繪都可能呼叫，如果用動畫，使用者連續點
-  // 台數+/－時畫面會一直跳動；瞬間捲動同時也避免使用者剛按下「確認」
-  // 時捲動動畫還沒播完、按鈕還沒真的到位的問題。
-  function ensurePendingPreviewVisible(){
-    var panel = document.getElementById("pendingPreview");
-    if(!panel || panel.style.display === "none") return;
-    var rect = panel.getBoundingClientRect();
+  // 手勢做完（或切換/加入胡牌者）的那一刻，「記錄胡的牌」面板會自動展開
+  // ——這時要把畫面捲到看得到這塊面板，先引導使用者去記牌面，而不是讓
+  // 畫面停在原地、剛好露出下面的台數標籤，看起來像是要先選台型。固定在
+  // 畫面最下面的分頁列會蓋住捲動位置剛好落在最下面的內容，所以要留一點
+  // 淨空。這裡用瞬間捲動（不用 smooth 動畫），避免使用者剛做完手勢時畫面
+  // 還在跳動。
+  function ensureTilesPickerVisible(){
+    var block = document.getElementById("tilesPickerBlock");
+    var btn = document.getElementById("tilesToggleBtn");
+    var target = (block && block.style.display !== "none") ? block : btn;
+    if(!target) return;
+    var rect = target.getBoundingClientRect();
     var tabbar = document.querySelector(".tabbar");
     var clearance = (tabbar ? tabbar.getBoundingClientRect().height : 60) + 16;
     var overflow = rect.bottom - (window.innerHeight - clearance);
     if(overflow > 0) window.scrollBy({ top: overflow, behavior: "auto" });
+    else if(rect.top < 0) window.scrollBy({ top: rect.top - 8, behavior: "auto" });
   }
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
-    ensurePendingPreviewVisible();
+    ensureTilesPickerVisible();
     flashCard(name, "flash-win");
   }
   // 一炮多響：放槍手勢先跟原本一樣只記一位胡牌者，之後可以在預覽畫面
@@ -2453,7 +2456,7 @@
     };
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
-    ensurePendingPreviewVisible();
+    ensureTilesPickerVisible();
     flashCard(winnerName, "flash-win");
     flashCard(loserName, "flash-lose");
   }
@@ -2483,7 +2486,7 @@
     p.activeWinnerIdx = idx;
     loadActiveWinnerUi();
     renderGameTab();
-    ensurePendingPreviewVisible();
+    ensureTilesPickerVisible();
   }
   function addWinnerToPendingHand(name){
     var p = ui.pendingHand;
@@ -2497,7 +2500,7 @@
     if(ii !== -1) p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
     loadActiveWinnerUi();
     renderGameTab();
-    ensurePendingPreviewVisible();
+    ensureTilesPickerVisible();
     flashCard(name, "flash-win");
   }
   function removeActiveWinner(){
@@ -3307,11 +3310,11 @@
         (tilesText3 ? '<div class="log-detail">🀄 '+escapeHtml(tilesText3)+'</div>' : '');
       renderMultiWinnerBlock(null, game);
     }
-    // 這裡故意不每次重繪都呼叫 ensurePendingPreviewVisible：點台型標籤、
-    // 調台數、開豹子這些小調整也會讓預覽框變長一點，如果每次都因此跳著
-    // 捲動畫面，使用者會覺得「怎麼點個台型畫面又往下跑」。只在真的會讓
-    // 預覽內容整個換掉的結構性操作（手勢剛做完、加入/切換一炮多響的
-    // 胡牌者）才主動捲動，見 recordSelfDrawGesture／recordDiscardGesture／
+    // 這裡故意不每次重繪都呼叫 ensureTilesPickerVisible：點台型標籤、
+    // 調台數、開豹子這些小調整不該又把畫面捲回「記錄胡的牌」去，如果每次
+    // 都因此跳著捲動畫面，使用者會覺得「怎麼點個台型畫面又跳走」。只在
+    // 真的會讓預覽內容整個換掉的結構性操作（手勢剛做完、加入/切換一炮
+    // 多響的胡牌者）才主動捲動，見 recordSelfDrawGesture／recordDiscardGesture／
     // addWinnerToPendingHand／switchActiveWinner。平常調整台數如果多到
     // 把「確認記錄」擋住，使用者自己手動捲一下就看得到了。
   }
