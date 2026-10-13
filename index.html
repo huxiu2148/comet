@@ -154,6 +154,8 @@
   .stepper .val small{ display:block; font-size:.68rem; color: var(--ink-soft); font-weight:600; }
 
   .section-label{ font-size:.78rem; color: var(--ink-soft); font-weight:700; margin: 12px 0 6px; display:flex; align-items:center; gap:8px; }
+  .tai-tag-group-label{ font-size:.72rem; color: var(--ink-soft); font-weight:700; margin: 10px 0 4px; }
+  .tai-tag-group-label:first-child{ margin-top: 2px; }
 
   .undo-row{ display:flex; gap:10px; margin-bottom:10px; }
   .undo-row .btn{ flex:1; }
@@ -590,8 +592,9 @@
              區塊變高（選到長名字的台型換行、或選了很多種）時，不會把
              上面那幾顆常用按鈕的位置往下擠，點起來比較穩定。 -->
         <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
-        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。</p>
-        <div class="chip-row" id="taiTagRow"></div>
+        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。台型分成「常用／字牌／牌型結構／聽牌／特殊」幾組方便找，也可以直接打字篩選。</p>
+        <input type="text" id="taiFilterInput" placeholder="🔍 搜尋台型（例如：清一色）" style="margin-bottom:8px;">
+        <div id="taiTagGroups"></div>
         <div class="stepper-row">
           <div class="stepper">
             <button type="button" id="taiMinus">－</button>
@@ -862,7 +865,7 @@
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
-      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍不會自動加，要自己手動點「莊家」「連莊」台型才會算到。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
     </ul>
@@ -945,41 +948,43 @@
   var SUIT_KEYS = ["spade","heart","diamond","club"];
   var SUIT_LABELS = { spade: "♠", heart: "♥", diamond: "♦", club: "♣" };
   var SUIT_NAMES = { spade: "黑桃", heart: "紅心", diamond: "方塊", club: "梅花" };
+  // category 只是用來在台型選擇區分組顯示，方便找，不影響計算邏輯。
   var TAI_TAGS = [
-    { key: "zhuangjia", label: "莊家", value: 1 },
-    { key: "lianzhuang", label: "連莊", value: 1 },
-    { key: "zhong", label: "中", value: 1 },
-    { key: "fa", label: "發", value: 1 },
-    { key: "bai", label: "白", value: 1 },
-    { key: "sananke", label: "三暗刻", value: 2 },
-    { key: "sianke", label: "四暗刻", value: 5 },
-    { key: "wuanke", label: "五暗刻", value: 8 },
-    { key: "quanqiu", label: "全求", value: 2 },
-    { key: "hunyise", label: "混一色", value: 4 },
-    { key: "qingyise", label: "清一色", value: 8 },
-    { key: "dasanyuan", label: "大三元", value: 8 },
-    { key: "xiaosanyuan", label: "小三元", value: 4 },
-    { key: "dasixi", label: "大四喜", value: 16 },
-    { key: "xiaosixi", label: "小四喜", value: 8 },
-    { key: "baxianguohai", label: "八仙過海", value: 8 },
-    { key: "pinghu", label: "平胡", value: 2 },
-    { key: "pengpenghu", label: "碰碰胡", value: 4 },
-    { key: "dihu", label: "地胡", value: 16 },
-    { key: "tianhu", label: "天胡", value: 24 },
-    { key: "duting", label: "獨聽", value: 1 },
-    { key: "diting", label: "地聽", value: 4 },
-    { key: "tianting", label: "天聽", value: 8 },
-    { key: "zimo", label: "自摸", value: 1 },
-    { key: "menqing", label: "門清", value: 1 },
-    { key: "menqingzimo", label: "門清自摸", value: 3 },
-    { key: "zifeng", label: "自風", value: 1 },
-    { key: "quanfeng", label: "圈風", value: 1 },
-    { key: "huapai", label: "花牌", value: 1 },
-    { key: "haidi", label: "海底撈月", value: 1 },
-    { key: "gangshang", label: "槓上開花", value: 1 },
-    { key: "qiangganghu", label: "搶槓胡", value: 1 },
-    { key: "shaigui", label: "骰規", value: 1 }
+    { key: "zhuangjia", label: "莊家", value: 1, category: "常用" },
+    { key: "lianzhuang", label: "連莊", value: 1, category: "常用" },
+    { key: "zimo", label: "自摸", value: 1, category: "常用" },
+    { key: "menqing", label: "門清", value: 1, category: "常用" },
+    { key: "menqingzimo", label: "門清自摸", value: 3, category: "常用" },
+    { key: "pinghu", label: "平胡", value: 2, category: "常用" },
+    { key: "pengpenghu", label: "碰碰胡", value: 4, category: "常用" },
+    { key: "zhong", label: "中", value: 1, category: "字牌" },
+    { key: "fa", label: "發", value: 1, category: "字牌" },
+    { key: "bai", label: "白", value: 1, category: "字牌" },
+    { key: "zifeng", label: "自風", value: 1, category: "字牌" },
+    { key: "quanfeng", label: "圈風", value: 1, category: "字牌" },
+    { key: "sananke", label: "三暗刻", value: 2, category: "牌型結構" },
+    { key: "sianke", label: "四暗刻", value: 5, category: "牌型結構" },
+    { key: "wuanke", label: "五暗刻", value: 8, category: "牌型結構" },
+    { key: "quanqiu", label: "全求", value: 2, category: "牌型結構" },
+    { key: "hunyise", label: "混一色", value: 4, category: "牌型結構" },
+    { key: "qingyise", label: "清一色", value: 8, category: "牌型結構" },
+    { key: "dasanyuan", label: "大三元", value: 8, category: "牌型結構" },
+    { key: "xiaosanyuan", label: "小三元", value: 4, category: "牌型結構" },
+    { key: "dasixi", label: "大四喜", value: 16, category: "牌型結構" },
+    { key: "xiaosixi", label: "小四喜", value: 8, category: "牌型結構" },
+    { key: "dihu", label: "地胡", value: 16, category: "牌型結構" },
+    { key: "tianhu", label: "天胡", value: 24, category: "牌型結構" },
+    { key: "duting", label: "獨聽", value: 1, category: "聽牌" },
+    { key: "diting", label: "地聽", value: 4, category: "聽牌" },
+    { key: "tianting", label: "天聽", value: 8, category: "聽牌" },
+    { key: "huapai", label: "花牌", value: 1, category: "特殊" },
+    { key: "haidi", label: "海底撈月", value: 1, category: "特殊" },
+    { key: "gangshang", label: "槓上開花", value: 1, category: "特殊" },
+    { key: "qiangganghu", label: "搶槓胡", value: 1, category: "特殊" },
+    { key: "shaigui", label: "骰規", value: 1, category: "特殊" },
+    { key: "baxianguohai", label: "八仙過海", value: 8, category: "特殊" }
   ];
+  var TAI_TAG_CATEGORY_ORDER = ["常用", "字牌", "牌型結構", "聽牌", "特殊"];
   // 記錄胡的牌用的 34 種牌（萬/筒/條各1-9 + 東南西北中發白），花牌另外算，
   // 不算在胡牌的牌型裡，所以這裡不用列進去。code 直接用顯示文字當 key，
   // 每種花色/字牌彼此不會撞名，不用另外編號。
@@ -2426,8 +2431,26 @@
     if(overflow > 0) window.scrollBy({ top: overflow, behavior: "auto" });
     else if(rect.top < 0) window.scrollBy({ top: rect.top - 8, behavior: "auto" });
   }
+  // 胡牌的人剛好是莊家時，「莊家」（連莊的話再加「連莊」）台型標籤直接
+  // 幫他勾好，不用每次都手動點；使用者還是可以自己點掉取消。自摸的情況
+  // 「自摸莊家台」開關開著時這兩個標籤本來就會鎖住、renderTaiTags 也會
+  // 把誤留的勾選清掉，所以這裡不用特別排除自摸、兩邊共用同一個邏輯即可。
+  function dealerAutoTags(name){
+    var game = activeGame(); if(!game) return [];
+    var set = activeSet(game); if(!set) return [];
+    if(set.seatOrder[set.dealerIndex] !== name) return [];
+    var tags = ["zhuangjia"];
+    if(set.streak > 0) tags.push("lianzhuang");
+    return tags;
+  }
+  function applyDealerAutoTags(name){
+    dealerAutoTags(name).forEach(function(k){
+      if(ui.taiTags.indexOf(k) === -1) ui.taiTags.push(k);
+    });
+  }
   function recordSelfDrawGesture(name){
     if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
+    applyDealerAutoTags(name);
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
@@ -2454,6 +2477,7 @@
       activeWinnerIdx: 0,
       intercepted: []
     };
+    applyDealerAutoTags(winnerName); // 放槍胡牌不會自動算莊家台，這裡用跟手動點一樣的方式先幫忙勾選
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
     ensureTilesPickerVisible();
@@ -2499,6 +2523,7 @@
     var ii = p.intercepted.indexOf(name);
     if(ii !== -1) p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
     loadActiveWinnerUi();
+    applyDealerAutoTags(name); // 一炮多響後來加入的這位剛好是莊家，也一樣先幫忙勾好
     renderGameTab();
     ensureTilesPickerVisible();
     flashCard(name, "flash-win");
@@ -2770,30 +2795,64 @@
   function dealerTagsLocked(){
     return !!(ui.pendingHand && ui.pendingHand.method === "self" && ui.dealerBonusEnabled);
   }
+  // 32種台型攤平成一排很難找，所以依 TAI_TAGS 上的 category 分組顯示，
+  // 固定用 TAI_TAG_CATEGORY_ORDER 的順序排組別；每組裡面還是照原本的
+  // 排序模式（常用優先／台數小到大）排。上面搜尋框打字的話直接依文字
+  // 篩選台型名稱，篩完才分組，組別裡一個都沒有的就不顯示那組標題。
   function renderTaiTags(){
-    var el = document.getElementById("taiTagRow");
-    el.innerHTML = "";
+    var container = document.getElementById("taiTagGroups");
+    container.innerHTML = "";
     var locked = dealerTagsLocked();
-    sortedTaiTags().forEach(function(tag){
-      var isDealerTag = (tag.key === "zhuangjia" || tag.key === "lianzhuang");
-      var disabled = locked && isDealerTag;
-      if(disabled){
-        var stray = ui.taiTags.indexOf(tag.key);
-        if(stray !== -1) ui.taiTags.splice(stray, 1);
-      }
-      var b = document.createElement("button");
-      var active = ui.taiTags.indexOf(tag.key) !== -1;
-      b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
-      b.textContent = tag.label + "+" + tagValue(tag);
-      b.disabled = disabled;
-      if(disabled) b.title = "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
-      b.addEventListener("click", function(){
-        if(disabled) return;
-        var idx = ui.taiTags.indexOf(tag.key);
-        if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
-        renderGameTab();
+    var filterInput = document.getElementById("taiFilterInput");
+    var filterText = filterInput ? filterInput.value.trim() : "";
+    var tags = sortedTaiTags();
+    if(filterText){
+      tags = tags.filter(function(tag){ return tag.label.indexOf(filterText) !== -1; });
+    }
+    var byCategory = {};
+    tags.forEach(function(tag){
+      var cat = tag.category || "其他";
+      if(!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(tag);
+    });
+    var order = TAI_TAG_CATEGORY_ORDER.filter(function(c){ return byCategory[c] && byCategory[c].length; });
+    Object.keys(byCategory).forEach(function(c){ if(order.indexOf(c) === -1) order.push(c); });
+    if(!order.length){
+      var empty = document.createElement("p");
+      empty.className = "hint-text";
+      empty.style.margin = "4px 0";
+      empty.textContent = "沒有符合的台型，換個關鍵字試試。";
+      container.appendChild(empty);
+    }
+    order.forEach(function(cat){
+      var groupLabel = document.createElement("div");
+      groupLabel.className = "tai-tag-group-label";
+      groupLabel.textContent = cat;
+      container.appendChild(groupLabel);
+      var row = document.createElement("div");
+      row.className = "chip-row";
+      byCategory[cat].forEach(function(tag){
+        var isDealerTag = (tag.key === "zhuangjia" || tag.key === "lianzhuang");
+        var disabled = locked && isDealerTag;
+        if(disabled){
+          var stray = ui.taiTags.indexOf(tag.key);
+          if(stray !== -1) ui.taiTags.splice(stray, 1);
+        }
+        var b = document.createElement("button");
+        var active = ui.taiTags.indexOf(tag.key) !== -1;
+        b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
+        b.textContent = tag.label + "+" + tagValue(tag);
+        b.disabled = disabled;
+        if(disabled) b.title = "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
+        b.addEventListener("click", function(){
+          if(disabled) return;
+          var idx = ui.taiTags.indexOf(tag.key);
+          if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
+          renderGameTab();
+        });
+        row.appendChild(b);
       });
-      el.appendChild(b);
+      container.appendChild(row);
     });
     var sortBtn = document.getElementById("taiSortToggleBtn");
     sortBtn.textContent = ui.taiSortMode === "freq" ? "排序：常用優先" : "排序：台數小到大";
@@ -2812,6 +2871,9 @@
     saveTaiSortMode(ui.taiSortMode);
     renderGameTab();
   });
+  // 只重繪台型分組本身就好，不要整個分頁一起重繪——否則每打一個字整個
+  // 畫面重新算一輪，手機上會感覺卡，而且沒必要。
+  document.getElementById("taiFilterInput").addEventListener("input", function(){ renderTaiTags(); });
 
   // 進入換位模式時把目前座位存一份到 ui.swapSeatOrder 當暫存草稿；換位中的
   // 調整都只改這份草稿（見 handleSwapTap／swapActiveSeatIdx），不會馬上發布。
