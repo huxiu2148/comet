@@ -1730,7 +1730,7 @@
       var selected = ui.newGame.selectedPlayers.indexOf(r.name) !== -1;
       var busy = !selected && busyNames[r.name];
       b.className = "chip" + (selected ? " chip-selected" : "");
-      b.textContent = (r.favorite ? "★ " : "") + r.name + (r.isMe ? "（我）" : "") + (busy ? "・進行中" : "");
+      b.textContent = (r.favorite ? "★ " : "") + r.name + (busy ? "・進行中" : "");
       if(busy || (!selected && ui.newGame.selectedPlayers.length >= 4)) b.disabled = true;
       b.addEventListener("click", function(){ toggleSelectedPlayer(r.name); });
       chipsEl.appendChild(b);
