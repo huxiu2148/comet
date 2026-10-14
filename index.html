@@ -824,12 +824,16 @@
   </div>
 </div>
 <!-- 開局後，這場的撲克牌花色還沒指派完，就直接跳出來擋住整個畫面，逼著
-     先選完花色——選完才能開始記錄，不是收在卡片裡等使用者自己展開找。 -->
+     先選完花色——選完才能開始記錄，不是收在卡片裡等使用者自己展開找。
+     可以先按「先處理別的事」關掉，去改分工、骰骰子之類跟花色無關的
+     操作；但真的要記任何一手的時候還是會被 blockIfSuitsMissing 擋下來、
+     逼著再跳出來一次，不會真的放水跳過。 -->
 <div id="suitsModalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🃏 請先指派這場的撲克牌花色</div>
     <p class="hint-text" style="margin:0 0 10px;">這家都用撲克牌算點數，要先幫每個人指派好花色才能開始記錄這場。</p>
     <div id="suitsModalRows"></div>
+    <button type="button" class="link-btn" id="suitsModalDismissBtn" style="margin-top:10px;">先處理別的事（分工、骰骰子…），記錄之前還是會再跳出來提醒</button>
   </div>
 </div>
 <div id="updateOverlay" class="modal-overlay" style="display:none;">
@@ -1678,6 +1682,7 @@
     newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
     splitMode: false,
     pendingSplitGroup: null,
+    suitsModalDismissedGameId: null,
     backfillFormOpen: false,
     backfillFormReady: false,
     backfill: { opponents: [] },
@@ -3294,6 +3299,9 @@
   function blockIfSuitsMissing(game){
     if(allSuitsAssigned(game)) return false;
     ui.showSuits = true; // 順便展開花色區塊，不用自己再去點「展開」找
+    // 真的要記一手卻花色還沒填完，就算剛才把跳出來的視窗關掉去忙別的事
+    // （分工、骰骰子…），這裡還是要讓它再跳出來，不能真的放水給過。
+    if(game && ui.suitsModalDismissedGameId === game.id) ui.suitsModalDismissedGameId = null;
     showToast("請先在「撲克牌花色」填好每個人的花色，才能開始記錄。");
     renderGameTab();
     return true;
@@ -3352,6 +3360,11 @@
     renderSuitAssignRowsInto(document.getElementById("suitAssignRows"), game);
   }
   document.getElementById("toggleSuitsBtn").addEventListener("click", function(){ ui.showSuits = !ui.showSuits; renderGameTab(); });
+  document.getElementById("suitsModalDismissBtn").addEventListener("click", function(){
+    var game = activeGame();
+    if(game) ui.suitsModalDismissedGameId = game.id;
+    renderGameTab();
+  });
 
   // 牌桌固定畫成菱形（中間留空模擬桌面），「我」永遠在最下面；下家在右邊、
   // 對家在最上面、上家在左邊——跟著座位陣列（seatOrder）目前的順序轉，
@@ -3751,7 +3764,8 @@
     // 視窗會卡住蓋住整個畫面點不到東西）。
     document.getElementById("endSetModalOverlay").style.display = (game && ui.endSetPanelOpen) ? "flex" : "none";
     var suitsIncomplete = !!(game && !allSuitsAssigned(game));
-    document.getElementById("suitsModalOverlay").style.display = suitsIncomplete ? "flex" : "none";
+    var suitsDismissed = !!(game && ui.suitsModalDismissedGameId === game.id);
+    document.getElementById("suitsModalOverlay").style.display = (suitsIncomplete && !suitsDismissed) ? "flex" : "none";
     if(suitsIncomplete) renderSuitAssignRowsInto(document.getElementById("suitsModalRows"), game);
     var showBackfill = !game && ui.backfillFormOpen;
     document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
