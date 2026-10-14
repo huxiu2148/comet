@@ -1631,6 +1631,22 @@
     });
     return carry;
   }
+  // 「延續金額」這個概念只在真的同時開過不只一桌時才有意義——同一批人
+  // 今天稍早打過一場、現在單純重開一場新的，不算，那本來就該從0開始。
+  // 判斷方式：今天的場次裡，只要有任兩場的進行時間（開局到結束，還在
+  // 進行中的就算到現在）有重疊，就代表同時開過兩桌以上。
+  function hadMultiTableOverlapToday(gamesList, date){
+    var todays = gamesList.filter(function(g){ return g.date === date; });
+    for(var i=0;i<todays.length;i++){
+      for(var j=i+1;j<todays.length;j++){
+        var a = todays[i], b = todays[j];
+        var aEnd = a.endedAt || Date.now();
+        var bEnd = b.endedAt || Date.now();
+        if(a.createdAt < bEnd && b.createdAt < aEnd) return true;
+      }
+    }
+    return false;
+  }
   // 把一場牌局整理成一段方便貼到群組聊天室的純文字，贏最多的排最前面。
   function gameShareText(game){
     var totals = computeGameTotals(game);
@@ -1827,11 +1843,13 @@
       if(!ui.newGame.seatOrder) ui.newGame.seatOrder = ui.newGame.selectedPlayers.slice();
       renderNgSeatList();
 
-      // 只有在這幾位今天真的有其他場次、算得出非0的金額時，才顯示這個
-      // 開關——沒有的話開了也沒意義，顯示反而讓人搞不懂在問什麼。
+      // 只有在今天真的同時開過不只一桌、而且這幾位算得出非0的金額時，
+      // 才顯示這個開關——單純同一批人今天稍早打過一場、現在重開一場，
+      // 不算「換桌」，本來就該從0開始；顯示出來只會讓人搞不懂在問什麼。
       var todayDate = document.getElementById("ngDate").value || todayISO();
       var previewCarry = todaysOtherGamesTotal(state.games, ui.newGame.selectedPlayers, todayDate);
-      var hasPreviewCarry = ui.newGame.selectedPlayers.some(function(n){ return previewCarry[n]; });
+      var hasPreviewCarry = hadMultiTableOverlapToday(state.games, todayDate) &&
+        ui.newGame.selectedPlayers.some(function(n){ return previewCarry[n]; });
       if(hasPreviewCarry){
         carryInBlock.style.display = "block";
         var carryBtn = document.getElementById("ngCarryInBtn");
@@ -2018,7 +2036,8 @@
       // 累計基準。要不要真的帶這個起始值，由開局當下「延續今天其他場次
       // 的金額」那個開關決定，不想延續（例如真的想重新開始算）就關掉，
       // carryIn 全部留 0，畫面行為就跟以前一樣。
-      var carryIn = carryInEnabled ? todaysOtherGamesTotal(baseState.games, players, date) : {};
+      var carryIn = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
+        ? todaysOtherGamesTotal(baseState.games, players, date) : {};
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
