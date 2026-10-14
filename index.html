@@ -554,7 +554,7 @@
           <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
           <p class="hint-text" id="tilesSummary">還沒選牌</p>
           <div class="chip-row" id="tilesGrid"></div>
-          <p class="hint-text">點一下牌加一張，點到第5下會清掉那張牌重新算（一張牌最多算4張）。這只是記錄用，不會影響台數或金額計算。</p>
+          <p class="hint-text">胡牌的牌只會有一張，點一張牌記錄，點別的牌會換成那張；點同一張可以取消。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
         <div class="toggle-row" style="margin-top:10px;">
@@ -985,6 +985,18 @@
     { key: "baxianguohai", label: "八仙過海", value: 8, category: "特殊" }
   ];
   var TAI_TAG_CATEGORY_ORDER = ["常用", "字牌", "牌型結構", "聽牌", "特殊"];
+  // 自摸跟門清自摸不能同時算：門清自摸本身已經含了自摸這1台，兩個都點
+  // 會把自摸這1台重複算進去。點了其中一個，另一個要是已經選著就自動
+  // 取消掉，不用使用者自己注意兩個不能同時勾。
+  var TAI_TAG_EXCLUSIVE = { zimo: ["menqingzimo"], menqingzimo: ["zimo"] };
+  function pushTaiTagExclusive(key){
+    if(ui.taiTags.indexOf(key) !== -1) return;
+    (TAI_TAG_EXCLUSIVE[key] || []).forEach(function(k){
+      var ei = ui.taiTags.indexOf(k);
+      if(ei !== -1) ui.taiTags.splice(ei, 1);
+    });
+    ui.taiTags.push(key);
+  }
   // 記錄胡的牌用的 34 種牌（萬/筒/條各1-9 + 東南西北中發白），花牌另外算，
   // 不算在胡牌的牌型裡，所以這裡不用列進去。code 直接用顯示文字當 key，
   // 每種花色/字牌彼此不會撞名，不用另外編號。
@@ -1917,6 +1929,7 @@
       ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
       ui.wantNewGame = false;
+      ui.showSuits = true; // 一開局就先展開撲克牌花色，不用自己點「展開」找
       if(newGameId) ui.viewingGameId = newGameId; // 剛開好的桌子自動切到那一桌看
     }
 
@@ -2449,7 +2462,7 @@
     });
   }
   function recordSelfDrawGesture(name){
-    if(ui.taiTags.indexOf("zimo") === -1) ui.taiTags.push("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點
+    pushTaiTagExclusive("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點（跟門清自摸互斥）
     applyDealerAutoTags(name);
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
@@ -2772,16 +2785,19 @@
     if(!open) return;
     var grid = document.getElementById("tilesGrid");
     grid.innerHTML = "";
+    // 胡牌的牌永遠只有一張，所以這裡是單選：點一張牌會把其他已經選的
+    // 牌清掉、只留這張；再點同一張則取消選取。不像台型標籤可以點好幾次
+    // 疊張數。
     TILE_DEFS.forEach(function(t){
       var count = ui.winningTiles[t.code] || 0;
       var b = document.createElement("button");
       b.type = "button";
       b.className = "chip" + (count > 0 ? " chip-selected" : "");
-      b.textContent = t.label + (count > 1 ? ("×"+count) : "");
+      b.textContent = t.label;
       b.addEventListener("click", function(){
-        var c = (ui.winningTiles[t.code] || 0) + 1;
-        if(c > 4) c = 0;
-        if(c === 0) delete ui.winningTiles[t.code]; else ui.winningTiles[t.code] = c;
+        var wasSelected = !!ui.winningTiles[t.code];
+        ui.winningTiles = {};
+        if(!wasSelected) ui.winningTiles[t.code] = 1;
         renderGameTab();
       });
       grid.appendChild(b);
@@ -2847,7 +2863,7 @@
         b.addEventListener("click", function(){
           if(disabled) return;
           var idx = ui.taiTags.indexOf(tag.key);
-          if(idx === -1) ui.taiTags.push(tag.key); else ui.taiTags.splice(idx, 1);
+          if(idx === -1) pushTaiTagExclusive(tag.key); else ui.taiTags.splice(idx, 1);
           renderGameTab();
         });
         row.appendChild(b);
