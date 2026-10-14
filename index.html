@@ -269,6 +269,7 @@
   .roster-star.active{ color: var(--ink); }
   .roster-name{ flex:1; font-weight:700; font-size:.92rem; display:flex; align-items:center; gap:6px; }
   .me-badge{ font-size:.63rem; background: var(--win); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700; }
+  .record-badge{ font-size:.63rem; background: var(--accent); color:#fff; padding:2px 7px; border-radius:999px; font-weight:700; }
   .roster-actions{ display:flex; gap:10px; }
   .link-btn{ border:none; background:none; color: var(--ink); font-size:.78rem; font-weight:700; cursor:pointer; padding:7px 4px; }
   .link-btn.danger{ color: var(--lose); }
@@ -397,6 +398,9 @@
     background: var(--surface); border-radius:16px; padding:20px; max-width:320px; width:100%;
     border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.15);
   }
+  /* 花色指派這組內容比較高（4個人、每人4顆花色按鈕），螢幕矮的手機
+     裝不下，要讓對話框自己可以上下捲動，不然底下的人會被切掉按不到。 */
+  #suitsModalOverlay .modal-box{ max-height: calc(100vh - 48px); overflow-y: auto; }
   .modal-message{ font-size:.92rem; color: var(--ink); margin-bottom:14px; line-height:1.6; white-space:pre-line; }
   .modal-actions{ display:flex; gap:10px; }
   .modal-actions .btn{ flex:1; padding:12px; min-height:auto; }
@@ -475,13 +479,16 @@
       <div id="ngNoMeWarning" class="hint-text" style="display:none;color:var(--lose);margin-top:12px;">請先到「名單」分頁設定「我」，才能開新牌局。</div>
 
       <div id="ngOpponentPickBlock">
-        <div class="section-label">選 4 位玩家 <span id="ngOppCount" class="badge">0/4</span></div>
-        <p class="hint-text">自由選 4 位，不一定要含「我」（如果同時開了另一桌，這桌可以完全是別人在打）。已經在別的進行中牌桌的人不能重複選。要新增牌友可以用下面的輸入框。</p>
+        <div class="section-label">選 <span id="ngOppNeedCount">4</span> 位玩家 <span id="ngOppCount" class="badge">0/4</span></div>
+        <p class="hint-text" id="ngOppPickHint">自由選 4 位，不一定要含「我」（如果同時開了另一桌，這桌可以完全是別人在打）。已經在別的進行中牌桌的人不能重複選。要新增牌友可以用下面的輸入框。</p>
         <div class="chip-row" id="ngOpponentChips"></div>
         <div class="add-row">
           <input type="text" id="ngNewOpponentInput" placeholder="新增牌友名字" maxlength="8">
           <button class="btn btn-outline" id="ngNewOpponentBtn">新增</button>
         </div>
+        <button type="button" class="btn btn-outline btn-block" id="ngSplitModeBtn" style="margin-top:10px;">🎲 隨機分2桌（先選8位）</button>
+        <button type="button" class="btn btn-primary btn-block" id="ngSplitConfirmBtn" style="display:none; margin-top:8px;" disabled>🎲 隨機分組（拆成4+4）</button>
+        <p class="hint-text" id="ngSplitHint" style="display:none;">選滿8位之後按「隨機分組」，會隨機拆成兩組各4人：這組4人先直接帶進下面抓位，按「開局」確認；另外4人會先記住，等你按「開新桌」的時候自動帶出來，再按一次「開局」確認就好。</p>
       </div>
 
       <div id="ngSeatBlock" style="display:none;">
@@ -816,6 +823,15 @@
     <button class="btn btn-danger-outline btn-block" id="finishGameBtn">結束整場並結算</button>
   </div>
 </div>
+<!-- 開局後，這場的撲克牌花色還沒指派完，就直接跳出來擋住整個畫面，逼著
+     先選完花色——選完才能開始記錄，不是收在卡片裡等使用者自己展開找。 -->
+<div id="suitsModalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🃏 請先指派這場的撲克牌花色</div>
+    <p class="hint-text" style="margin:0 0 10px;">這家都用撲克牌算點數，要先幫每個人指派好花色才能開始記錄這場。</p>
+    <div id="suitsModalRows"></div>
+  </div>
+</div>
 <div id="updateOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" style="font-weight:700;">🔄 有新版本了</div>
@@ -852,6 +868,7 @@
       <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。</li>
       <li>如果輪到的那個人這場是找別人代打（沒有出現在這場的四個人裡），這場就先不自動指派那個工作、順序也不會往前跳，等他下次真的有打的時候還是輪到他，不會因為代打就被跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
+      <li>播音樂、拍照算整個空間共用的工作，不是只有這一桌的事：同時開兩桌時，候選名單會列出兩桌所有人，可以指定另一桌的人、甚至同一個人兼兩項工作。記錄則只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
       <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
     </ul>
 
@@ -1659,6 +1676,8 @@
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
     newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
+    splitMode: false,
+    pendingSplitGroup: null,
     backfillFormOpen: false,
     backfillFormReady: false,
     backfill: { opponents: [] },
@@ -1724,6 +1743,14 @@
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
       ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true };
+      ui.splitMode = false;
+      // 「隨機分2桌」拆出來的另外4人，開新桌的表單一重新準備好就直接
+      // 帶出來、先幫忙選好，不用再自己重新勾一次；用掉就清空，只用一次。
+      if(ui.pendingSplitGroup && ui.pendingSplitGroup.length === 4){
+        ui.newGame.selectedPlayers = ui.pendingSplitGroup.slice();
+        ui.newGame.seatOrder = ui.pendingSplitGroup.slice();
+        ui.pendingSplitGroup = null;
+      }
       ui.newGameFormReady = true;
     }
     renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
@@ -1738,6 +1765,7 @@
     // 「我」只是固定記錄身份的那個人，不代表真的在場上——如果同時開了
     // 另一桌，這桌的四個人可以完全不含「我」。候選名單是整份名單自由選
     // 4位，已經在其他進行中牌桌的人不能重複選（不能一人同時坐兩桌）。
+    var needCount = ui.splitMode ? 8 : 4;
     var busyNames = {};
     activeGames().forEach(function(g){ g.players.forEach(function(n){ busyNames[n] = true; }); });
     var candidates = state.roster.slice().sort(function(a,b){ return (b.favorite?1:0)-(a.favorite?1:0); });
@@ -1750,14 +1778,22 @@
       var busy = !selected && busyNames[r.name];
       b.className = "chip" + (selected ? " chip-selected" : "");
       b.textContent = (r.favorite ? "★ " : "") + r.name + (busy ? "・進行中" : "");
-      if(busy || (!selected && ui.newGame.selectedPlayers.length >= 4)) b.disabled = true;
+      if(busy || (!selected && ui.newGame.selectedPlayers.length >= needCount)) b.disabled = true;
       b.addEventListener("click", function(){ toggleSelectedPlayer(r.name); });
       chipsEl.appendChild(b);
     });
-    document.getElementById("ngOppCount").textContent = ui.newGame.selectedPlayers.length + "/4";
+    document.getElementById("ngOppNeedCount").textContent = needCount;
+    document.getElementById("ngOppCount").textContent = ui.newGame.selectedPlayers.length + "/" + needCount;
+    document.getElementById("ngOppPickHint").style.display = ui.splitMode ? "none" : "block";
+    document.getElementById("ngSplitHint").style.display = ui.splitMode ? "block" : "none";
+    document.getElementById("ngSplitModeBtn").textContent = ui.splitMode ? "🎲 取消隨機分2桌" : "🎲 隨機分2桌（先選8位）";
+    document.getElementById("ngSplitModeBtn").classList.toggle("selected", ui.splitMode);
+    var splitConfirmBtn = document.getElementById("ngSplitConfirmBtn");
+    splitConfirmBtn.style.display = ui.splitMode ? "block" : "none";
+    splitConfirmBtn.disabled = ui.newGame.selectedPlayers.length !== 8;
 
     var seatBlock = document.getElementById("ngSeatBlock");
-    if(ui.newGame.selectedPlayers.length === 4){
+    if(ui.newGame.selectedPlayers.length === 4 && !ui.splitMode){
       seatBlock.style.display = "block";
       // 預設不隨機洗牌，照選人順序排（第一個選的坐東，當第一位莊家）；
       // 想要隨機排的話可以按「重新抓位」。
@@ -1765,17 +1801,38 @@
       renderNgSeatList();
     }else{
       seatBlock.style.display = "none";
-      ui.newGame.seatOrder = null;
+      if(!ui.splitMode) ui.newGame.seatOrder = null;
     }
   }
 
   function toggleSelectedPlayer(name){
+    var cap = ui.splitMode ? 8 : 4;
     var idx = ui.newGame.selectedPlayers.indexOf(name);
     if(idx !== -1){ ui.newGame.selectedPlayers.splice(idx,1); }
-    else if(ui.newGame.selectedPlayers.length < 4){ ui.newGame.selectedPlayers.push(name); }
+    else if(ui.newGame.selectedPlayers.length < cap){ ui.newGame.selectedPlayers.push(name); }
     ui.newGame.seatOrder = null;
     renderGameTab();
   }
+  document.getElementById("ngSplitModeBtn").addEventListener("click", function(){
+    ui.splitMode = !ui.splitMode;
+    ui.newGame.selectedPlayers = [];
+    ui.newGame.seatOrder = null;
+    renderGameTab();
+  });
+  // 隨機分2桌：把選好的8人洗牌後拆前4、後4——前4直接變成這次要開的
+  // 這桌，馬上進到抓位流程；後4先存進 ui.pendingSplitGroup，等按「開新
+  // 桌」準備下一桌的表單時自動帶出來，不用再重新勾一次。
+  document.getElementById("ngSplitConfirmBtn").addEventListener("click", function(){
+    if(ui.newGame.selectedPlayers.length !== 8) return;
+    var shuffled = shuffle(ui.newGame.selectedPlayers.slice());
+    var groupA = shuffled.slice(0, 4), groupB = shuffled.slice(4);
+    ui.splitMode = false;
+    ui.newGame.selectedPlayers = groupA;
+    ui.newGame.seatOrder = groupA.slice();
+    ui.pendingSplitGroup = groupB;
+    renderGameTab();
+    showToast("已經隨機分成兩組，這桌先確認開局，另一組按「開新桌」會自動帶出來。");
+  });
 
   document.getElementById("ngNewOpponentBtn").addEventListener("click", function(){
     var input = document.getElementById("ngNewOpponentInput");
@@ -1785,7 +1842,7 @@
     var ns = deepClone(state);
     if(!exists) ns.roster.push({ id: genId("r"), name: name, favorite:false, isMe:false });
     input.value = "";
-    if(ui.newGame.selectedPlayers.length < 4 && ui.newGame.selectedPlayers.indexOf(name) === -1){
+    if(ui.newGame.selectedPlayers.length < (ui.splitMode ? 8 : 4) && ui.newGame.selectedPlayers.indexOf(name) === -1){
       ui.newGame.selectedPlayers.push(name);
       ui.newGame.seatOrder = null;
     }
@@ -3180,6 +3237,23 @@
     return parts.join('　');
   }
   var DUTY_CHIP_IDS = { record: "dutyRecordChips", music: "dutyMusicChips", photo: "dutyPhotoChips" };
+  // 播音樂、拍照是整個空間共用的工作，不是只有「這一桌」的事——同時開
+  // 兩桌的時候，音控/攝影可能是另一桌的人（甚至整場只有一個人兼兩個
+  // 工作），所以候選名單要包含所有目前進行中的桌子，不能只列這桌4人。
+  // 記錄則一定要是這桌自己的人（總不能叫另一桌的人幫忙記這桌的牌），
+  // 所以還是只列 game.players。
+  function allActiveTablePlayers(){
+    var names = [];
+    state.games.forEach(function(g){
+      if(g.status !== "active") return;
+      g.players.forEach(function(n){ if(names.indexOf(n) === -1) names.push(n); });
+    });
+    return names;
+  }
+  var DUTY_CANDIDATE_SCOPE = { record: "table", music: "room", photo: "room" };
+  function dutyCandidates(game, key){
+    return DUTY_CANDIDATE_SCOPE[key] === "room" ? allActiveTablePlayers() : game.players;
+  }
   function assignDuty(gameId, key, name){
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
@@ -3197,7 +3271,7 @@
     Object.keys(DUTY_CHIP_IDS).forEach(function(key){
       var el = document.getElementById(DUTY_CHIP_IDS[key]);
       el.innerHTML = "";
-      game.players.forEach(function(name){
+      dutyCandidates(game, key).forEach(function(name){
         var b = document.createElement("button");
         b.type = "button";
         var selected = duties[key] === name;
@@ -3242,13 +3316,11 @@
     });
     return parts.join('　');
   }
-  function renderSuits(game){
+  // 花色指派的按鈕格子要同時畫在兩個地方（卡片裡可收合的版本，跟開局
+  // 後跳出來擋住畫面的版本），所以拆成共用的函式，兩邊都指到同一份
+  // game.suits、呼叫同一個 assignSuit。
+  function renderSuitAssignRowsInto(container, game){
     var suits = game.suits || {};
-    document.getElementById("toggleSuitsBtn").textContent = ui.showSuits ? "收起" : "展開";
-    document.getElementById("suitsBody").style.display = ui.showSuits ? "block" : "none";
-    var summaryText = suitsSummaryText(suits, game.players);
-    document.getElementById("suitsSummaryLine").innerHTML = summaryText || "還沒有人記花色，點「展開」指派。";
-    var container = document.getElementById("suitAssignRows");
     container.innerHTML = "";
     game.players.forEach(function(name){
       var row = document.createElement("div");
@@ -3271,19 +3343,38 @@
       container.appendChild(chipRow);
     });
   }
+  function renderSuits(game){
+    var suits = game.suits || {};
+    document.getElementById("toggleSuitsBtn").textContent = ui.showSuits ? "收起" : "展開";
+    document.getElementById("suitsBody").style.display = ui.showSuits ? "block" : "none";
+    var summaryText = suitsSummaryText(suits, game.players);
+    document.getElementById("suitsSummaryLine").innerHTML = summaryText || "還沒有人記花色，點「展開」指派。";
+    renderSuitAssignRowsInto(document.getElementById("suitAssignRows"), game);
+  }
   document.getElementById("toggleSuitsBtn").addEventListener("click", function(){ ui.showSuits = !ui.showSuits; renderGameTab(); });
 
   // 牌桌固定畫成菱形（中間留空模擬桌面），「我」永遠在最下面；下家在右邊、
   // 對家在最上面、上家在左邊——跟著座位陣列（seatOrder）目前的順序轉，
   // 換位／換莊家改變座位陣列時，這裡會自動重新算，門風本身不受影響
   // （門風還是照 WINDS[原始索引] 算，只有畫面上的擺放位置變了）。
-  function diamondSlots(seatOrder, me){
-    var myIdx = me ? seatOrder.indexOf(me.name) : -1;
+  function diamondSlots(seatOrder, bottomName){
+    var myIdx = bottomName ? seatOrder.indexOf(bottomName) : -1;
     var rotated = myIdx === -1 ? seatOrder.slice() : seatOrder.slice(myIdx).concat(seatOrder.slice(0, myIdx));
     var slotNames = ["slot-bottom", "slot-right", "slot-top", "slot-left"];
     var slotOf = {};
     rotated.forEach(function(name, i){ slotOf[name] = slotNames[i]; });
     return slotOf;
+  }
+  // 靠下面那個位置要放誰：這桌「今天的分工」裡如果已經指派了記錄的人，
+  // 就照那個人放（這場記錄的人可能跟名單裡設定的「我」不是同一個人，
+  // 尤其是同時開好幾桌、各桌記錄的人不同的時候）；沒指派的話、或指派
+  // 到的名字根本不在這桌（例如固定輪值指派到的人這桌沒來），才退回用
+  // 名單裡整體設定的「我」，維持只開一桌時的舊行為。
+  function bottomSeatName(game, me){
+    if(game && game.duties && game.duties.record && game.players.indexOf(game.duties.record) !== -1){
+      return game.duties.record;
+    }
+    return me ? me.name : null;
   }
 
   // 一炮多響／攔胡的管理區塊：列出目前這手的胡牌者（點名字切換要編輯
@@ -3424,7 +3515,7 @@
     // 換位中顯示的是本地暫存的草稿順序（ui.swapSeatOrder），還沒發布；
     // 一般情況下顯示的才是實際已記錄的座位（set.seatOrder）。
     var displayOrder = (ui.swapMode && ui.swapSeatOrder) ? ui.swapSeatOrder : set.seatOrder;
-    var slotOf = diamondSlots(displayOrder, me);
+    var slotOf = diamondSlots(displayOrder, bottomSeatName(game, me));
     var pending = ui.pendingHand;
     displayOrder.forEach(function(name, idx){
       var card = document.createElement("div");
@@ -3453,6 +3544,12 @@
       if(me && me.name === name){
         var tag = document.createElement("span"); tag.className = "me-badge"; tag.textContent = "我";
         nameEl.appendChild(tag);
+      }
+      // 這場指派的記錄者如果不是名單裡設定的「我」（例如這桌換別人拿
+      // 手機記錄），額外標一下，不然光看「我」的標籤會誤以為沒在記錄。
+      if(game.duties && game.duties.record === name && !(me && me.name === name)){
+        var recTag = document.createElement("span"); recTag.className = "record-badge"; recTag.textContent = "記錄";
+        nameEl.appendChild(recTag);
       }
       card.appendChild(nameEl);
 
@@ -3653,6 +3750,9 @@
     // 不能只靠 renderActiveSet（沒有進行中的牌局時它根本不會被呼叫，
     // 視窗會卡住蓋住整個畫面點不到東西）。
     document.getElementById("endSetModalOverlay").style.display = (game && ui.endSetPanelOpen) ? "flex" : "none";
+    var suitsIncomplete = !!(game && !allSuitsAssigned(game));
+    document.getElementById("suitsModalOverlay").style.display = suitsIncomplete ? "flex" : "none";
+    if(suitsIncomplete) renderSuitAssignRowsInto(document.getElementById("suitsModalRows"), game);
     var showBackfill = !game && ui.backfillFormOpen;
     document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
     document.getElementById("backfillPanel").style.display = showBackfill ? "block" : "none";
