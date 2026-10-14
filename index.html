@@ -499,6 +499,11 @@
         <div id="ngSeatList"></div>
       </div>
 
+      <div id="ngCarryInBlock" style="display:none;">
+        <button type="button" class="btn btn-outline btn-block" id="ngCarryInBtn" style="margin-top:14px;">🔄 延續今天其他場次的金額 ✓</button>
+        <p class="hint-text" id="ngCarryInHint"></p>
+      </div>
+
       <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
       <button type="button" class="btn btn-outline btn-block" id="openBackfillBtn" style="margin-top:10px;">📝 補記過去的牌局（只有最終輸贏）</button>
     </div>
@@ -669,6 +674,7 @@
           <div class="chip-row" id="dutyMusicChips"></div>
           <div class="section-label">📷 拍照</div>
           <div class="chip-row" id="dutyPhotoChips"></div>
+          <p class="hint-text" id="dutiesLockedHint" style="display:none;">播音樂、拍照只能在桌1那邊指派，這裡只能跟著顯示——兩桌不同手機同時搶著改同一個欄位容易互相覆蓋掉，所以固定只有一個地方能改。</p>
         </div>
       </div>
 
@@ -1610,6 +1616,21 @@
     });
     return totals;
   }
+  // 重新分桌、開新的一場時，這幾位今天（同一天）其他場次（不管已結束
+  // 還在進行）的淨輸贏加總——用來當「延續今天其他場次的金額」的起始
+  // 值，是不是真的要用這個起始值由開局當下的開關決定（見 ngCarryInBtn），
+  // 這裡只負責算出數字。
+  function todaysOtherGamesTotal(gamesList, players, date, excludeGameId){
+    var carry = {};
+    players.forEach(function(n){ carry[n] = 0; });
+    gamesList.forEach(function(g){
+      if(g.id === excludeGameId) return;
+      if(g.date !== date) return;
+      var totals = computeGameTotals(g);
+      players.forEach(function(n){ if(totals.hasOwnProperty(n)) carry[n] += totals[n]; });
+    });
+    return carry;
+  }
   // 把一場牌局整理成一段方便貼到群組聊天室的純文字，贏最多的排最前面。
   function gameShareText(game){
     var totals = computeGameTotals(game);
@@ -1679,7 +1700,7 @@
     wantNewGame: false,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true },
+    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true },
     splitMode: false,
     pendingSplitGroup: null,
     suitsModalDismissedGameId: null,
@@ -1747,7 +1768,7 @@
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
-      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true };
+      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true };
       ui.splitMode = false;
       // 「隨機分2桌」拆出來的另外4人，開新桌的表單一重新準備好就直接
       // 帶出來、先幫忙選好，不用再自己重新勾一次；用掉就清空，只用一次。
@@ -1798,14 +1819,36 @@
     splitConfirmBtn.disabled = ui.newGame.selectedPlayers.length !== 8;
 
     var seatBlock = document.getElementById("ngSeatBlock");
+    var carryInBlock = document.getElementById("ngCarryInBlock");
     if(ui.newGame.selectedPlayers.length === 4 && !ui.splitMode){
       seatBlock.style.display = "block";
       // 預設不隨機洗牌，照選人順序排（第一個選的坐東，當第一位莊家）；
       // 想要隨機排的話可以按「重新抓位」。
       if(!ui.newGame.seatOrder) ui.newGame.seatOrder = ui.newGame.selectedPlayers.slice();
       renderNgSeatList();
+
+      // 只有在這幾位今天真的有其他場次、算得出非0的金額時，才顯示這個
+      // 開關——沒有的話開了也沒意義，顯示反而讓人搞不懂在問什麼。
+      var todayDate = document.getElementById("ngDate").value || todayISO();
+      var previewCarry = todaysOtherGamesTotal(state.games, ui.newGame.selectedPlayers, todayDate);
+      var hasPreviewCarry = ui.newGame.selectedPlayers.some(function(n){ return previewCarry[n]; });
+      if(hasPreviewCarry){
+        carryInBlock.style.display = "block";
+        var carryBtn = document.getElementById("ngCarryInBtn");
+        var enabled = ui.newGame.carryInEnabled !== false;
+        carryBtn.textContent = "🔄 延續今天其他場次的金額 " + (enabled ? "✓" : "✕");
+        carryBtn.classList.toggle("selected", enabled);
+        var parts = ui.newGame.selectedPlayers.filter(function(n){ return previewCarry[n]; })
+          .map(function(n){ var v = previewCarry[n]; return n + "（" + (v>0?"+":"") + v + "）"; });
+        document.getElementById("ngCarryInHint").textContent = enabled
+          ? "這幾位今天其他場次目前的淨輸贏會當成這場的起始值："+parts.join("、")+"。開局後畫面上會多顯示一行「今晚累計」。不想延續的話可以點上面的開關關掉，這場就跟平常一樣從0開始算。"
+          : "已經關掉了，這場會跟平常一樣從0開始算，不會帶入其他場次的金額。";
+      }else{
+        carryInBlock.style.display = "none";
+      }
     }else{
       seatBlock.style.display = "none";
+      carryInBlock.style.display = "none";
       if(!ui.splitMode) ui.newGame.seatOrder = null;
     }
   }
@@ -1857,6 +1900,10 @@
   document.getElementById("ngReshuffleBtn").addEventListener("click", function(){
     if(ui.newGame.selectedPlayers.length !== 4) return;
     ui.newGame.seatOrder = shuffle(ui.newGame.selectedPlayers.slice());
+    renderGameTab();
+  });
+  document.getElementById("ngCarryInBtn").addEventListener("click", function(){
+    ui.newGame.carryInEnabled = !(ui.newGame.carryInEnabled !== false);
     renderGameTab();
   });
 
@@ -1936,6 +1983,7 @@
     var seatOrderSnapshot = ui.newGame.seatOrder.slice();
     var selfDrawMode = ui.newGameSelfDrawMode;
     var drinkEnabled = ui.newGame.drinkEnabled !== false;
+    var carryInEnabled = ui.newGame.carryInEnabled !== false;
     var baseVal = isNaN(base) ? 0 : Math.max(0, base);
     var taiVal = isNaN(tai) ? 0 : Math.max(0, tai);
     var newGameId = null; // buildStartedState 裡才會真的產生 id，記下來給成功後切換畫面用
@@ -1963,13 +2011,21 @@
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
         hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
       };
+      // 今天（同一天）其他場次（不管已結束還是還在進行）這幾位各自的淨
+      // 輸贏，開新場的時候先帶進來當起始值——分桌重新分組時，畫面上才
+      // 能接著看到今晚累計到目前為止的數字，不會每次重新分桌又從0開始
+      // 顯示。金額本身還是各場各自算、互不混記，這只是多算一個顯示用的
+      // 累計基準。要不要真的帶這個起始值，由開局當下「延續今天其他場次
+      // 的金額」那個開關決定，不想延續（例如真的想重新開始算）就關掉，
+      // carryIn 全部留 0，畫面行為就跟以前一樣。
+      var carryIn = carryInEnabled ? todaysOtherGamesTotal(baseState.games, players, date) : {};
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
         status: "active", sets: [firstSet],
         duties: {record: DEFAULT_RECORD_NAME, music: musicPlaying ? musicCandidate : null, photo: photoPlaying ? photoCandidate : null},
         dutyRotationAdvanced: { photo: photoPlaying, music: musicPlaying },
-        createdAt: Date.now(), endedAt: null, suits: {}
+        createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn
       };
       newGameId = newGame.id;
       var ns = deepClone(baseState);
@@ -3259,6 +3315,16 @@
   function dutyCandidates(game, key){
     return DUTY_CANDIDATE_SCOPE[key] === "room" ? allActiveTablePlayers() : game.players;
   }
+  // 播音樂、拍照開了不只一桌時只讓「桌1」（最早開的那桌）能改，其他桌
+  // 只能跟著顯示——每個操作都是整包資料直接覆寫雲端，兩支手機同時搶著
+  // 改同一個欄位很容易互相蓋掉對方剛選的人；固定只有一個源頭在寫，就
+  // 不會撞。只開一桌的時候那桌自己就是「桌1」，行為跟以前一樣。
+  function primaryDutyGame(){
+    var actives = state.games.filter(function(g){ return g.status === "active"; });
+    if(!actives.length) return null;
+    actives.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+    return actives[0];
+  }
   function assignDuty(gameId, key, name){
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
@@ -3269,20 +3335,33 @@
   }
   function renderDuties(game){
     var duties = game.duties || {record:null, music:null, photo:null};
+    var primary = primaryDutyGame();
+    var isPrimary = !primary || primary.id === game.id;
+    var primaryDuties = (primary && primary.duties) || {record:null, music:null, photo:null};
+    // 摘要列顯示的播音樂/拍照永遠照桌1的來，記錄還是照自己這桌的。
+    var effectiveDuties = { record: duties.record, music: primaryDuties.music, photo: primaryDuties.photo };
     document.getElementById("toggleDutiesBtn").textContent = ui.showDuties ? "收起" : "展開";
     document.getElementById("dutiesBody").style.display = ui.showDuties ? "block" : "none";
-    var summaryText = dutiesSummaryText(duties);
+    var summaryText = dutiesSummaryText(effectiveDuties);
     document.getElementById("dutiesSummaryLine").innerHTML = summaryText || "還沒有人負責，點「展開」指派。";
+    var lockedHint = document.getElementById("dutiesLockedHint");
+    if(lockedHint) lockedHint.style.display = isPrimary ? "none" : "block";
     Object.keys(DUTY_CHIP_IDS).forEach(function(key){
       var el = document.getElementById(DUTY_CHIP_IDS[key]);
       el.innerHTML = "";
+      var locked = DUTY_CANDIDATE_SCOPE[key] === "room" && !isPrimary;
+      var currentValue = locked ? primaryDuties[key] : duties[key];
       dutyCandidates(game, key).forEach(function(name){
         var b = document.createElement("button");
         b.type = "button";
-        var selected = duties[key] === name;
+        var selected = currentValue === name;
         b.className = "chip" + (selected ? " chip-selected" : "");
         b.textContent = name;
-        b.addEventListener("click", function(){ assignDuty(game.id, key, name); });
+        if(locked){
+          b.disabled = true;
+        }else{
+          b.addEventListener("click", function(){ assignDuty(game.id, key, name); });
+        }
         el.appendChild(b);
       });
     });
@@ -3521,7 +3600,13 @@
     renderDrinkToggle(game);
 
     var setTotals = computeSetTotals(set);
-    var gameTotals = game.sets.length > 1 ? computeGameTotals(game) : null;
+    // 這場帶了「今晚累計」起始值的話（分桌重新分組延續過來的），底下那
+    // 行數字改顯示「今晚累計」（起始值+這整場，不只這將），不是單純的
+    // 「全場」；沒有帶起始值的話，維持原本只在這場不只一將時才顯示「全
+    // 場」的行為，兩種不會同時出現，底下永遠只有一行小字。
+    var carryIn = game.carryIn || null;
+    var hasCarryIn = !!(carryIn && game.players.some(function(n){ return carryIn[n]; }));
+    var gameTotals = (hasCarryIn || game.sets.length > 1) ? computeGameTotals(game) : null;
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
     var me = meRoster();
@@ -3579,10 +3664,11 @@
       card.appendChild(statsEl);
 
       if(gameTotals){
-        var gAmt = gameTotals[name] || 0;
+        var gAmt = hasCarryIn ? ((carryIn[name]||0) + (gameTotals[name]||0)) : (gameTotals[name] || 0);
+        var gLabel = hasCarryIn ? "今晚累計" : "全場";
         var gAmtEl = document.createElement("div");
         gAmtEl.className = "game-amt " + (gAmt>0?"win":(gAmt<0?"lose":""));
-        gAmtEl.textContent = "全場"+(gAmt>0?"+":"")+gAmt;
+        gAmtEl.textContent = gLabel+(gAmt>0?"+":"")+gAmt;
         card.appendChild(gAmtEl);
       }
 
