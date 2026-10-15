@@ -703,6 +703,22 @@
         <label class="field" for="statsGameFilterSelect">場次範圍</label>
         <select class="select-input" id="statsGameFilterSelect"></select>
       </div>
+      <div id="statsMultiSummaryRow" style="display:none; margin-top:8px;">
+        <p class="hint-text" id="statsMultiSummaryText"></p>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button type="button" class="btn btn-outline" id="statsMultiEditBtn">✏️ 修改自選場次</button>
+          <button type="button" class="btn btn-outline" id="statsMultiClearBtn">✕ 清除自選</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline btn-block" id="statsMultiOpenBtn" style="display:none; margin-top:8px;">🔀 自選特定幾場來看</button>
+      <div id="statsMultiPicker" style="display:none; margin-top:8px; border:1px solid var(--border); border-radius:12px; padding:12px;">
+        <p class="hint-text">跳著勾選想一起統計的場次，不限同一天、同一個月。</p>
+        <div class="chip-row" id="statsMultiPickerList" style="max-height:320px; overflow-y:auto;"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button type="button" class="btn btn-primary" id="statsMultiApplyBtn">套用</button>
+          <button type="button" class="btn btn-outline" id="statsMultiCancelBtn">取消</button>
+        </div>
+      </div>
       <div id="statsContent"></div>
     </div>
   </section>
@@ -1705,13 +1721,16 @@
     });
     return s;
   }
-  function renderChipRow(containerId, items, onPick){
+  function renderChipRow(containerId, items, onPick, selectedValue){
     var el = document.getElementById(containerId);
     el.innerHTML = "";
     if(!items || !items.length) return;
     items.forEach(function(text){
       var b = document.createElement("button");
-      b.type = "button"; b.className = "chip"; b.textContent = text;
+      b.type = "button";
+      var selected = selectedValue != null && text === selectedValue;
+      b.className = "chip" + (selected ? " chip-selected" : "");
+      b.textContent = text;
       b.addEventListener("click", function(){ onPick(text); });
       el.appendChild(b);
     });
@@ -1723,6 +1742,9 @@
     statsSub: "longterm",
     statsTargetName: null,
     statsGameFilter: null,
+    statsMultiGameIds: [],
+    statsMultiDraftIds: null,
+    statsMultiPickerOpen: false,
     calTargetName: null,
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
@@ -1810,7 +1832,7 @@
       }
       ui.newGameFormReady = true;
     }
-    renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; });
+    renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; renderGameTab(); }, document.getElementById("ngVenue").value);
     document.getElementById("ngModeFull").classList.toggle("selected", ui.newGameSelfDrawMode !== "split");
     document.getElementById("ngModeSplit").classList.toggle("selected", ui.newGameSelfDrawMode === "split");
     var ngDrinkBtn = document.getElementById("ngDrinkBtn");
@@ -2170,7 +2192,7 @@
       document.getElementById("bfSetsCount").value = 1;
       ui.backfillFormReady = true;
     }
-    renderChipRow("bfVenueChips", state.venues, function(v){ document.getElementById("bfVenue").value = v; });
+    renderChipRow("bfVenueChips", state.venues, function(v){ document.getElementById("bfVenue").value = v; renderBackfillForm(); }, document.getElementById("bfVenue").value);
 
     if(!me){ document.getElementById("bfAmountsBlock").style.display = "none"; document.getElementById("bfSubmitBtn").disabled = true; return; }
 
@@ -5009,7 +5031,9 @@
   function renderStatsGameFilterSelect(endedGames){
     var row = document.getElementById("statsGameFilterRow");
     var el = document.getElementById("statsGameFilterSelect");
-    if(!endedGames.length){ row.style.display = "none"; return; }
+    // 自選多場模式開著的時候，這個單一範圍下拉選單先讓路，避免同時出現
+    // 兩種互相矛盾的篩選方式。
+    if(!endedGames.length || ui.statsMultiGameIds.length){ row.style.display = "none"; return; }
     row.style.display = "block";
     var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
 
@@ -5042,9 +5066,85 @@
     el.value = ui.statsGameFilter || "";
     el.onchange = function(){
       ui.statsGameFilter = el.value || null;
+      ui.statsMultiGameIds = [];
       renderStatsTab();
     };
   }
+  // 自選多場：跳著勾選幾場不相連、不屬於同一個月/年的特定場次一起看，
+  // 跟上面那個只能選單一範圍（總計/單年/單月/單場）的下拉選單是互斥的
+  // 兩種篩選方式——選了這個，上面那個就先讓路；清掉這個，上面那個再
+  // 回來（固定在「總計」）。
+  function renderStatsMultiFilter(endedGames){
+    var endedIds = {};
+    endedGames.forEach(function(g){ endedIds[g.id] = true; });
+    ui.statsMultiGameIds = ui.statsMultiGameIds.filter(function(id){ return endedIds[id]; });
+    if(ui.statsMultiDraftIds) ui.statsMultiDraftIds = ui.statsMultiDraftIds.filter(function(id){ return endedIds[id]; });
+
+    var openBtn = document.getElementById("statsMultiOpenBtn");
+    var summaryRow = document.getElementById("statsMultiSummaryRow");
+    var picker = document.getElementById("statsMultiPicker");
+    var multiActive = ui.statsMultiGameIds.length > 0;
+
+    openBtn.style.display = (!multiActive && endedGames.length > 0 && !ui.statsMultiPickerOpen) ? "block" : "none";
+    summaryRow.style.display = (multiActive && !ui.statsMultiPickerOpen) ? "block" : "none";
+    picker.style.display = ui.statsMultiPickerOpen ? "block" : "none";
+
+    if(multiActive && !ui.statsMultiPickerOpen){
+      var chosen = endedGames.filter(function(g){ return ui.statsMultiGameIds.indexOf(g.id) !== -1; })
+        .sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
+      var labels = chosen.map(function(g){ return gameDateTimeLabel(g) + (g.venue ? '・'+g.venue : ''); });
+      document.getElementById("statsMultiSummaryText").textContent = "🔀 自選了 "+chosen.length+" 場："+labels.join("、");
+    }
+
+    if(ui.statsMultiPickerOpen){
+      if(!ui.statsMultiDraftIds) ui.statsMultiDraftIds = ui.statsMultiGameIds.slice();
+      var draft = ui.statsMultiDraftIds;
+      var sorted = endedGames.slice().sort(function(a,b){ return (b.endedAt||0)-(a.endedAt||0); });
+      var listEl = document.getElementById("statsMultiPickerList");
+      listEl.innerHTML = "";
+      sorted.forEach(function(g){
+        var b = document.createElement("button");
+        b.type = "button";
+        var selected = draft.indexOf(g.id) !== -1;
+        b.className = "chip" + (selected ? " chip-selected" : "");
+        b.textContent = gameDateTimeLabel(g) + (g.venue ? '・'+g.venue : '');
+        b.addEventListener("click", function(){
+          var idx = draft.indexOf(g.id);
+          if(idx !== -1) draft.splice(idx,1); else draft.push(g.id);
+          renderStatsTab();
+        });
+        listEl.appendChild(b);
+      });
+    }
+  }
+  document.getElementById("statsMultiOpenBtn").addEventListener("click", function(){
+    ui.statsMultiDraftIds = ui.statsMultiGameIds.slice();
+    ui.statsMultiPickerOpen = true;
+    renderStatsTab();
+  });
+  document.getElementById("statsMultiEditBtn").addEventListener("click", function(){
+    ui.statsMultiDraftIds = ui.statsMultiGameIds.slice();
+    ui.statsMultiPickerOpen = true;
+    renderStatsTab();
+  });
+  document.getElementById("statsMultiClearBtn").addEventListener("click", function(){
+    ui.statsMultiGameIds = [];
+    ui.statsMultiDraftIds = null;
+    ui.statsMultiPickerOpen = false;
+    renderStatsTab();
+  });
+  document.getElementById("statsMultiApplyBtn").addEventListener("click", function(){
+    ui.statsMultiGameIds = (ui.statsMultiDraftIds || []).slice();
+    ui.statsGameFilter = null;
+    ui.statsMultiDraftIds = null;
+    ui.statsMultiPickerOpen = false;
+    renderStatsTab();
+  });
+  document.getElementById("statsMultiCancelBtn").addEventListener("click", function(){
+    ui.statsMultiDraftIds = null;
+    ui.statsMultiPickerOpen = false;
+    renderStatsTab();
+  });
   function renderStatsTab(){
     var btns = document.querySelectorAll(".subtab-btn");
     for(var i=0;i<btns.length;i++){
@@ -5060,9 +5160,16 @@
       if(!endedGames.some(function(g){ return g.id === filterGameId; })) ui.statsGameFilter = null;
     }
     renderStatsGameFilterSelect(endedGames);
+    renderStatsMultiFilter(endedGames);
     var filteredGames = endedGames;
     var singleGameId = null;
-    if(ui.statsGameFilter){
+    var hasAnyFilter = false;
+    if(ui.statsMultiGameIds.length){
+      hasAnyFilter = true;
+      filteredGames = endedGames.filter(function(g){ return ui.statsMultiGameIds.indexOf(g.id) !== -1; });
+      if(ui.statsMultiGameIds.length === 1) singleGameId = ui.statsMultiGameIds[0];
+    }else if(ui.statsGameFilter){
+      hasAnyFilter = true;
       var kind = ui.statsGameFilter.slice(0,2), key = ui.statsGameFilter.slice(2);
       if(kind === "g:"){
         singleGameId = key;
@@ -5075,11 +5182,11 @@
     }
     if(ui.statsSub === "longterm"){
       content.innerHTML = renderLongTermHtml(filteredGames);
-      // 請飲料是跨場配對的統計，月份/年度篩選沒辦法只看那段期間裡的
-      // 配對（配對本身可能橫跨期間邊界），所以只在「總計」或「單場」
-      // 時顯示，月份/年度篩選時先不顯示，避免看起來像是只算那段期間、
-      // 實際上卻混了全部場次的配對結果。
-      if(!ui.statsGameFilter || singleGameId){
+      // 請飲料是跨場配對的統計，篩選範圍沒辦法只看那段期間裡的配對
+      // （配對本身可能橫跨篩選邊界），所以只在「總計」或「單場」時顯
+      // 示，有任何範圍/自選篩選時先不顯示，避免看起來像是只算篩選到
+      // 的場次、實際上卻混了全部場次的配對結果。
+      if(!hasAnyFilter || singleGameId){
         renderDrinkTreatSection(content, endedGames, singleGameId);
       }
     }
