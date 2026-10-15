@@ -1265,6 +1265,14 @@
       photo: rawAdvanced.photo !== false,
       music: rawAdvanced.music !== false
     } : null; // 舊資料沒有這個欄位，取消牌局時用「兩個都退」的舊行為
+    // carryIn（延續今天其他場次的起始值）也要整理過才留得住，不然資料
+    // 從雲端同步回來、重新跑一次 normalizeState，這欄位沒被複製過去就會
+    // 直接消失——剛開局時「今晚累計」才看得到，一同步完就不見了。
+    var rawCarryIn = (g.carryIn && typeof g.carryIn === "object") ? g.carryIn : {};
+    var carryIn = {};
+    Object.keys(rawCarryIn).forEach(function(n){
+      if(players.indexOf(n) !== -1 && typeof rawCarryIn[n] === "number") carryIn[n] = rawCarryIn[n];
+    });
     return {
       id: g.id || genId("g"),
       date: (typeof g.date === "string" && g.date) ? g.date : todayISO(),
@@ -1276,7 +1284,8 @@
       sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced, suits: suits,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
-      endedAt: typeof g.endedAt === "number" ? g.endedAt : null
+      endedAt: typeof g.endedAt === "number" ? g.endedAt : null,
+      carryIn: carryIn
     };
   }
 
@@ -1592,26 +1601,31 @@
   }
   function computeSetTotals(set){
     var totals = {};
-    set.seatOrder.forEach(function(n){ totals[n]=0; });
-    set.hands.forEach(function(h){
-      Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+    (set.seatOrder || []).forEach(function(n){ totals[n]=0; });
+    (set.hands || []).forEach(function(h){
+      Object.keys(h.deltas || {}).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
     });
     // 八仙過海這類額外結算（見 commitBaxian）不算一手、不進 set.hands，
     // 但金錢上是真的換了手，輸贏總額還是要算進去。
     (set.sideEvents || []).forEach(function(ev){
-      Object.keys(ev.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
+      Object.keys(ev.deltas || {}).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
     });
     return totals;
   }
+  // 這兩個 compute 函式也會被 buildStartedState 透過 Firebase transaction
+  // 直接套用在「還沒經過 normalizeState 整理」的原始雲端資料上（見下面
+  // todaysOtherGamesTotal 的註解）——Firebase 本身不會存空陣列/空物件，
+  // 剛開的新將還沒記過任何一手時，hands、sideEvents 讀回來會直接是
+  // undefined，不是空陣列，這裡每一層都要防呆，不然會直接整個當掉。
   function computeGameTotals(game){
     var totals = {};
-    game.players.forEach(function(n){ totals[n]=0; });
-    game.sets.forEach(function(set){
-      set.hands.forEach(function(h){
-        Object.keys(h.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
+    (game.players || []).forEach(function(n){ totals[n]=0; });
+    (game.sets || []).forEach(function(set){
+      (set.hands || []).forEach(function(h){
+        Object.keys(h.deltas || {}).forEach(function(n){ totals[n]=(totals[n]||0)+h.deltas[n]; });
       });
       (set.sideEvents || []).forEach(function(ev){
-        Object.keys(ev.deltas).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
+        Object.keys(ev.deltas || {}).forEach(function(n){ totals[n]=(totals[n]||0)+ev.deltas[n]; });
       });
     });
     return totals;
