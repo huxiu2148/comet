@@ -1285,7 +1285,8 @@
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null,
-      carryIn: carryIn
+      carryIn: carryIn,
+      carryInOptOut: g.carryInOptOut === true
     };
   }
 
@@ -2073,7 +2074,11 @@
           photo: primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null)
         },
         dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
-        createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn
+        createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn,
+        // 「今晚累計」顯不顯示，是看「今天有沒有多桌同開」這個即時狀態
+        // （見 renderActiveSet），不是看這桌自己存的 carryIn 是不是非0——
+        // 這裡只記住這桌自己開局當下有沒有被使用者主動關掉這個功能。
+        carryInOptOut: !carryInEnabled
       };
       newGameId = newGame.id;
       var ns = deepClone(baseState);
@@ -3656,12 +3661,14 @@
     renderDrinkToggle(game);
 
     var setTotals = computeSetTotals(set);
-    // 這場帶了「今晚累計」起始值的話（分桌重新分組延續過來的），底下那
-    // 行數字改顯示「今晚累計」（起始值+這整場，不只這將），不是單純的
-    // 「全場」；沒有帶起始值的話，維持原本只在這場不只一將時才顯示「全
-    // 場」的行為，兩種不會同時出現，底下永遠只有一行小字。
+    // 「今晚累計」要不要顯示，看的是「今天這一天」現在是不是真的有過
+    // 多桌同開（不是只看這桌自己開局當下存的起始值是不是非0）——最早開
+    // 的那桌本來就沒有「其他場次」可以延續，起始值永遠是空的，但只要
+    // 今天後來又開了別桌、變成多桌的一天，這桌也該一起顯示「今晚累計」
+    // 才對，不然同一個晚上兩桌一個有累計、一個沒有，畫面看起來不一致。
+    // 只有這桌自己在開局當下把「延續金額」開關關掉時才不跟著顯示。
     var carryIn = game.carryIn || null;
-    var hasCarryIn = !!(carryIn && game.players.some(function(n){ return carryIn[n]; }));
+    var hasCarryIn = !game.carryInOptOut && hadMultiTableOverlapToday(state.games, game.date);
     var gameTotals = (hasCarryIn || game.sets.length > 1) ? computeGameTotals(game) : null;
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
@@ -3720,7 +3727,7 @@
       card.appendChild(statsEl);
 
       if(gameTotals){
-        var gAmt = hasCarryIn ? ((carryIn[name]||0) + (gameTotals[name]||0)) : (gameTotals[name] || 0);
+        var gAmt = hasCarryIn ? (((carryIn && carryIn[name])||0) + (gameTotals[name]||0)) : (gameTotals[name] || 0);
         var gLabel = hasCarryIn ? "今晚累計" : "全場";
         var gAmtEl = document.createElement("div");
         gAmtEl.className = "game-amt " + (gAmt>0?"win":(gAmt<0?"lose":""));
