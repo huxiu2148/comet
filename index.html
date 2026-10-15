@@ -4811,18 +4811,39 @@
       return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div>' +
         '<div class="stat-mid">'+result.winners.map(escapeHtml).join('、')+'</div><div class="stat-amt">'+fmt(result.value)+'</div></div>';
     }
+    // 次數跟比率本來就是同一件事的兩種算法，如果正好是同一個人同時拿下
+    // 兩個稱號，分開各列一行只是重複報告同一個人、浪費版面；合併成一行
+    // 把次數跟比率一起秀出來。如果拿下次數王跟比率王的不是完全同一批
+    // 人，就照舊分開各列一行，不能硬湊在一起。
+    function sameWinners(a, b){
+      if(!a.winners.length || a.winners.length !== b.winners.length) return false;
+      var sa = a.winners.slice().sort(), sb = b.winners.slice().sort();
+      return sa.every(function(n,i){ return n === sb[i]; });
+    }
+    function titleRowCombo(emoji, comboLabel, countEmoji, countLabel, countResult, countFmt, rateEmoji, rateLabel, rateResult, rateFmt){
+      if(sameWinners(countResult, rateResult)){
+        return '<div class="stat-row"><div class="stat-name">'+emoji+' '+comboLabel+'</div>' +
+          '<div class="stat-mid">'+countResult.winners.map(escapeHtml).join('、')+'</div>' +
+          '<div class="stat-amt">'+countFmt(countResult.value)+'・'+rateFmt(rateResult.value)+'</div></div>';
+      }
+      return titleRow(countEmoji, countLabel, countResult, countFmt) + titleRow(rateEmoji, rateLabel, rateResult, rateFmt);
+    }
     var MIN_RATE_HANDS = 8; // 手數太少的話比率一下就100%或0%，沒有參考價值，先排除
+    var pctFmt = function(v){ return Math.round(v*100)+'%'; };
     var titleRows =
-      titleRow('🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      titleRow('🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      titleRow('💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRowCombo('🀄','胡牌王／胡牌率最高',
+        '🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; },
+        '🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
+      titleRowCombo('🎯','自摸王／自摸率最高',
+        '🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; },
+        '🍜','自摸率最高', topBy(function(s){ return s.hands ? s.selfWins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
+      titleRowCombo('💣','放槍王／放槍率最高',
+        '💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; },
+        '🧲','放槍率最高（最容易放槍）', topBy(function(s){ return s.hands ? s.dealIns/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
       titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('🥶','最衰被攔胡（本來也胡得到、卻被攔次數最多）', topBy(function(s){ return s.gotInterceptedCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
-      titleRow('🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
-      titleRow('🍜','自摸率最高', topBy(function(s){ return s.hands ? s.selfWins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
-      titleRow('🧲','放槍率最高（最容易放槍）', topBy(function(s){ return s.hands ? s.dealIns/s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return Math.round(v*100)+'%'; }) +
       titleRow('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(v){ return '連莊'+v+'次'; }) +
       titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
       titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; });
