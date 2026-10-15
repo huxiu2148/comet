@@ -719,22 +719,6 @@
           <button type="button" class="btn btn-outline" id="statsMultiCancelBtn">取消</button>
         </div>
       </div>
-      <div id="statsPeopleSummaryRow" style="display:none; margin-top:8px;">
-        <p class="hint-text" id="statsPeopleSummaryText"></p>
-        <div style="display:flex; gap:8px; margin-top:6px;">
-          <button type="button" class="btn btn-outline" id="statsPeopleEditBtn">✏️ 修改自選的人</button>
-          <button type="button" class="btn btn-outline" id="statsPeopleClearBtn">✕ 清除自選</button>
-        </div>
-      </div>
-      <button type="button" class="btn btn-outline btn-block" id="statsPeopleOpenBtn" style="display:none; margin-top:8px;">👥 自選特定幾人來看</button>
-      <div id="statsPeoplePicker" style="display:none; margin-top:8px; border:1px solid var(--border); border-radius:12px; padding:12px;">
-        <p class="hint-text">勾選想看的人，場次只要有其中任何一位參與就算進來。</p>
-        <div class="chip-row" id="statsPeoplePickerList"></div>
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button type="button" class="btn btn-primary" id="statsPeopleApplyBtn">套用</button>
-          <button type="button" class="btn btn-outline" id="statsPeopleCancelBtn">取消</button>
-        </div>
-      </div>
       <div id="statsContent"></div>
     </div>
   </section>
@@ -1761,9 +1745,6 @@
     statsMultiGameIds: [],
     statsMultiDraftIds: null,
     statsMultiPickerOpen: false,
-    statsPeopleFilter: [],
-    statsPeopleDraft: null,
-    statsPeoplePickerOpen: false,
     calTargetName: null,
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
@@ -5190,77 +5171,6 @@
     ui.statsMultiPickerOpen = false;
     renderStatsTab();
   });
-  // 自選特定幾人：跟自選場次是獨立的另一個篩選維度，可以同時套用——
-  // 選了人之後，場次範圍/自選場次先篩過一輪，剩下的場次裡只要有勾選
-  // 的任何一人參與就留下來（不是要求全部人都要在場，方便排除代打）。
-  function renderStatsPeopleFilter(){
-    var candidates = statsTargetCandidates();
-    var candidateSet = {};
-    candidates.forEach(function(n){ candidateSet[n] = true; });
-    ui.statsPeopleFilter = ui.statsPeopleFilter.filter(function(n){ return candidateSet[n]; });
-    if(ui.statsPeopleDraft) ui.statsPeopleDraft = ui.statsPeopleDraft.filter(function(n){ return candidateSet[n]; });
-
-    var openBtn = document.getElementById("statsPeopleOpenBtn");
-    var summaryRow = document.getElementById("statsPeopleSummaryRow");
-    var picker = document.getElementById("statsPeoplePicker");
-    var peopleActive = ui.statsPeopleFilter.length > 0;
-
-    openBtn.style.display = (!peopleActive && candidates.length > 0 && !ui.statsPeoplePickerOpen) ? "block" : "none";
-    summaryRow.style.display = (peopleActive && !ui.statsPeoplePickerOpen) ? "block" : "none";
-    picker.style.display = ui.statsPeoplePickerOpen ? "block" : "none";
-
-    if(peopleActive && !ui.statsPeoplePickerOpen){
-      document.getElementById("statsPeopleSummaryText").textContent =
-        "👥 自選了 "+ui.statsPeopleFilter.length+" 人（只要有參與就算）："+ui.statsPeopleFilter.join("、");
-    }
-
-    if(ui.statsPeoplePickerOpen){
-      if(!ui.statsPeopleDraft) ui.statsPeopleDraft = ui.statsPeopleFilter.slice();
-      var draft = ui.statsPeopleDraft;
-      var listEl = document.getElementById("statsPeoplePickerList");
-      listEl.innerHTML = "";
-      candidates.forEach(function(name){
-        var b = document.createElement("button");
-        b.type = "button";
-        var selected = draft.indexOf(name) !== -1;
-        b.className = "chip" + (selected ? " chip-selected" : "");
-        b.textContent = name;
-        b.addEventListener("click", function(){
-          var idx = draft.indexOf(name);
-          if(idx !== -1) draft.splice(idx,1); else draft.push(name);
-          renderStatsTab();
-        });
-        listEl.appendChild(b);
-      });
-    }
-  }
-  document.getElementById("statsPeopleOpenBtn").addEventListener("click", function(){
-    ui.statsPeopleDraft = ui.statsPeopleFilter.slice();
-    ui.statsPeoplePickerOpen = true;
-    renderStatsTab();
-  });
-  document.getElementById("statsPeopleEditBtn").addEventListener("click", function(){
-    ui.statsPeopleDraft = ui.statsPeopleFilter.slice();
-    ui.statsPeoplePickerOpen = true;
-    renderStatsTab();
-  });
-  document.getElementById("statsPeopleClearBtn").addEventListener("click", function(){
-    ui.statsPeopleFilter = [];
-    ui.statsPeopleDraft = null;
-    ui.statsPeoplePickerOpen = false;
-    renderStatsTab();
-  });
-  document.getElementById("statsPeopleApplyBtn").addEventListener("click", function(){
-    ui.statsPeopleFilter = (ui.statsPeopleDraft || []).slice();
-    ui.statsPeopleDraft = null;
-    ui.statsPeoplePickerOpen = false;
-    renderStatsTab();
-  });
-  document.getElementById("statsPeopleCancelBtn").addEventListener("click", function(){
-    ui.statsPeopleDraft = null;
-    ui.statsPeoplePickerOpen = false;
-    renderStatsTab();
-  });
   function renderStatsTab(){
     var btns = document.querySelectorAll(".subtab-btn");
     for(var i=0;i<btns.length;i++){
@@ -5277,9 +5187,8 @@
     }
     renderStatsGameFilterSelect(endedGames);
     renderStatsMultiFilter(endedGames);
-    renderStatsPeopleFilter();
     var filteredGames = endedGames;
-    var hasAnyFilter = !!(ui.statsGameFilter || ui.statsMultiGameIds.length || ui.statsPeopleFilter.length);
+    var hasAnyFilter = !!(ui.statsGameFilter || ui.statsMultiGameIds.length);
     if(ui.statsMultiGameIds.length){
       filteredGames = filteredGames.filter(function(g){ return ui.statsMultiGameIds.indexOf(g.id) !== -1; });
     }else if(ui.statsGameFilter){
@@ -5291,11 +5200,6 @@
       }else if(kind === "y:"){
         filteredGames = filteredGames.filter(function(g){ return g.date.slice(0,4) === key; });
       }
-    }
-    if(ui.statsPeopleFilter.length){
-      filteredGames = filteredGames.filter(function(g){
-        return g.players.some(function(n){ return ui.statsPeopleFilter.indexOf(n) !== -1; });
-      });
     }
     // 不管是透過哪種篩選方式湊出來的，只要最後只剩剛好一場，就當作「單
     // 場」處理——請飲料是跨場配對的統計，篩選沒辦法只看範圍內的配對
