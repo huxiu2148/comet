@@ -2025,6 +2025,13 @@
       var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
       var photoPlaying = players.indexOf(photoCandidate) !== -1;
       var musicPlaying = players.indexOf(musicCandidate) !== -1;
+      // 已經有別桌在進行中的話，播音樂/拍照是整個空間共用、只認桌1，這
+      // 桌一開局就直接套用桌1現在的人選，不要自己另外跑輪值——不然會
+      // 選出跟桌1不一樣的人，又要靠鏡像顯示硬蓋過去，資料跟畫面對不起來。
+      var primaryActive = alreadyActive.length
+        ? alreadyActive.slice().sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); })[0]
+        : null;
+      var primaryActiveDuties = (primaryActive && primaryActive.duties) || null;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
         hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
@@ -2042,15 +2049,19 @@
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
         status: "active", sets: [firstSet],
-        duties: {record: DEFAULT_RECORD_NAME, music: musicPlaying ? musicCandidate : null, photo: photoPlaying ? photoCandidate : null},
-        dutyRotationAdvanced: { photo: photoPlaying, music: musicPlaying },
+        duties: {
+          record: DEFAULT_RECORD_NAME,
+          music: primaryActiveDuties ? primaryActiveDuties.music : (musicPlaying ? musicCandidate : null),
+          photo: primaryActiveDuties ? primaryActiveDuties.photo : (photoPlaying ? photoCandidate : null)
+        },
+        dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
         createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn
       };
       newGameId = newGame.id;
       var ns = deepClone(baseState);
       ns.games.push(newGame);
       ns.activeGameId = newGame.id;
-      ns.dutyRotation = {
+      ns.dutyRotation = primaryActiveDuties ? rotation : {
         photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
         musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx
       };
@@ -3350,18 +3361,26 @@
     if(!ng) return;
     if(!ng.duties) ng.duties = {record:null, music:null, photo:null};
     ng.duties[key] = (ng.duties[key] === name) ? null : name;
+    // 播音樂/拍照是整個空間共用的，桌1（唯一能改的那桌）改了之後，直接
+    // 把同一個人寫回其他每桌自己的資料裡，不要只靠畫面上鏡像顯示——不然
+    // 這場結束後，別桌自己存的分工紀錄會是空的，跟實際情況不一致。
+    if(DUTY_CANDIDATE_SCOPE[key] === "room"){
+      var newValue = ng.duties[key];
+      newState.games.forEach(function(g){
+        if(g.id === gameId || g.status !== "active") return;
+        if(!g.duties) g.duties = {record:null, music:null, photo:null};
+        g.duties[key] = newValue;
+      });
+    }
     commitState(newState);
   }
   function renderDuties(game){
     var duties = game.duties || {record:null, music:null, photo:null};
     var primary = primaryDutyGame();
     var isPrimary = !primary || primary.id === game.id;
-    var primaryDuties = (primary && primary.duties) || {record:null, music:null, photo:null};
-    // 摘要列顯示的播音樂/拍照永遠照桌1的來，記錄還是照自己這桌的。
-    var effectiveDuties = { record: duties.record, music: primaryDuties.music, photo: primaryDuties.photo };
     document.getElementById("toggleDutiesBtn").textContent = ui.showDuties ? "收起" : "展開";
     document.getElementById("dutiesBody").style.display = ui.showDuties ? "block" : "none";
-    var summaryText = dutiesSummaryText(effectiveDuties);
+    var summaryText = dutiesSummaryText(duties);
     document.getElementById("dutiesSummaryLine").innerHTML = summaryText || "還沒有人負責，點「展開」指派。";
     var lockedHint = document.getElementById("dutiesLockedHint");
     if(lockedHint) lockedHint.style.display = isPrimary ? "none" : "block";
@@ -3369,7 +3388,7 @@
       var el = document.getElementById(DUTY_CHIP_IDS[key]);
       el.innerHTML = "";
       var locked = DUTY_CANDIDATE_SCOPE[key] === "room" && !isPrimary;
-      var currentValue = locked ? primaryDuties[key] : duties[key];
+      var currentValue = duties[key];
       dutyCandidates(game, key).forEach(function(name){
         var b = document.createElement("button");
         b.type = "button";
