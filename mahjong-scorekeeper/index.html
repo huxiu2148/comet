@@ -888,7 +888,7 @@
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
       <li><b>同時開兩桌</b>：只要兩桌的玩家完全不重疊，可以同時各自有一桌在「進行中」。只要有任何一桌在進行，「本局」最上面會出現「進行中的牌桌」切換列，點 chip 切換目前要看、要記錄的是哪一桌；點「➕ 開新桌」可以在別桌還在打的時候開新的一桌。已經在其他進行中牌桌的人，選人時會標「・進行中」且不能重複選。每台裝置（手機）各自記住自己正在看哪一桌，互不影響，適合兩個人各拿自己的手機分別記錄兩桌。</li>
       <li><b>隨機分兩桌</b>：8個人要一次分成兩桌的話，選人畫面按「隨機分2桌」，先勾滿8位再按「隨機分組」，會自動拆成4+4：第一組直接進到抓位畫面可以按「開局」，第二組等你之後按「開新桌」時會自動幫你把名單選好，不用再重新勾一次。</li>
-      <li><b>延續今天其他場次的金額</b>：如果今天真的同時開過不只一桌（例如中途重新分組），開新局時會出現「延續今天其他場次的金額」開關，把這幾位今天目前為止的淨輸贏當成這場的起始值，畫面上每人卡片下面會多顯示一行「今晚累計」；不想延續的話可以關掉，就跟平常一樣從0開始算。單純同一批人今天稍早打過、現在單獨重開一場（不是真的同時開過兩桌），不會出現這個開關。</li>
+      <li><b>延續今天其他場次的金額</b>：如果今天真的同時開過不只一桌（例如中途重新分組），開新局時會出現「延續今天其他場次的金額」開關，把這幾位今天目前為止的淨輸贏當成這場的起始值，畫面上每人卡片下面會多顯示一行「今晚累計」；不想延續的話可以關掉，就跟平常一樣從0開始算。單純同一批人今天稍早打過、現在單獨重開一場（不是真的同時開過兩桌），不會出現這個開關。這個開關開著的話，拿撲克牌算點數的這幾位，花色也會一併從他們今天最近一次的紀錄帶過來，不用重新指派一次——畢竟同一個人整晚拿的是同一張牌，不會因為分桌換座重新發牌。</li>
     </ul>
 
     <h3>🎬 今天的分工</h3>
@@ -1673,6 +1673,24 @@
     });
     return carry;
   }
+  // 拿撲克牌代替麻將牌算點數的話，花色是跟著人、不是跟著桌——同一個人
+  // 整晚都拿著同一張牌，重新分桌不會重發牌。所以跟「延續今天其他場次
+  // 的金額」掛同一個開關：開著的話，新開的這桌直接套用這幾位今天（不
+  // 管哪一桌、已結束還在進行都算）最近一次指派過的花色，不用重新指派
+  // 一次；每個人各自取「今天最近一次」，不是整場都要同一場來源。
+  function todaysLastKnownSuits(gamesList, players, date, excludeGameId){
+    var todays = gamesList.filter(function(g){
+      return g.id !== excludeGameId && g.date === date;
+    }).sort(function(a,b){ return (b.endedAt||b.createdAt||0) - (a.endedAt||a.createdAt||0); });
+    var suits = {};
+    players.forEach(function(n){
+      for(var i=0;i<todays.length;i++){
+        var s = todays[i].suits;
+        if(s && s[n]){ suits[n] = s[n]; break; }
+      }
+    });
+    return suits;
+  }
   // 「延續金額」這個概念只在真的同時開過不只一桌時才有意義——同一批人
   // 今天稍早打過一場、現在單純重開一場新的，不算，那本來就該從0開始。
   // 判斷方式：今天的場次裡，只要有任兩場的進行時間（開局到結束，還在
@@ -2093,6 +2111,8 @@
       // carryIn 全部留 0，畫面行為就跟以前一樣。
       var carryIn = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
         ? todaysOtherGamesTotal(baseState.games, players, date) : {};
+      var carrySuits = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
+        ? todaysLastKnownSuits(baseState.games, players, date) : {};
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
@@ -2107,7 +2127,7 @@
           photo: primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null)
         },
         dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
-        createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn,
+        createdAt: Date.now(), endedAt: null, suits: carrySuits, carryIn: carryIn,
         // 「今晚累計」顯不顯示，是看「今天有沒有多桌同開」這個即時狀態
         // （見 renderActiveSet），不是看這桌自己存的 carryIn 是不是非0——
         // 這裡只記住這桌自己開局當下有沒有被使用者主動關掉這個功能。
