@@ -2065,8 +2065,12 @@
         status: "active", sets: [firstSet],
         duties: {
           record: DEFAULT_RECORD_NAME,
-          music: primaryActiveDuties ? primaryActiveDuties.music : (musicPlaying ? musicCandidate : null),
-          photo: primaryActiveDuties ? primaryActiveDuties.photo : (photoPlaying ? photoCandidate : null)
+          // primaryActiveDuties 是桌1原始、沒整理過的雲端資料——Firebase 不會
+          // 存 null 欄位，桌1的播音樂/拍照如果當時還沒指派人，這裡讀回來會
+          // 直接是 undefined（不是 null）。Firebase transaction 不接受回傳的
+          // 物件裡有 undefined，一定要轉成 null，不然整個開局會直接失敗。
+          music: primaryActiveDuties ? (primaryActiveDuties.music || null) : (musicPlaying ? musicCandidate : null),
+          photo: primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null)
         },
         dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
         createdAt: Date.now(), endedAt: null, suits: {}, carryIn: carryIn
