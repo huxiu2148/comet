@@ -4677,7 +4677,7 @@
         name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
         dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
         dealerHands: 0, dealerNet: 0, maxStreak: 0, interceptCount: 0, gotInterceptedCount: 0,
-        maxWin: null, maxDealIn: null
+        maxWin: null, maxDealIn: null, leopardWins: 0, baxianCount: 0
       };
     });
     var overallMaxWin = null, overallMaxDealIn = null; // {name, amt, detail}
@@ -4721,6 +4721,7 @@
           var s = stats[h.winnerName];
           s.wins++;
           if(h.method === "self") s.selfWins++; else s.discardWins++;
+          if(h.leopard) s.leopardWins++;
           var myDelta = h.deltas[h.winnerName] || 0;
           var winWhat = h.method === "self" ? "自摸" : "放槍（"+escapeHtml(h.loserName)+"）";
           var winDetail = whenStr+'・'+winWhat+(breakdown ? '<br>'+breakdown : '');
@@ -4755,6 +4756,7 @@
           Object.keys(ev.deltas).forEach(function(n){
             if(stats[n]) stats[n].netAmt += (ev.deltas[n] || 0);
           });
+          if(ev.type === "baxian" && stats[ev.achieverName]) stats[ev.achieverName].baxianCount++;
           if(ev.style === "discard"){
             addPair(ev.payerName, ev.achieverName, ev.unitAmount);
           }else{
@@ -4846,7 +4848,10 @@
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
       titleRow('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(v){ return '連莊'+v+'次'; }) +
       titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
-      titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; });
+      titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; }) +
+      titleRow('🤖','零放槍紀錄（手數夠多、卻從沒放過槍）', topBy(function(s){ return s.dealIns === 0 ? s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return v+'手'; }) +
+      titleRow('🐆','豹子愛用王（用豹子加倍胡牌次數最多）', topBy(function(s){ return s.leopardWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('⛩️','八仙過海王（八仙過海次數最多）', topBy(function(s){ return s.baxianCount; }, {excludeZero:true}), function(v){ return v+'次'; });
     var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆</div><div class="stat-list">'+titleRows+'</div>';
 
     function extremeCard(label, item){
