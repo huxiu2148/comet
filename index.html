@@ -894,7 +894,7 @@
     <h3>🎬 今天的分工</h3>
     <ul>
       <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。</li>
-      <li>如果輪到的那個人這場是找別人代打（沒有出現在這場的四個人裡），這場就先不自動指派那個工作、順序也不會往前跳，等他下次真的有打的時候還是輪到他，不會因為代打就被跳過。</li>
+      <li>拍照、播音樂的輪值只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
       <li>播音樂、拍照算整個空間共用的工作，候選名單會列出所有進行中牌桌的人：但只有最早開的那桌（桌1）能實際點選指派，其他桌只能跟著顯示桌1目前選的人、按鈕反灰點不動，避免兩支手機同時搶著改同一個欄位互相蓋過去。記錄則是每桌各自獨立，只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
       <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
@@ -995,6 +995,15 @@
   var PHOTO_ROTATION_NAMES = ["彗","綺","儒","榕"];
   var MUSIC_ROTATION_NAMES = ["綺","儒","彗"];
   var DEFAULT_RECORD_NAME = "彗";
+  // 拍照／播音樂的輪值只在固定這四人班底時才有意義——這場的4人如果不是
+  // 剛好「彗、綺、儒、榕」這組人（不管順序），就整個不碰輪值：不指派、
+  // 順序也不往前推進，等下次真的是這四人原班再繼續接著輪，不會因為中間
+  // 混了代打的客人就把輪值順序打亂、也不會指派給不在場的人。
+  function isDutyRotationCore(players){
+    if(!players || players.length !== PHOTO_ROTATION_NAMES.length) return false;
+    var a = players.slice().sort(), b = PHOTO_ROTATION_NAMES.slice().sort();
+    return a.every(function(n,i){ return n === b[i]; });
+  }
   var WINDS = ["東","南","西","北"];
   // 有些牌友實際上拿撲克牌代替麻將牌算點數，每個人記一張牌的花色，
   // 之後可以在分析頁回頭看「帶哪個花色時比較容易贏/輸」。跟座位、莊家
@@ -2089,8 +2098,11 @@
       var rotation = baseState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
       var photoCandidate = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
       var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
-      var photoPlaying = players.indexOf(photoCandidate) !== -1;
-      var musicPlaying = players.indexOf(musicCandidate) !== -1;
+      // 只有這場正好是彗/綺/儒/榕四人原班才繼續用輪值——是的話候選人必定
+      // 就在這4人裡面（輪值名單本來就只有這四人），不是的話整場都不碰。
+      var isRotationCore = isDutyRotationCore(players);
+      var photoPlaying = isRotationCore && players.indexOf(photoCandidate) !== -1;
+      var musicPlaying = isRotationCore && players.indexOf(musicCandidate) !== -1;
       // 已經有別桌在進行中的話，播音樂/拍照是整個空間共用、只認桌1，這
       // 桌一開局就直接套用桌1現在的人選，不要自己另外跑輪值——不然會
       // 選出跟桌1不一樣的人，又要靠鏡像顯示硬蓋過去，資料跟畫面對不起來。
