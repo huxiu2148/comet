@@ -504,6 +504,8 @@
         <p class="hint-text" id="ngCarryInHint"></p>
       </div>
 
+      <p class="hint-text" id="ngDutyPreview" style="display:none; margin-top:10px;"></p>
+
       <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
       <button type="button" class="btn btn-outline btn-block" id="openBackfillBtn" style="margin-top:10px;">📝 補記過去的牌局（只有最終輸贏）</button>
     </div>
@@ -546,6 +548,15 @@
       <div class="card">
         <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span><button type="button" class="link-btn danger" id="cancelGameBtn">🗑️ 取消牌局</button></h2>
         <div class="game-meta" id="gameMetaLine1"></div>
+        <button type="button" class="link-btn" id="editVenueBtn" style="margin:2px 0 0;">📍 改地點</button>
+        <div id="editVenuePanel" style="display:none; margin-top:6px;">
+          <input type="text" id="editVenueInput" placeholder="家裡客廳、雀莊名稱…">
+          <div class="chip-row" id="editVenueChips"></div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-primary" id="editVenueSaveBtn">更新</button>
+            <button type="button" class="btn btn-outline" id="editVenueCancelBtn">取消</button>
+          </div>
+        </div>
         <div class="game-meta" id="gameMetaLine2"></div>
         <div class="dice-row">
           <button type="button" class="btn btn-outline" id="diceRollBtn">🎲 骰骰子</button>
@@ -884,8 +895,9 @@
     <h3>🎬 開新牌局</h3>
     <ul>
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
-      <li>自由選 4 位玩家、設定底／台，就能按「開局」。</li>
+      <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
+      <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
       <li><b>同時開兩桌</b>：只要兩桌的玩家完全不重疊，可以同時各自有一桌在「進行中」。只要有任何一桌在進行，「本局」最上面會出現「進行中的牌桌」切換列，點 chip 切換目前要看、要記錄的是哪一桌；點「➕ 開新桌」可以在別桌還在打的時候開新的一桌。已經在其他進行中牌桌的人，選人時會標「・進行中」且不能重複選。每台裝置（手機）各自記住自己正在看哪一桌，互不影響，適合兩個人各拿自己的手機分別記錄兩桌。</li>
       <li><b>隨機分兩桌</b>：8個人要一次分成兩桌的話，選人畫面按「隨機分2桌」，先勾滿8位再按「隨機分組」，會自動拆成4+4：第一組直接進到抓位畫面可以按「開局」，第二組等你之後按「開新桌」時會自動幫你把名單選好，不用再重新勾一次。</li>
@@ -1810,6 +1822,7 @@
     showSetLog: true,
     endSetPanelOpen: false,
     showDuties: true,
+    editVenueOpen: false,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     pendingHand: null,
@@ -1940,9 +1953,20 @@
       }else{
         carryInBlock.style.display = "none";
       }
+
+      var dutyPreview = previewDutyAssignment(ui.newGame.selectedPlayers);
+      var dutyPreviewText = dutiesSummaryText(dutyPreview);
+      var dutyPreviewEl = document.getElementById("ngDutyPreview");
+      if(dutyPreviewText){
+        dutyPreviewEl.innerHTML = "📋 按下開局後這場會自動指派："+dutyPreviewText;
+        dutyPreviewEl.style.display = "block";
+      }else{
+        dutyPreviewEl.style.display = "none";
+      }
     }else{
       seatBlock.style.display = "none";
       carryInBlock.style.display = "none";
+      document.getElementById("ngDutyPreview").style.display = "none";
       if(!ui.splitMode) ui.newGame.seatOrder = null;
     }
   }
@@ -2071,6 +2095,7 @@
     var date = document.getElementById("ngDate").value || todayISO();
     var time = document.getElementById("ngTime").value || nowTimeStr();
     var venue = document.getElementById("ngVenue").value.trim();
+    if(!venue){ showToast("請填地點才能開局"); return; }
     var base = parseInt(document.getElementById("ngBase").value, 10);
     var tai = parseInt(document.getElementById("ngTai").value, 10);
     var players = ui.newGame.selectedPlayers.slice();
@@ -3253,6 +3278,33 @@
     });
   });
 
+  // 地點現在開局前就強制要填，但已經開了局卻忘記填（例如舊資料、或補記
+  // 過去的牌局）還是有機會留空，這裡讓使用者可以隨時回來補上或改掉，
+  // 不用整場取消重開。
+  document.getElementById("editVenueBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    ui.editVenueOpen = true;
+    document.getElementById("editVenueInput").value = game.venue || "";
+    renderGameTab();
+  });
+  document.getElementById("editVenueCancelBtn").addEventListener("click", function(){
+    ui.editVenueOpen = false;
+    renderGameTab();
+  });
+  document.getElementById("editVenueSaveBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var v = document.getElementById("editVenueInput").value.trim();
+    if(!v){ showToast("請填地點"); return; }
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    if(!ng) return;
+    ng.venue = v;
+    if(newState.venues.indexOf(v) === -1) newState.venues.push(v);
+    ui.editVenueOpen = false;
+    commitState(newState);
+    showToast("地點已更新。");
+  });
+
   // 骰骰子：純粹的小工具，跟台數計算完全無關（不會自動幫「豹子」設定
   // 倍數），只是需要的時候按一下、看看骰出來的點數，方便自己決定要不要
   // 開豹子、開幾倍。骰三顆，因為「豹子」原本就是骰寶那種三顆一樣的說法。
@@ -3443,6 +3495,29 @@
     if(!actives.length) return null;
     actives.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
     return actives[0];
+  }
+  // 開局前（還在選人／填表單的時候）就先預告按下去會指派誰記錄、音樂、
+  // 拍照——跟 buildStartedState 裡開局當下真正決定的邏輯算法一致（鏡像
+  // 現有主桌，或四人原班才跑輪值），只是這裡是唯讀的預覽，不會真的寫
+  // 入任何資料。
+  function previewDutyAssignment(players){
+    if(!players || players.length !== 4) return null;
+    var primary = primaryDutyGame();
+    var record = DEFAULT_RECORD_NAME;
+    var music, photo;
+    if(primary){
+      var pd = primary.duties || {};
+      music = pd.music || null;
+      photo = pd.photo || null;
+    }else{
+      var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      var isCore = isDutyRotationCore(players);
+      var photoCandidate = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+      var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+      photo = (isCore && players.indexOf(photoCandidate) !== -1) ? photoCandidate : null;
+      music = (isCore && players.indexOf(musicCandidate) !== -1) ? musicCandidate : null;
+    }
+    return { record: record, music: music, photo: photo };
   }
   function assignDuty(gameId, key, name){
     var newState = deepClone(state);
@@ -3712,6 +3787,11 @@
     document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
     var modeText = game.selfDrawMode === "split" ? "三家均攤" : "各付全額";
     document.getElementById("gameMetaLine1").textContent = game.date + (game.time ? " "+game.time : "") + (game.venue ? "・"+game.venue : "") + "・底$"+game.base+"/台$"+game.tai+"・自摸"+modeText;
+    document.getElementById("editVenueBtn").textContent = game.venue ? "📍 改地點" : "📍 補填地點";
+    document.getElementById("editVenuePanel").style.display = ui.editVenueOpen ? "block" : "none";
+    if(ui.editVenueOpen){
+      renderChipRow("editVenueChips", state.venues, function(v){ document.getElementById("editVenueInput").value = v; renderGameTab(); }, document.getElementById("editVenueInput").value);
+    }
     var setHandCount = set.hands.length;
     var gameHandCount = allHandsOf(game).length;
     document.getElementById("gameMetaLine2").textContent = "這將 "+setHandCount+" 手・全場 "+gameHandCount+" 手";
