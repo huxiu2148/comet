@@ -566,6 +566,15 @@
       </div>
 
       <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span class="section-label" style="margin:0;">記錄一手</span>
+          <button type="button" class="link-btn" id="inputModeToggleBtn">🖱️ 改用點選</button>
+        </div>
+        <div id="tapInputRow" class="toggle-row" style="display:none; margin-bottom:10px;">
+          <button type="button" class="btn btn-outline" id="tapSelfBtn">🎯 自摸</button>
+          <button type="button" class="btn btn-outline" id="tapDiscardBtn">💥 放槍</button>
+        </div>
+        <p class="hint-text" id="tapInputHint" style="display:none;"></p>
         <div class="gesture-grid" id="gestureGrid"></div>
 
         <!-- 「記錄胡的牌」放在豹子／台數上面，引導先記牌面再算台數，但
@@ -919,8 +928,9 @@
       <li><b>一炮多響</b>：拖完第一位胡牌者之後，在下面「本手預覽」的「🎯 一炮多響」點其他也胡牌的人加進來，每個人各自輸入自己的台數，放槍的人會分別付給每一位；點名字可以切換目前正在編輯台數的是誰。</li>
       <li><b>攔胡</b>：如果有人本來也胡得到，但被輪序較近的人攔下、沒有真的拿到錢，可以在「🚫 攔胡」點他的名字標記起來，純粹記錄用，不會影響金額。</li>
       <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
+      <li><b>覺得手勢不好操作？</b>本局卡片上方「🖱️ 改用點選」可以切成點選模式：自摸就按「🎯 自摸」再點那個人；放槍按「💥 放槍」，先點誰胡牌、再點誰放槍（點到同一個人可以取消重選）。兩種輸入方式都在，手勢（長按拖曳、連點三下）隨時都還能用，點選只是另一種按法；選用哪種記在這台裝置上，不用每次重開都重選。</li>
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
-      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數。</li>
+      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
@@ -1109,6 +1119,20 @@
   }
   function saveTaiSortMode(mode){
     try{ localStorage.setItem(TAI_SORT_KEY, mode); }catch(e){}
+  }
+  // 自摸／放槍預設用手勢（連點三下／長按拖曳），但手勢在某些手機或情境
+  // 下不好操作，額外留一個點選模式：先點「自摸」或「放槍」武裝，再點
+  // 要指定的人，兩種輸入方式都保留，各自的裝置自己選、存在 localStorage，
+  // 不用每次重開都重選。
+  var INPUT_MODE_KEY = "twmj_input_mode_v1";
+  function loadInputMode(){
+    try{
+      var v = localStorage.getItem(INPUT_MODE_KEY);
+      return v === "tap" ? "tap" : "gesture";
+    }catch(e){ return "gesture"; }
+  }
+  function saveInputMode(mode){
+    try{ localStorage.setItem(INPUT_MODE_KEY, mode); }catch(e){}
   }
   function computeTagFrequency(){
     var freq = {};
@@ -1825,6 +1849,8 @@
     editVenueOpen: false,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
+    inputMode: loadInputMode(),
+    tapPending: null,
     pendingHand: null,
     editSeatSetId: null,
     tilesPickerOpen: false,
@@ -2579,6 +2605,7 @@
     if(blockIfSuitsMissing(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    ui.tapPending = null; // 流局不算一手自摸/放槍，點選模式如果還武裝著就先清掉，避免誤觸
     var record = buildDrawRecord(set);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -2586,8 +2613,24 @@
     ns.hands.push(record);
     syncDealerFromHands(ns);
     commitState(newState);
+    showToast("已記錄流局，莊家連莊。");
   }
   document.getElementById("drawBtn").addEventListener("click", function(){ commitDraw(); });
+
+  document.getElementById("inputModeToggleBtn").addEventListener("click", function(){
+    ui.inputMode = ui.inputMode === "tap" ? "gesture" : "tap";
+    saveInputMode(ui.inputMode);
+    ui.tapPending = null;
+    renderGameTab();
+  });
+  document.getElementById("tapSelfBtn").addEventListener("click", function(){
+    ui.tapPending = { type: "self" };
+    renderGameTab();
+  });
+  document.getElementById("tapDiscardBtn").addEventListener("click", function(){
+    ui.tapPending = { type: "discard", winner: null };
+    renderGameTab();
+  });
 
   // 八仙過海（花胡）：拿滿八張花牌，純粹是這整副牌裡的花牌額外結算，
   // 跟「胡牌」是分開的兩件事——拿滿花的人可以選擇要不要繼續摸這手，
@@ -2870,6 +2913,33 @@
   // （ui.swapSeatOrder）調整順序，畫面立刻反映出來，但不會馬上發布到雲端、
   // 整頁重新整理——再點一次「換位」結束時才會一次寫進去，使用者才不會
   // 每動一下位置就被強制重整、跳動畫面。
+  // 點選模式：先按「自摸」或「放槍」武裝，再點要指定的人，不用手勢。
+  // 「自摸」武裝後點一下任何人直接記自摸；「放槍」武裝後先點胡牌的人
+  // （卡片會反黑標出來），再點放槍的人，兩人不能是同一位——點到自己
+  // 剛選的那位等於取消重選。跟手勢共用 recordSelfDrawGesture／
+  // recordDiscardGesture，記錄邏輯完全一樣，只是觸發方式不同。
+  function handleTapSelect(name){
+    var p = ui.tapPending;
+    if(!p) return;
+    if(p.type === "self"){
+      ui.tapPending = null;
+      recordSelfDrawGesture(name);
+      return;
+    }
+    if(!p.winner){
+      p.winner = name;
+      renderGameTab();
+      return;
+    }
+    if(name === p.winner){
+      ui.tapPending = null;
+      renderGameTab();
+      return;
+    }
+    var winner = p.winner;
+    ui.tapPending = null;
+    recordDiscardGesture(winner, name);
+  }
   function handleSwapTap(name){
     if(!ui.swapSeatOrder) return;
     if(ui.swapSelected === null){ ui.swapSelected = name; renderGameTab(); return; }
@@ -2973,6 +3043,10 @@
         return;
       }
       if(ui.swapMode){ handleSwapTap(playerName); return; }
+      // 點選模式下，單純點一下卡片不觸發任何東西（不想誤連點成自摸），
+      // 一定要先按「自摸」或「放槍」武裝好才會有反應；手勢（長按拖曳）
+      // 還是照常可以用，兩種輸入方式並存。
+      if(ui.inputMode === "tap"){ handleTapSelect(playerName); return; }
       var now = Date.now();
       var arr = tapState[playerName] || [];
       arr.push(now);
@@ -3816,6 +3890,33 @@
     var carryIn = game.carryIn || null;
     var hasCarryIn = !game.carryInOptOut && hadMultiTableOverlapToday(state.games, game.date);
     var gameTotals = (hasCarryIn || game.sets.length > 1) ? computeGameTotals(game) : null;
+
+    document.getElementById("inputModeToggleBtn").textContent = ui.inputMode === "tap" ? "👆 改用手勢" : "🖱️ 改用點選";
+    var tapRow = document.getElementById("tapInputRow");
+    var tapHint = document.getElementById("tapInputHint");
+    tapRow.style.display = ui.inputMode === "tap" ? "flex" : "none";
+    if(ui.inputMode === "tap"){
+      var tp = ui.tapPending;
+      var tapSelfBtnEl = document.getElementById("tapSelfBtn");
+      var tapDiscardBtnEl = document.getElementById("tapDiscardBtn");
+      tapSelfBtnEl.classList.toggle("selected", !!(tp && tp.type === "self"));
+      tapDiscardBtnEl.classList.toggle("selected", !!(tp && tp.type === "discard"));
+      if(tp && tp.type === "self"){
+        tapHint.textContent = "點任何一位的卡片，記他自摸。";
+        tapHint.style.display = "block";
+      }else if(tp && tp.type === "discard" && !tp.winner){
+        tapHint.textContent = "先點誰胡牌。";
+        tapHint.style.display = "block";
+      }else if(tp && tp.type === "discard" && tp.winner){
+        tapHint.textContent = "再點誰放槍給「"+tp.winner+"」（再點一次「"+tp.winner+"」可以取消重選）。";
+        tapHint.style.display = "block";
+      }else{
+        tapHint.style.display = "none";
+      }
+    }else{
+      tapHint.style.display = "none";
+    }
+
     var grid = document.getElementById("gestureGrid");
     grid.innerHTML = "";
     var me = meRoster();
@@ -3833,6 +3934,9 @@
           : pending.winnerName === name;
         if(isPendingWinner) cardCls += " pending-winner";
         if(pending.loserName === name) cardCls += " pending-loser";
+      }
+      if(ui.inputMode === "tap" && ui.tapPending && ui.tapPending.type === "discard" && ui.tapPending.winner === name){
+        cardCls += " pending-winner";
       }
       card.className = cardCls;
       card.setAttribute("data-player", name);
