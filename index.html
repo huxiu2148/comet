@@ -802,6 +802,14 @@
       <button class="btn btn-primary btn-block apply-btn" id="applyDefaultsBtn">💾 儲存預設值</button>
     </div>
     <div class="card">
+      <h2>🎬 拍照／播音樂輪值校正</h2>
+      <p class="hint-text">固定順序：拍照 彗→綺→儒→榕→彗…；音樂 綺→儒→彗→綺…（榕不會輪到）。如果實際指派到的人跟這個順序對不起來（例如之前有誤判代打也往前推的情況），可以直接在這裡指定「下一次開局」拍照／音樂該輪到誰，之後就會從指定的這位繼續往下接。</p>
+      <div class="section-label">拍照下一位</div>
+      <div class="chip-row" id="photoRotationChips"></div>
+      <div class="section-label">音樂下一位</div>
+      <div class="chip-row" id="musicRotationChips"></div>
+    </div>
+    <div class="card">
       <h2>☁️ 雲端狀態</h2>
       <div class="cloud-badge-lg local" id="cloudBadgeLg">💾 本機模式</div>
       <p class="hint-text" id="cloudHint"></p>
@@ -906,7 +914,7 @@
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
       <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
-      <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。</li>
+      <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
       <li><b>同時開兩桌</b>：只要兩桌的玩家完全不重疊，可以同時各自有一桌在「進行中」。只要有任何一桌在進行，「本局」最上面會出現「進行中的牌桌」切換列，點 chip 切換目前要看、要記錄的是哪一桌；點「➕ 開新桌」可以在別桌還在打的時候開新的一桌。已經在其他進行中牌桌的人，選人時會標「・進行中」且不能重複選。每台裝置（手機）各自記住自己正在看哪一桌，互不影響，適合兩個人各拿自己的手機分別記錄兩桌。</li>
       <li><b>隨機分兩桌</b>：8個人要一次分成兩桌的話，選人畫面按「隨機分2桌」，先勾滿8位再按「隨機分組」，會自動拆成4+4：第一組直接進到抓位畫面可以按「開局」，第二組等你之後按「開新桌」時會自動幫你把名單選好，不用再重新勾一次。</li>
@@ -915,7 +923,7 @@
 
     <h3>🎬 今天的分工</h3>
     <ul>
-      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。</li>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 拍照／播音樂輪值校正」直接指定下一次該輪到誰。</li>
       <li>拍照、播音樂的輪值只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
       <li>播音樂、拍照算整個空間共用的工作，候選名單會列出所有進行中牌桌的人：但只有最早開的那桌（桌1）能實際點選指派，其他桌只能跟著顯示桌1目前選的人、按鈕反灰點不動，避免兩支手機同時搶著改同一個欄位互相蓋過去。記錄則是每桌各自獨立，只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
@@ -1847,6 +1855,8 @@
     endSetPanelOpen: false,
     showDuties: true,
     editVenueOpen: false,
+    editingVenueGameId: null,
+    editingVenueDraft: null,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     inputMode: loadInputMode(),
@@ -4303,6 +4313,27 @@
   function renderSettingsTab(){
     document.getElementById("defBaseInput").value = state.defaultBase;
     document.getElementById("defTaiInput").value = state.defaultTai;
+    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+    var photoNext = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
+    var musicNext = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+    renderChipRow("photoRotationChips", PHOTO_ROTATION_NAMES, function(name){
+      var idx = PHOTO_ROTATION_NAMES.indexOf(name);
+      if(idx === -1) return;
+      var ns = deepClone(state);
+      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      ns.dutyRotation.photoIdx = idx;
+      commitState(ns);
+      showToast("已設定拍照下一位輪到「"+name+"」。");
+    }, photoNext);
+    renderChipRow("musicRotationChips", MUSIC_ROTATION_NAMES, function(name){
+      var idx = MUSIC_ROTATION_NAMES.indexOf(name);
+      if(idx === -1) return;
+      var ns = deepClone(state);
+      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      ns.dutyRotation.musicIdx = idx;
+      commitState(ns);
+      showToast("已設定音樂下一位輪到「"+name+"」。");
+    }, musicNext);
   }
   document.getElementById("applyDefaultsBtn").addEventListener("click", function(){
     var base = parseInt(document.getElementById("defBaseInput").value, 10);
@@ -5263,6 +5294,84 @@
         toggleGameDrinkEnabled(g.id);
       });
       detail.appendChild(drinkBtn);
+
+      // 結算完才發現忘記填地點（或填錯）的話，這裡也能補、不用只能在
+      // 進行中的牌局改——跟「本局」畫面那個編輯地點是同一套邏輯，只是
+      // 歷史紀錄這邊整排都是動態重繪的，沒辦法像本局那樣直接操作固定
+      // 的 DOM 節點，要多存一個草稿值（ui.editingVenueDraft）跨重繪保留
+      // 使用者剛點的地點 chip，直到按下「更新」或「取消」。
+      var venueEditBtn = document.createElement("button");
+      venueEditBtn.type = "button";
+      venueEditBtn.className = "link-btn";
+      venueEditBtn.style.marginTop = "6px";
+      venueEditBtn.style.display = "block";
+      venueEditBtn.textContent = g.venue ? "📍 改地點" : "📍 補填地點";
+      var venueEditOpen = ui.editingVenueGameId === g.id;
+      venueEditBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(venueEditOpen){
+          ui.editingVenueGameId = null;
+          ui.editingVenueDraft = null;
+        }else{
+          ui.editingVenueGameId = g.id;
+          ui.editingVenueDraft = g.venue || "";
+        }
+        renderStatsTab();
+      });
+      detail.appendChild(venueEditBtn);
+      if(venueEditOpen){
+        if(ui.editingVenueDraft === null) ui.editingVenueDraft = g.venue || "";
+        var venueEditBlock = document.createElement("div");
+        venueEditBlock.style.marginTop = "6px";
+        venueEditBlock.addEventListener("click", function(e){ e.stopPropagation(); });
+        var venueInput = document.createElement("input");
+        venueInput.type = "text";
+        venueInput.placeholder = "家裡客廳、雀莊名稱…";
+        venueInput.value = ui.editingVenueDraft;
+        venueEditBlock.appendChild(venueInput);
+        var venueChipsRow = document.createElement("div");
+        venueChipsRow.className = "chip-row";
+        state.venues.forEach(function(v){
+          var chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip" + (ui.editingVenueDraft === v ? " chip-selected" : "");
+          chip.textContent = v;
+          chip.addEventListener("click", function(){
+            ui.editingVenueDraft = v;
+            renderStatsTab();
+          });
+          venueChipsRow.appendChild(chip);
+        });
+        venueEditBlock.appendChild(venueChipsRow);
+        var venueSaveRow = document.createElement("div");
+        venueSaveRow.style.display = "flex"; venueSaveRow.style.gap = "8px"; venueSaveRow.style.marginTop = "8px";
+        var venueSaveBtn = document.createElement("button");
+        venueSaveBtn.type = "button"; venueSaveBtn.className = "btn btn-primary"; venueSaveBtn.textContent = "更新";
+        venueSaveBtn.addEventListener("click", function(){
+          var v = venueInput.value.trim();
+          if(!v){ showToast("請填地點"); return; }
+          var ns = deepClone(state);
+          var ng = ns.games.filter(function(x){ return x.id === g.id; })[0];
+          if(!ng) return;
+          ng.venue = v;
+          if(ns.venues.indexOf(v) === -1) ns.venues.push(v);
+          ui.editingVenueGameId = null;
+          ui.editingVenueDraft = null;
+          commitState(ns);
+          showToast("地點已更新。");
+        });
+        var venueCancelBtn = document.createElement("button");
+        venueCancelBtn.type = "button"; venueCancelBtn.className = "btn btn-outline"; venueCancelBtn.textContent = "取消";
+        venueCancelBtn.addEventListener("click", function(){
+          ui.editingVenueGameId = null;
+          ui.editingVenueDraft = null;
+          renderStatsTab();
+        });
+        venueSaveRow.appendChild(venueSaveBtn);
+        venueSaveRow.appendChild(venueCancelBtn);
+        venueEditBlock.appendChild(venueSaveRow);
+        detail.appendChild(venueEditBlock);
+      }
 
       // 跟上面的按鍵拉開明顯距離，避免手滑點到刪除整場牌局。
       var delBtn = document.createElement("button");
