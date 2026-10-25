@@ -1070,8 +1070,7 @@
     { key: "xiaosixi", label: "小四喜", value: 8, category: "牌型結構" },
     { key: "dihu", label: "地胡", value: 16, category: "牌型結構" },
     { key: "tianhu", label: "天胡", value: 24, category: "牌型結構" },
-    { key: "diting", label: "地聽", value: 4, category: "聽牌" },
-    { key: "tianting", label: "天聽", value: 8, category: "聽牌" },
+    { key: "migi", label: "MIGI", value: 8, category: "聽牌" },
     { key: "huapai", label: "花牌", value: 1, category: "特殊" },
     { key: "haidi", label: "海底撈月", value: 1, category: "特殊" },
     { key: "gangshang", label: "槓上開花", value: 1, category: "特殊" },
@@ -1289,6 +1288,29 @@
     });
   }
 
+  // 天聽、地聽後來合併成一個「MIGI」（8台，跟原本天聽一樣），舊資料裡
+  // 已經記錄過的 tianting／diting 標籤要一併轉過去，不然舊紀錄會變成
+  // 找不到定義的台型、顯示空白、也不會被算進「常胡台型」之類的統計。
+  // 金額本身不會變（本來就是記錄當下就算好存死的，不是靠 tags 重算），
+  // 這裡純粹是把標籤本身換個名字。
+  // 這裡存的是中文顯示名稱（不是英文 key）——紀錄裡的 tags 陣列本來就是
+  // 存使用者看到的台型名字（見 taiTagLabels／taiTagLabelsFor，選台型的
+  // 時候就已經把 key 換成中文名字再存進去了），不是內部用的 key。
+  var LEGACY_TAI_TAG_MAP = { "天聽": "MIGI", "地聽": "MIGI" };
+  function migrateHandTags(tags){
+    if(!Array.isArray(tags)) return tags;
+    var changed = false;
+    var seen = {};
+    var out = [];
+    tags.forEach(function(k){
+      var mapped = LEGACY_TAI_TAG_MAP[k];
+      if(mapped) changed = true;
+      var finalKey = mapped || k;
+      if(!seen[finalKey]){ seen[finalKey] = true; out.push(finalKey); }
+    });
+    if(!changed && out.length === tags.length) return tags;
+    return out;
+  }
   function normalizeSet(s, players){
     if(!s || typeof s !== "object") return null;
     var out = {
@@ -1296,7 +1318,11 @@
       seatOrder: (Array.isArray(s.seatOrder) && s.seatOrder.length===4) ? s.seatOrder : players.slice(),
       dealerIndex: typeof s.dealerIndex==="number" ? s.dealerIndex : 0,
       streak: typeof s.streak==="number" ? s.streak : 0,
-      hands: Array.isArray(s.hands) ? s.hands : [],
+      hands: Array.isArray(s.hands) ? s.hands.map(function(h){
+        if(!h || !Array.isArray(h.tags)) return h;
+        var migrated = migrateHandTags(h.tags);
+        return (migrated === h.tags) ? h : Object.assign({}, h, { tags: migrated });
+      }) : [],
       sideEvents: Array.isArray(s.sideEvents) ? s.sideEvents : [],
       status: s.status==="ended" ? "ended" : "active",
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
@@ -1319,6 +1345,11 @@
       var hands = (rawHands.length && typeof rawHands[0].winnerIndex === "number")
         ? convertOldIndexHandsToNameHands(players, rawHands)
         : rawHands;
+      hands = hands.map(function(h){
+        if(!h || !Array.isArray(h.tags)) return h;
+        var migrated = migrateHandTags(h.tags);
+        return (migrated === h.tags) ? h : Object.assign({}, h, { tags: migrated });
+      });
       var oneSet = {
         id: genId("s"), seatOrder: players.slice(), dealerIndex: 0, streak: 0,
         hands: hands, sideEvents: [], status: g.status==="ended" ? "ended" : "active",
