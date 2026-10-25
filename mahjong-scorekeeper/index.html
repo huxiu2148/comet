@@ -504,7 +504,16 @@
         <p class="hint-text" id="ngCarryInHint"></p>
       </div>
 
-      <p class="hint-text" id="ngDutyPreview" style="display:none; margin-top:10px;"></p>
+      <div id="ngDutyBlock" style="display:none; margin-top:10px;">
+        <div id="ngDutyPreview" class="hint-text" style="margin:0 0 6px;"></div>
+        <p class="hint-text">想自己指派也可以：點名字指派，再點一次可以取消。</p>
+        <div class="section-label">📝 記錄</div>
+        <div class="chip-row" id="ngDutyRecordChips"></div>
+        <div class="section-label">🎵 播音樂</div>
+        <div class="chip-row" id="ngDutyMusicChips"></div>
+        <div class="section-label">📷 拍照</div>
+        <div class="chip-row" id="ngDutyPhotoChips"></div>
+      </div>
 
       <button class="btn btn-primary btn-block submit-btn" id="startGameBtn" style="margin-top:14px;">🎬 開局</button>
       <button type="button" class="btn btn-outline btn-block" id="openBackfillBtn" style="margin-top:10px;">📝 補記過去的牌局（只有最終輸贏）</button>
@@ -912,7 +921,7 @@
     <h3>🎬 開新牌局</h3>
     <ul>
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
-      <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。</li>
+      <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。不想用自動指派的人選也可以，下面就有分工的名字chip，直接點名字就能自己改，再點一次可以取消。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
       <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
@@ -1867,7 +1876,7 @@
     wantNewGame: false,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true },
+    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {} },
     splitMode: false,
     pendingSplitGroup: null,
     suitsModalDismissedGameId: null,
@@ -1940,7 +1949,7 @@
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
-      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true };
+      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {} };
       ui.splitMode = false;
       // 「隨機分2桌」拆出來的另外4人，開新桌的表單一重新準備好就直接
       // 帶出來、先幫忙選好，不用再自己重新勾一次；用掉就清空，只用一次。
@@ -2022,18 +2031,36 @@
       }
 
       var dutyPreview = previewDutyAssignment(ui.newGame.selectedPlayers);
-      var dutyPreviewText = dutiesSummaryText(dutyPreview);
-      var dutyPreviewEl = document.getElementById("ngDutyPreview");
-      if(dutyPreviewText){
-        dutyPreviewEl.innerHTML = "📋 按下開局後這場會自動指派："+dutyPreviewText;
-        dutyPreviewEl.style.display = "block";
-      }else{
-        dutyPreviewEl.style.display = "none";
-      }
+      // 使用者可以在這裡直接點名字蓋過自動指派；dutyOverride 裡有某個角色
+      // 的 key 就表示使用者動過那個角色（值可能是某個人，也可能是 null＝
+      // 不指派），没有 key 才照自動邏輯的結果顯示。選的人如果後來被換掉
+      // （不在這4人裡了），這裡順便清掉，不然會卡著一個選不到的人。
+      var dutyOverride = ui.newGame.dutyOverride || (ui.newGame.dutyOverride = {});
+      Object.keys(dutyOverride).forEach(function(key){
+        var v = dutyOverride[key];
+        if(v && ui.newGame.selectedPlayers.indexOf(v) === -1) delete dutyOverride[key];
+      });
+      var effectiveDuties = {
+        record: dutyOverride.hasOwnProperty("record") ? dutyOverride.record : (dutyPreview ? dutyPreview.record : null),
+        music: dutyOverride.hasOwnProperty("music") ? dutyOverride.music : (dutyPreview ? dutyPreview.music : null),
+        photo: dutyOverride.hasOwnProperty("photo") ? dutyOverride.photo : (dutyPreview ? dutyPreview.photo : null)
+      };
+      var dutyPreviewText = dutiesSummaryText(effectiveDuties);
+      document.getElementById("ngDutyBlock").style.display = "block";
+      document.getElementById("ngDutyPreview").innerHTML = dutyPreviewText
+        ? "📋 按下開局後這場會指派："+dutyPreviewText
+        : "📋 按下開局後這場不會指派記錄／音樂／拍照。";
+      var dutyChipRowIds = { record: "ngDutyRecordChips", music: "ngDutyMusicChips", photo: "ngDutyPhotoChips" };
+      Object.keys(dutyChipRowIds).forEach(function(key){
+        renderChipRow(dutyChipRowIds[key], ui.newGame.selectedPlayers, function(name){
+          dutyOverride[key] = (effectiveDuties[key] === name) ? null : name;
+          renderGameTab();
+        }, effectiveDuties[key]);
+      });
     }else{
       seatBlock.style.display = "none";
       carryInBlock.style.display = "none";
-      document.getElementById("ngDutyPreview").style.display = "none";
+      document.getElementById("ngDutyBlock").style.display = "none";
       if(!ui.splitMode) ui.newGame.seatOrder = null;
     }
   }
@@ -2167,6 +2194,8 @@
     var tai = parseInt(document.getElementById("ngTai").value, 10);
     var players = ui.newGame.selectedPlayers.slice();
     var seatOrderSnapshot = ui.newGame.seatOrder.slice();
+    var dutyOverrideSnapshot = {};
+    Object.keys(ui.newGame.dutyOverride || {}).forEach(function(key){ dutyOverrideSnapshot[key] = ui.newGame.dutyOverride[key]; });
     var selfDrawMode = ui.newGameSelfDrawMode;
     var drinkEnabled = ui.newGame.drinkEnabled !== false;
     var carryInEnabled = ui.newGame.carryInEnabled !== false;
@@ -2218,19 +2247,28 @@
         ? todaysOtherGamesTotal(baseState.games, players, date) : {};
       var carrySuits = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
         ? todaysLastKnownSuits(baseState.games, players, date) : {};
+      // 使用者在開局前可以直接在表單上點名字蓋過下面這套自動指派；
+      // dutyOverrideSnapshot 裡有某個角色的 key，就直接採用使用者選的值
+      // （可能是某個人，也可能是 null＝不指派），沒有 key 才照自動規則。
+      // 注意輪值本身（下面 ns.dutyRotation 要不要往前推進）完全不受使用者
+      // 這裡手動蓋過的影響，還是照「這場正不正好輪到」來推進，不然以後
+      // 的自動指派會被這次手動選擇打亂。
+      var finalDuties = {
+        record: dutyOverrideSnapshot.hasOwnProperty("record") ? dutyOverrideSnapshot.record : DEFAULT_RECORD_NAME,
+        // primaryActiveDuties 是桌1原始、沒整理過的雲端資料——Firebase 不會
+        // 存 null 欄位，桌1的播音樂/拍照如果當時還沒指派人，這裡讀回來會
+        // 直接是 undefined（不是 null）。Firebase transaction 不接受回傳的
+        // 物件裡有 undefined，一定要轉成 null，不然整個開局會直接失敗。
+        music: dutyOverrideSnapshot.hasOwnProperty("music") ? dutyOverrideSnapshot.music :
+          (primaryActiveDuties ? (primaryActiveDuties.music || null) : (musicPlaying ? musicCandidate : null)),
+        photo: dutyOverrideSnapshot.hasOwnProperty("photo") ? dutyOverrideSnapshot.photo :
+          (primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null))
+      };
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
         status: "active", sets: [firstSet],
-        duties: {
-          record: DEFAULT_RECORD_NAME,
-          // primaryActiveDuties 是桌1原始、沒整理過的雲端資料——Firebase 不會
-          // 存 null 欄位，桌1的播音樂/拍照如果當時還沒指派人，這裡讀回來會
-          // 直接是 undefined（不是 null）。Firebase transaction 不接受回傳的
-          // 物件裡有 undefined，一定要轉成 null，不然整個開局會直接失敗。
-          music: primaryActiveDuties ? (primaryActiveDuties.music || null) : (musicPlaying ? musicCandidate : null),
-          photo: primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null)
-        },
+        duties: finalDuties,
         dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
         createdAt: Date.now(), endedAt: null, suits: carrySuits, carryIn: carryIn,
         // 「今晚累計」顯不顯示，是看「今天有沒有多桌同開」這個即時狀態
