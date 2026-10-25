@@ -853,6 +853,7 @@
 <div id="suitsModalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🃏 請先指派這場的撲克牌花色</div>
+    <p class="hint-text" id="suitsModalDutiesLine" style="margin:0 0 10px; display:none;"></p>
     <p class="hint-text" style="margin:0 0 10px;">這家都用撲克牌算點數，要先幫每個人指派好花色才能開始記錄這場。</p>
     <div id="suitsModalRows"></div>
     <button type="button" class="link-btn" id="suitsModalDismissBtn" style="margin-top:10px;">先處理別的事（分工、骰骰子…），記錄之前還是會再跳出來提醒</button>
@@ -3980,7 +3981,16 @@
     var suitsIncomplete = !!(game && !allSuitsAssigned(game));
     var suitsDismissed = !!(game && ui.suitsModalDismissedGameId === game.id);
     document.getElementById("suitsModalOverlay").style.display = (suitsIncomplete && !suitsDismissed) ? "flex" : "none";
-    if(suitsIncomplete) renderSuitAssignRowsInto(document.getElementById("suitsModalRows"), game);
+    if(suitsIncomplete){
+      renderSuitAssignRowsInto(document.getElementById("suitsModalRows"), game);
+      // 開局當下這個視窗會直接擋住整個畫面，分工是誰（記錄/音樂/拍照）
+      // 這時候也一起顯示在上面，不用先關掉視窗、再捲到下面的「今天的
+      // 分工」才看得到。
+      var dutiesLine = document.getElementById("suitsModalDutiesLine");
+      var dutiesSummary = dutiesSummaryText(game.duties);
+      dutiesLine.innerHTML = dutiesSummary ? ("這場分工："+dutiesSummary) : "";
+      dutiesLine.style.display = dutiesSummary ? "block" : "none";
+    }
     var showBackfill = !game && ui.backfillFormOpen;
     document.getElementById("newGamePanel").style.display = (!game && !showBackfill) ? "block" : "none";
     document.getElementById("backfillPanel").style.display = showBackfill ? "block" : "none";
