@@ -566,6 +566,11 @@
             <button type="button" class="btn btn-outline" id="editVenueCancelBtn">取消</button>
           </div>
         </div>
+        <button type="button" class="link-btn" id="editRoundWindBtn" style="margin:2px 0 0;">🀄 圈風：東</button>
+        <div id="editRoundWindPanel" style="display:none; margin-top:6px;">
+          <p class="hint-text" style="margin:0 0 6px;">點一個門風，直接套用這場的圈風。</p>
+          <div class="chip-row" id="editRoundWindChips"></div>
+        </div>
         <div class="game-meta" id="gameMetaLine2"></div>
         <div class="dice-row">
           <button type="button" class="btn btn-outline" id="diceRollBtn">🎲 骰骰子</button>
@@ -932,7 +937,7 @@
 
     <h3>🎬 今天的分工</h3>
     <ul>
-      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 拍照／播音樂輪值校正」直接指定下一次該輪到誰。</li>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 拍照／播音樂輪值校正」直接指定下一次該輪到誰。開局前在表單上手動改指派、或是本局中途用「今天的分工」改掉，輪值的「下一位」都會跟著同步成接在實際指派的人後面，不會因為手動改過就跟下一場的自動建議對不起來。</li>
       <li>拍照、播音樂的輪值只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。</li>
       <li>播音樂、拍照算整個空間共用的工作，候選名單會列出所有進行中牌桌的人：但只有最早開的那桌（桌1）能實際點選指派，其他桌只能跟著顯示桌1目前選的人、按鈕反灰點不動，避免兩支手機同時搶著改同一個欄位互相蓋過去。記錄則是每桌各自獨立，只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
@@ -947,11 +952,11 @@
       <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
       <li><b>覺得手勢不好操作？</b>本局卡片上方「🖱️ 改用點選」可以切成點選模式：自摸就按「🎯 自摸」再點那個人；放槍按「💥 放槍」，先點誰胡牌、再點誰放槍（點到同一個人可以取消重選）。兩種輸入方式都在，手勢（長按拖曳、連點三下）隨時都還能用，點選只是另一種按法；選用哪種記在這台裝置上，不用每次重開都重選。</li>
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
-      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上。</li>
+      <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上；如果這手結束前已經先按好骰規、豹子之類的台型準備要記，流局的時候會一起清掉，不會留到下一手。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
-      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
-      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台。</li>
+      <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
+      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示正在記的這位胡牌者當下實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台，記錄跟畫面上都會顯示成「3花+3」這種「張數+對應台數」的寫法。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
     </ul>
 
@@ -1155,7 +1160,10 @@
     state.games.forEach(function(g){
       g.sets.forEach(function(set){
         set.hands.forEach(function(h){
-          (h.tags || []).forEach(function(label){ freq[label] = (freq[label] || 0) + 1; });
+          // 自風／圈風存的是動態標籤（例如「自風(南)」），算「常用優先」
+          // 排序用的次數時要先還原成「自風」「圈風」這個底標籤一起算，
+          // 不然每種風別各自獨立算次數，會讓這兩個台型看起來一直都不常用。
+          (h.tags || []).forEach(function(label){ var k = baseTagLabel(label); freq[k] = (freq[k] || 0) + 1; });
         });
       });
     });
@@ -1402,6 +1410,7 @@
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       drinkEnabled: g.drinkEnabled !== false,
       status: g.status === "ended" ? "ended" : "active",
+      roundWind: (typeof g.roundWind === "string" && WINDS.indexOf(g.roundWind) !== -1) ? g.roundWind : "東",
       sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced, suits: suits,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
@@ -1660,9 +1669,13 @@
   // 跟預覽畫面共用，不用兩邊各寫一次、容易漏改到其中一邊。
   function tagsRowHtml(tags, bonusPhrase, extraPhrase){
     var grouped = groupTagCounts(tags);
+    var huaLabel = huapaiTag().label;
     var chips = grouped.order.map(function(label){
       var c = grouped.counts[label];
-      return '<span class="tag-chip">'+escapeHtml(label)+(c>1?('×'+c):'')+'</span>';
+      // 花牌同一手可能不只一張，改成「3花+3」這種「張數+對應台數」的
+      // 寫法，比「花牌×3」更直接看得出來這幾台是怎麼來的。
+      var text = (label === huaLabel) ? (c + "花+" + c) : (label+(c>1?('×'+c):''));
+      return '<span class="tag-chip">'+escapeHtml(text)+'</span>';
     });
     if(bonusPhrase) chips.push('<span class="tag-chip tag-chip-bonus">'+bonusPhrase+'</span>');
     if(extraPhrase) chips.push('<span class="tag-chip tag-chip-leopard">'+extraPhrase+'</span>');
@@ -1897,6 +1910,7 @@
     editVenueOpen: false,
     editingVenueGameId: null,
     editingVenueDraft: null,
+    editRoundWindOpen: false,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     inputMode: loadInputMode(),
@@ -2264,12 +2278,30 @@
         photo: dutyOverrideSnapshot.hasOwnProperty("photo") ? dutyOverrideSnapshot.photo :
           (primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null))
       };
+      // 輪值指標要跟著「實際真的指派了誰」走，不是只跟著自動邏輯走——
+      // 如果使用者在開局前手動蓋過自動指派（dutyOverrideSnapshot 裡有這個
+      // 角色的 key），就直接把指標跳到「使用者實際選的那個人」的下一位，
+      // 不管自動邏輯原本要指派誰；這樣下次自動指派才會接著「上一場真正
+      // 分配的人」繼續輪，不會因為這次手動蓋過就跟實際情況脫節。只有蓋過
+      // 的值剛好是輪值名單上的人才會推進；蓋成「不指派」或蓋成輪值名單
+      // 外的人，維持原本指標不變（跟代打的人不推進輪值是同一個道理）。
+      var autoRotation = primaryActiveDuties ? rotation : {
+        photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
+        musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx
+      };
+      var finalRotation = autoRotation;
+      if(dutyOverrideSnapshot.hasOwnProperty("photo")) finalRotation = advanceDutyRotationTo(finalRotation, "photo", dutyOverrideSnapshot.photo);
+      if(dutyOverrideSnapshot.hasOwnProperty("music")) finalRotation = advanceDutyRotationTo(finalRotation, "music", dutyOverrideSnapshot.music);
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
         status: "active", sets: [firstSet],
+        roundWind: "東", // 圈風，預設東風圈（開局後可以在本局畫面自己改）
         duties: finalDuties,
-        dutyRotationAdvanced: primaryActiveDuties ? { photo: false, music: false } : { photo: photoPlaying, music: musicPlaying },
+        dutyRotationAdvanced: {
+          photo: finalRotation.photoIdx !== rotation.photoIdx,
+          music: finalRotation.musicIdx !== rotation.musicIdx
+        },
         createdAt: Date.now(), endedAt: null, suits: carrySuits, carryIn: carryIn,
         // 「今晚累計」顯不顯示，是看「今天有沒有多桌同開」這個即時狀態
         // （見 renderActiveSet），不是看這桌自己存的 carryIn 是不是非0——
@@ -2280,10 +2312,7 @@
       var ns = deepClone(baseState);
       ns.games.push(newGame);
       ns.activeGameId = newGame.id;
-      ns.dutyRotation = primaryActiveDuties ? rotation : {
-        photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
-        musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx
-      };
+      ns.dutyRotation = finalRotation;
       ns.defaultBase = newGame.base;
       ns.defaultTai = newGame.tai;
       if(venue && ns.venues.indexOf(venue) === -1) ns.venues.push(venue);
@@ -2576,6 +2605,49 @@
   function huapaiTag(){
     return TAI_TAGS.filter(function(t){ return t.key === "huapai"; })[0];
   }
+  // 自風／圈風這兩個台型要動態顯示「實際是哪個風」：自風看胡牌者當下坐
+  // 哪個門風（這將的 seatOrder 本身不會變，只有誰當莊會變，所以門風用
+  // seatOrder 的位置查就好）；圈風看這整場開局時設定的圈風（預設東風
+  // 圈，可以在本局畫面自己改）。這裡只改顯示用的文字，台數還是 TAI_TAGS
+  // 裡那個固定的 1 台，不影響算錢。
+  function seatWindFor(name){
+    var game = activeGame(); if(!game) return null;
+    var set = activeSet(game); if(!set) return null;
+    var idx = set.seatOrder.indexOf(name);
+    return idx === -1 ? null : WINDS[idx];
+  }
+  function roundWindFor(game){
+    return (game && game.roundWind) || "東";
+  }
+  // 記錄胡的牌的時候，「正在編輯的是哪位胡牌者」自摸看 pendingHand.winnerName，
+  // 放槍（含一炮多響）看目前切到的那位 winners[activeWinnerIdx]。
+  function currentEditingWinnerName(){
+    var p = ui.pendingHand;
+    if(!p) return null;
+    if(p.method === "self") return p.winnerName;
+    if(p.method === "discard" && p.winners && p.winners[p.activeWinnerIdx]) return p.winners[p.activeWinnerIdx].name;
+    return null;
+  }
+  function dynamicTagLabel(key, staticLabel, winnerName){
+    if(key === "zifeng"){
+      var w = winnerName ? seatWindFor(winnerName) : null;
+      return w ? (staticLabel + "(" + w + ")") : staticLabel;
+    }
+    if(key === "quanfeng"){
+      var rw = roundWindFor(activeGame());
+      return rw ? (staticLabel + "(" + rw + ")") : staticLabel;
+    }
+    return staticLabel;
+  }
+  // 「常胡台型」之類跨很多手加總次數的統計，自風／圈風因為會依當下風別
+  // 動態顯示成「自風(南)」「圈風(東)」，直接照字面分組的話每種風別各自
+  // 獨立算，反而把「常胡自風／圈風」這件事拆散看不出來，這裡把風別去掉
+  // 還原成「自風」「圈風」這個共同的底標籤再分組／查值。
+  function baseTagLabel(label){
+    if(typeof label !== "string") return label;
+    var m = /^(自風|圈風)\(/.exec(label);
+    return m ? m[1] : label;
+  }
   function computeTotalTai(){
     var sum = ui.tai;
     ui.taiTags.forEach(function(key){
@@ -2585,10 +2657,10 @@
     sum += ui.huaCount * huapaiTag().value;
     return sum;
   }
-  function taiTagLabels(){
+  function taiTagLabels(winnerName){
     var labels = ui.taiTags.map(function(key){
       var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
-      return tag ? tag.label : key;
+      return tag ? dynamicTagLabel(tag.key, tag.label, winnerName) : key;
     });
     // 花牌可能同一手有好幾張，重複放進標籤陣列裡（不是只放一次），
     // 這樣「單手最大胡牌」的台型拆解跟「常胡台型」次數統計才會照實際
@@ -2611,7 +2683,7 @@
   function taiTagLabelsFor(w){
     var labels = w.tags.map(function(key){
       var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
-      return tag ? tag.label : key;
+      return tag ? dynamicTagLabel(tag.key, tag.label, w.name) : key;
     });
     for(var i=0;i<w.huaCount;i++) labels.push(huapaiTag().label);
     return labels;
@@ -2620,7 +2692,7 @@
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
-    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
+    var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels(winnerName), ui.leopard);
     record.tiles = flattenTileMap(ui.winningTiles);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
@@ -2691,6 +2763,10 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
+    // 流局之前可能已經先按好骰規、豹子之類準備記下一手胡牌用的台型，
+    // 流局不算一手，這些預先按好的狀態要清掉，不然會原封不動帶到下一手，
+    // 讓下一手一開始就莫名其妙多了沒點過的台型。
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     commitState(newState);
     showToast("已記錄流局，莊家連莊。");
   }
@@ -2828,20 +2904,22 @@
     if(overflow > 0) window.scrollBy({ top: overflow, behavior: "auto" });
     else if(rect.top < 0) window.scrollBy({ top: rect.top - 8, behavior: "auto" });
   }
-  // 胡牌的人剛好是莊家時，「莊家」（連莊的話再加「連莊」）台型標籤直接
-  // 幫他勾好，不用每次都手動點；使用者還是可以自己點掉取消。自摸的情況
-  // 「自摸莊家台」開關開著時這兩個標籤本來就會鎖住、renderTaiTags 也會
-  // 把誤留的勾選清掉，所以這裡不用特別排除自摸、兩邊共用同一個邏輯即可。
-  function dealerAutoTags(name){
+  // 胡牌的人剛好是莊家、或是放槍的人剛好是莊家時（莊家放槍一樣要算莊家
+  // 台），「莊家」（連莊的話再加「連莊」）台型標籤直接幫他勾好，不用每次
+  // 都手動點；使用者還是可以自己點掉取消。自摸的情況「自摸莊家台」開關
+  // 開著時這兩個標籤本來就會鎖住、renderTaiTags 也會把誤留的勾選清掉，
+  // 所以這裡不用特別排除自摸、兩邊共用同一個邏輯即可。
+  function dealerAutoTags(name, loserName){
     var game = activeGame(); if(!game) return [];
     var set = activeSet(game); if(!set) return [];
-    if(set.seatOrder[set.dealerIndex] !== name) return [];
+    var dealerName = set.seatOrder[set.dealerIndex];
+    if(dealerName !== name && dealerName !== loserName) return [];
     var tags = ["zhuangjia"];
     if(set.streak > 0) tags.push("lianzhuang");
     return tags;
   }
-  function applyDealerAutoTags(name){
-    dealerAutoTags(name).forEach(function(k){
+  function applyDealerAutoTags(name, loserName){
+    dealerAutoTags(name, loserName).forEach(function(k){
       if(ui.taiTags.indexOf(k) === -1) ui.taiTags.push(k);
     });
   }
@@ -2874,7 +2952,7 @@
       activeWinnerIdx: 0,
       intercepted: []
     };
-    applyDealerAutoTags(winnerName); // 放槍胡牌不會自動算莊家台，這裡用跟手動點一樣的方式先幫忙勾選
+    applyDealerAutoTags(winnerName, loserName); // 放槍胡牌不會自動算莊家台，這裡用跟手動點一樣的方式先幫忙勾選（胡牌者或放槍者剛好是莊家都算）
     ui.tilesPickerOpen = true; // 手勢一做完就直接展開「記錄胡的牌」，不用再多點一下
     renderGameTab();
     ensureTilesPickerVisible();
@@ -2920,7 +2998,7 @@
     var ii = p.intercepted.indexOf(name);
     if(ii !== -1) p.intercepted.splice(ii, 1); // 不能又是真的胡牌者、又是被攔的
     loadActiveWinnerUi();
-    applyDealerAutoTags(name); // 一炮多響後來加入的這位剛好是莊家，也一樣先幫忙勾好
+    applyDealerAutoTags(name, p.loserName); // 一炮多響後來加入的這位、或是放槍的人剛好是莊家，也一樣先幫忙勾好
     renderGameTab();
     ensureTilesPickerVisible();
     flashCard(name, "flash-win");
@@ -3272,7 +3350,11 @@
         var b = document.createElement("button");
         var active = ui.taiTags.indexOf(tag.key) !== -1;
         b.type = "button"; b.className = "chip" + (active ? " chip-selected" : "");
-        b.textContent = tag.label + "+" + tagValue(tag);
+        // 自風／圈風這兩個台型，按鈕上直接顯示「正在編輯的這位胡牌者」
+        // 當下實際是哪個風（例如「自風(南)」「圈風(東)」），不是籠統的
+        // 「自風」「圈風」，記下去之前就先看得出來是算哪個風。
+        var displayLabel = dynamicTagLabel(tag.key, tag.label, currentEditingWinnerName());
+        b.textContent = displayLabel + "+" + tagValue(tag);
         b.disabled = disabled;
         if(disabled) b.title = "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
         b.addEventListener("click", function(){
@@ -3456,6 +3538,13 @@
     ui.editVenueOpen = false;
     commitState(newState);
     showToast("地點已更新。");
+  });
+
+  // 圈風預設東風圈，大部分場次用不到要改；這裡讓使用者需要的時候可以
+  // 自己改成南/西/北，點一個門風就直接套用，不用額外按「更新」。
+  document.getElementById("editRoundWindBtn").addEventListener("click", function(){
+    ui.editRoundWindOpen = !ui.editRoundWindOpen;
+    renderGameTab();
   });
 
   // 骰骰子：純粹的小工具，跟台數計算完全無關（不會自動幫「豹子」設定
@@ -3653,6 +3742,20 @@
   // 拍照——跟 buildStartedState 裡開局當下真正決定的邏輯算法一致（鏡像
   // 現有主桌，或四人原班才跑輪值），只是這裡是唯讀的預覽，不會真的寫
   // 入任何資料。
+  // 把拍照／播音樂輪值的「下一位」指標直接跳到「name」的下一位——凡是
+  // 哪裡真的把某人指派成這個角色（開局前手動蓋過、或本局中途用「今天的
+  // 分工」改掉），都呼叫這個函式同步指標，不然指標會跟實際指派脫節，
+  // 下次自動指派的建議又跳回舊的順序。name 不在輪值名單裡（含不指派的
+  // null）就不動指標，原樣傳回去。
+  function advanceDutyRotationTo(rotation, key, name){
+    var names = key === "photo" ? PHOTO_ROTATION_NAMES : MUSIC_ROTATION_NAMES;
+    var idx = name ? names.indexOf(name) : -1;
+    if(idx === -1) return rotation;
+    var next = deepClone(rotation);
+    if(key === "photo") next.photoIdx = (idx+1) % names.length;
+    else next.musicIdx = (idx+1) % names.length;
+    return next;
+  }
   function previewDutyAssignment(players){
     if(!players || players.length !== 4) return null;
     var primary = primaryDutyGame();
@@ -3688,6 +3791,12 @@
         if(!g.duties) g.duties = {record:null, music:null, photo:null};
         g.duties[key] = newValue;
       });
+      // 這裡改的是真正指派出去的人，輪值指標要跟著同步，下次開局的自動
+      // 指派才會接著「這次實際指派的人」繼續輪，不會因為中途在這裡改過
+      // 就跟實際情況脫節（取消指派、或改成不在輪值名單裡的人，指標不動）。
+      if(key === "photo" || key === "music"){
+        newState.dutyRotation = advanceDutyRotationTo(newState.dutyRotation || { photoIdx: 0, musicIdx: 0 }, key, newValue);
+      }
     }
     commitState(newState);
   }
@@ -3910,7 +4019,7 @@
       }
       renderMultiWinnerBlock(p, game);
     }else{
-      var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(), ui.leopard);
+      var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(p.winnerName), ui.leopard);
       var parts = [];
       Object.keys(record.deltas).forEach(function(n){
         if(n === p.winnerName) return;
@@ -3944,6 +4053,20 @@
     document.getElementById("editVenuePanel").style.display = ui.editVenueOpen ? "block" : "none";
     if(ui.editVenueOpen){
       renderChipRow("editVenueChips", state.venues, function(v){ document.getElementById("editVenueInput").value = v; renderGameTab(); }, document.getElementById("editVenueInput").value);
+    }
+    var currentRoundWind = roundWindFor(game);
+    document.getElementById("editRoundWindBtn").textContent = "🀄 圈風：" + currentRoundWind;
+    document.getElementById("editRoundWindPanel").style.display = ui.editRoundWindOpen ? "block" : "none";
+    if(ui.editRoundWindOpen){
+      renderChipRow("editRoundWindChips", WINDS, function(w){
+        var newState = deepClone(state);
+        var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+        if(!ng) return;
+        ng.roundWind = w;
+        ui.editRoundWindOpen = false;
+        commitState(newState);
+        showToast("圈風已改成「"+w+"」。");
+      }, currentRoundWind);
     }
     var setHandCount = set.hands.length;
     var gameHandCount = allHandsOf(game).length;
@@ -4771,13 +4894,17 @@
     var chips = [];
     var tagSum = 0;
     var grouped = groupTagCounts(h.tags);
+    var huaLabel = huapaiTag().label;
     grouped.order.forEach(function(label){
-      var tag = TAI_TAGS.filter(function(t){ return t.label === label; })[0];
+      // 自風／圈風存的是動態標籤（例如「自風(南)」），查台型定義要先還原
+      // 回「自風」「圈風」這個底標籤，不然查不到、台數會變成算成0。
+      var tag = TAI_TAGS.filter(function(t){ return t.label === baseTagLabel(label); })[0];
       var perVal = tag ? (tag.key === "lianzhuang" ? 2*h.streak : tag.value) : 0;
       var count = grouped.counts[label];
       var val = perVal * count;
       tagSum += val;
-      chips.push('<span class="tag-chip">'+escapeHtml(label) + (count > 1 ? ("×"+count) : "") + "+" + val+'</span>');
+      var text = (label === huaLabel) ? (count + "花+" + val) : (label + (count > 1 ? ("×"+count) : "") + "+" + val);
+      chips.push('<span class="tag-chip">'+escapeHtml(text)+'</span>');
     });
     var other = h.tai - tagSum;
     if(other !== 0) chips.push('<span class="tag-chip">其他台'+(other>0?"+":"")+other+'</span>');
@@ -4822,7 +4949,7 @@
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
           else{ discardWinCount++; discardWinAmt+=myDelta; }
-          (h.tags || []).forEach(function(label){ tagFreq[label] = (tagFreq[label] || 0) + 1; });
+          (h.tags || []).forEach(function(label){ var k = baseTagLabel(label); tagFreq[k] = (tagFreq[k] || 0) + 1; });
           (h.tiles || []).forEach(function(t){ tileFreq[t] = (tileFreq[t] || 0) + 1; });
           // 這裡比大小、顯示的主要數字都是實際贏到的金額（myDelta），
           // 不是台數——同一台數在不同底/台設定下贏的錢差很多，用金額
