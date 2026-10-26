@@ -965,7 +965,8 @@
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
-      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示正在記的這位胡牌者當下實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台，記錄跟畫面上都會顯示成「3花+3」這種「張數+對應台數」的寫法。</li>
+      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台，記錄跟畫面上都會顯示成「3花+3」這種「張數+對應台數」的寫法。</li>
+      <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
       <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，輸入三顆各自的點數再按「套用」，一樣會算出共幾點、是不是豹子（三顆一樣），跟真的按骰骰子結果顯示完全一樣。這個純粹是小工具，跟台數/金額計算完全無關。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
@@ -1927,6 +1928,7 @@
     editingVenueGameId: null,
     editingVenueDraft: null,
     editRoundWindOpen: false,
+    doorSeat: null,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     inputMode: loadInputMode(),
@@ -2341,6 +2343,7 @@
       ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
       ui.wantNewGame = false;
+      ui.doorSeat = null; // 新開一桌，舊的開門（如果還留著）不再適用
       ui.showSuits = true; // 一開局就先展開撲克牌花色，不用自己點「展開」找
       if(newGameId) ui.viewingGameId = newGameId; // 剛開好的桌子自動切到那一桌看
     }
@@ -2621,16 +2624,36 @@
   function huapaiTag(){
     return TAI_TAGS.filter(function(t){ return t.key === "huapai"; })[0];
   }
-  // 自風／圈風這兩個台型要動態顯示「實際是哪個風」：自風看胡牌者當下坐
-  // 哪個門風（這將的 seatOrder 本身不會變，只有誰當莊會變，所以門風用
-  // seatOrder 的位置查就好）；圈風看這整場開局時設定的圈風（預設東風
-  // 圈，可以在本局畫面自己改）。這裡只改顯示用的文字，台數還是 TAI_TAGS
-  // 裡那個固定的 1 台，不影響算錢。
+  // 自風／圈風這兩個台型要動態顯示「實際是哪個風」：圈風看這整場開局時
+  // 設定的圈風（預設東風圈，可以在本局畫面自己改）。自風則是照「開門」
+  // 算的，不是單純看座位固定門風——每一手骰骰子（或自己輸入點數）骰出
+  // 來的點數，從莊家開始、逆時針數到第幾個就是開門，開門那家這手就變成
+  // 「虛擬東」，自風照這個重新算過的門風來排，不是整場固定的座位門風。
+  // ui.doorSeat 存的就是「這一手」骰出來、換算好的開門者，只對正在記的
+  // 這一手有效，手一記上去就會被清掉（見 commitHand 等），逼著下一手要
+  // 重新骰過——沒骰過（doorSeat是null）的話才退回用固定座位門風當預設。
+  // 這裡只改顯示用的文字，台數還是 TAI_TAGS 裡那個固定的 1 台，不影響算錢。
   function seatWindFor(name){
     var game = activeGame(); if(!game) return null;
     var set = activeSet(game); if(!set) return null;
     var idx = set.seatOrder.indexOf(name);
-    return idx === -1 ? null : WINDS[idx];
+    if(idx === -1) return null;
+    if(ui.doorSeat){
+      var doorIdx = set.seatOrder.indexOf(ui.doorSeat);
+      if(doorIdx !== -1) return WINDS[(idx - doorIdx + 4) % 4];
+    }
+    return WINDS[idx];
+  }
+  function doorIndexFromDice(set, diceSum){
+    return (set.dealerIndex + diceSum - 1) % 4;
+  }
+  // 這一手記上去（或流局、或換莊家）之後，開門就失效了，下一手要重新
+  // 骰才有——不清掉的話，骰出來的結果（還有畫面上顯示的開門文字）會
+  // 誤導成還在算下一手，容易算錯自風。
+  function resetDoorSeat(){
+    ui.doorSeat = null;
+    var resultEl = document.getElementById("diceResult");
+    if(resultEl) resultEl.style.display = "none";
   }
   function roundWindFor(game){
     return (game && game.roundWind) || "東";
@@ -2716,6 +2739,7 @@
     ns.hands.push(record);
     syncDealerFromHands(ns);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    resetDoorSeat();
     commitState(newState);
   }
 
@@ -2749,6 +2773,7 @@
     });
     syncDealerFromHands(ns);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    resetDoorSeat();
     commitState(newState);
   }
 
@@ -2783,6 +2808,7 @@
     // 流局不算一手，這些預先按好的狀態要清掉，不然會原封不動帶到下一手，
     // 讓下一手一開始就莫名其妙多了沒點過的台型。
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    resetDoorSeat();
     commitState(newState);
     showToast("已記錄流局，莊家連莊。");
   }
@@ -3078,6 +3104,7 @@
       var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
       ns.dealerIndex = idx;
       ns.streak = 0;
+      resetDoorSeat(); // 莊家變了，之前骰的開門是照舊莊家算的，不再準，要重骰
       commitState(newState);
     });
   }
@@ -3497,6 +3524,7 @@
     ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     ui.baxianPanelOpen = false; ui.baxianAchiever = null; ui.baxianStyle = "self"; ui.baxianPayer = null;
     ui.pendingHand = null;
+    resetDoorSeat(); // 新的一將莊家重新從東家算起，舊的開門不再適用
     commitState(newState);
   });
 
@@ -3597,7 +3625,17 @@
     resultEl.style.display = "block";
     resultEl.classList.remove("rolling");
     resultEl.classList.toggle("leopard-hit", isLeopard);
-    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
+    // 骰出來的點數順便算出這一手的開門：從莊家開始算1，逆時針數到骰出來
+    // 的點數，數到的那家這手就當「虛擬東」，自風照這個算（見 seatWindFor）。
+    // 只對「這一手」有效，記上去之後會被清掉，下一手要重新骰才有。
+    var doorPhrase = "";
+    var game = activeGame(), set = game && activeSet(game);
+    if(set){
+      ui.doorSeat = set.seatOrder[doorIndexFromDice(set, sum)];
+      doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
+    }
+    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
+    renderTaiTags();
   }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
     if(diceRolling) return;
