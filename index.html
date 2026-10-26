@@ -574,7 +574,16 @@
         <div class="game-meta" id="gameMetaLine2"></div>
         <div class="dice-row">
           <button type="button" class="btn btn-outline" id="diceRollBtn">🎲 骰骰子</button>
+          <button type="button" class="btn btn-outline" id="diceInputToggleBtn">✏️ 自己輸入</button>
           <div id="diceResult" class="dice-result" style="display:none;"></div>
+        </div>
+        <div id="diceInputPanel" style="display:none; margin-top:8px; text-align:center;">
+          <div style="display:flex; gap:8px; justify-content:center; align-items:center;">
+            <input type="number" id="diceInput1" min="1" max="6" placeholder="骰1" style="width:64px; text-align:center;">
+            <input type="number" id="diceInput2" min="1" max="6" placeholder="骰2" style="width:64px; text-align:center;">
+            <input type="number" id="diceInput3" min="1" max="6" placeholder="骰3" style="width:64px; text-align:center;">
+            <button type="button" class="btn btn-primary" id="diceInputApplyBtn">套用</button>
+          </div>
         </div>
         <button type="button" class="btn btn-outline btn-block" id="drinkToggleBtn" style="margin-top:10px;">🍹 最輸請飲料</button>
       </div>
@@ -599,7 +608,7 @@
         <div id="tilesPickerBlock" style="display:none; margin-top:8px;">
           <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
           <p class="hint-text" id="tilesSummary">還沒選牌</p>
-          <div class="chip-row" id="tilesGrid"></div>
+          <div id="tilesGrid"></div>
           <p class="hint-text">胡牌的牌只會有一張，點一張牌記錄，點別的牌會換成那張；點同一張可以取消。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
@@ -958,6 +967,8 @@
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示正在記的這位胡牌者當下實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台，記錄跟畫面上都會顯示成「3花+3」這種「張數+對應台數」的寫法。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
+      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，輸入三顆各自的點數再按「套用」，一樣會算出共幾點、是不是豹子（三顆一樣），跟真的按骰骰子結果顯示完全一樣。這個純粹是小工具，跟台數/金額計算完全無關。</li>
+      <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
 
     <h3>🃏 撲克牌花色</h3>
@@ -1115,6 +1126,11 @@
     ["東","南","西","北","中","發","白"].forEach(function(h){ defs.push({ code: h, label: h }); });
     return defs;
   })();
+  var TILE_GROUP_ORDER = ["萬","筒","條","字牌"];
+  function tileGroupOf(code){
+    var suit = code.charAt(code.length-1);
+    return (suit === "萬" || suit === "筒" || suit === "條") ? suit : "字牌";
+  }
   function flattenTileMap(tileMap){
     var arr = [];
     TILE_DEFS.forEach(function(t){
@@ -3280,20 +3296,37 @@
     grid.innerHTML = "";
     // 胡牌的牌永遠只有一張，所以這裡是單選：點一張牌會把其他已經選的
     // 牌清掉、只留這張；再點同一張則取消選取。不像台型標籤可以點好幾次
-    // 疊張數。
+    // 疊張數。照萬/筒/條/字牌分組分行顯示，不要讓瀏覽器自己照寬度換行、
+    // 把同一門花色拆到兩行去，找牌的時候才不會眼花。
+    var byGroup = {};
     TILE_DEFS.forEach(function(t){
-      var count = ui.winningTiles[t.code] || 0;
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "chip" + (count > 0 ? " chip-selected" : "");
-      b.textContent = t.label;
-      b.addEventListener("click", function(){
-        var wasSelected = !!ui.winningTiles[t.code];
-        ui.winningTiles = {};
-        if(!wasSelected) ui.winningTiles[t.code] = 1;
-        renderGameTab();
+      var g = tileGroupOf(t.code);
+      if(!byGroup[g]) byGroup[g] = [];
+      byGroup[g].push(t);
+    });
+    TILE_GROUP_ORDER.forEach(function(g){
+      if(!byGroup[g]) return;
+      var label = document.createElement("div");
+      label.className = "tai-tag-group-label";
+      label.textContent = g;
+      grid.appendChild(label);
+      var row = document.createElement("div");
+      row.className = "chip-row";
+      byGroup[g].forEach(function(t){
+        var count = ui.winningTiles[t.code] || 0;
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip" + (count > 0 ? " chip-selected" : "");
+        b.textContent = t.label;
+        b.addEventListener("click", function(){
+          var wasSelected = !!ui.winningTiles[t.code];
+          ui.winningTiles = {};
+          if(!wasSelected) ui.winningTiles[t.code] = 1;
+          renderGameTab();
+        });
+        row.appendChild(b);
       });
-      grid.appendChild(b);
+      grid.appendChild(row);
     });
     document.getElementById("tilesSummary").textContent = tilesSummaryText(ui.winningTiles) || "還沒選牌";
   }
@@ -3551,9 +3584,21 @@
   // 倍數），只是需要的時候按一下、看看骰出來的點數，方便自己決定要不要
   // 開豹子、開幾倍。骰三顆，因為「豹子」原本就是骰寶那種三顆一樣的說法。
   // 按下去先用隨機點數閃幾下做出「正在骰」的感覺，停下來才是真正結果，
-  // 不要一按就直接顯示答案。
+  // 不要一按就直接顯示答案。不是每次都會用網站這邊骰，有時候是拿真的
+  // 骰子骰、只是想把點數記下來看看，所以另外開一個「自己輸入」的入口，
+  // 輸入完套用之後顯示結果的樣子（含豹子判斷）跟真的按骰骰子完全一樣。
   var DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
   var diceRolling = false;
+  function renderDiceResult(values){
+    var resultEl = document.getElementById("diceResult");
+    var sum = values[0] + values[1] + values[2];
+    var isLeopard = values[0] === values[1] && values[1] === values[2];
+    var facesText = values.map(function(v){ return DICE_FACES[v] + v; }).join("　");
+    resultEl.style.display = "block";
+    resultEl.classList.remove("rolling");
+    resultEl.classList.toggle("leopard-hit", isLeopard);
+    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
+  }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
     if(diceRolling) return;
     diceRolling = true;
@@ -3569,12 +3614,7 @@
       ticks++;
       if(ticks >= maxTicks){
         clearInterval(timer);
-        var sum = finalValues[0] + finalValues[1] + finalValues[2];
-        var isLeopard = finalValues[0] === finalValues[1] && finalValues[1] === finalValues[2];
-        var facesText = finalValues.map(function(v){ return DICE_FACES[v] + v; }).join("　");
-        resultEl.classList.remove("rolling");
-        resultEl.classList.toggle("leopard-hit", isLeopard);
-        resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>';
+        renderDiceResult(finalValues);
         btn.disabled = false;
         diceRolling = false;
         return;
@@ -3582,6 +3622,19 @@
       var flashValues = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
       resultEl.innerHTML = flashValues.map(function(v){ return DICE_FACES[v] + v; }).join("　");
     }, 70);
+  });
+  document.getElementById("diceInputToggleBtn").addEventListener("click", function(){
+    var panel = document.getElementById("diceInputPanel");
+    panel.style.display = (panel.style.display === "none") ? "block" : "none";
+  });
+  document.getElementById("diceInputApplyBtn").addEventListener("click", function(){
+    if(diceRolling) return;
+    var vals = [1,2,3].map(function(i){
+      var v = parseInt(document.getElementById("diceInput"+i).value, 10);
+      return (v>=1 && v<=6) ? v : null;
+    });
+    if(vals.indexOf(null) !== -1){ showToast("請輸入1~6的點數，三顆都要填"); return; }
+    renderDiceResult(vals);
   });
 
   // 這場最輸的要不要請飲料，開局時先決定，本局畫面跟歷史牌局都能再改
