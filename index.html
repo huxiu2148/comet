@@ -668,7 +668,7 @@
             <div class="section-label" style="margin-top:0;">胡牌的人（點名字切換要編輯台數的人）</div>
             <div class="chip-row" id="winnersListRow"></div>
             <button type="button" class="link-btn" id="removeActiveWinnerBtn" style="display:none;">移除目前這位胡牌者</button>
-            <div class="section-label" style="margin-top:8px;">🎯 一炮多響：加入其他也胡牌的人（各自輸入自己的台數）</div>
+            <div class="section-label" style="margin-top:8px;">🎯 一炮多響：加入其他也胡牌的人（各自輸入自己的台數，不小心點到的話再點一次名字就能取消）</div>
             <div class="chip-row" id="addWinnerChips"></div>
             <div class="section-label" style="margin-top:8px;">🚫 攔胡：標記誰本來也胡得到、但被攔下沒拿到錢（純記錄，不影響金額）</div>
             <div class="chip-row" id="interceptedChips"></div>
@@ -954,7 +954,7 @@
     <h3>🀄 記錄一手</h3>
     <ul>
       <li><b>放槍</b>：長按胡牌者的卡片，拖曳到放槍者的卡片上放開。</li>
-      <li><b>一炮多響</b>：拖完第一位胡牌者之後，在下面「本手預覽」的「🎯 一炮多響」點其他也胡牌的人加進來，每個人各自輸入自己的台數，放槍的人會分別付給每一位；點名字可以切換目前正在編輯台數的是誰。</li>
+      <li><b>一炮多響</b>：拖完第一位胡牌者之後，在下面「本手預覽」的「🎯 一炮多響」點其他也胡牌的人加進來，每個人各自輸入自己的台數，放槍的人會分別付給每一位；不小心點到的話，再點一次同一個名字就能直接移除（跟加入是同一顆按鈕雙向切換），不用先切過去才按「移除目前這位胡牌者」。上面胡牌者名單那排點名字則是切換目前正在編輯台數的是誰。這些調整都只在還沒按「確認記錄」之前有效，記上去之後就不能再改了。</li>
       <li><b>攔胡</b>：如果有人本來也胡得到，但被輪序較近的人攔下、沒有真的拿到錢，可以在「🚫 攔胡」點他的名字標記起來，純粹記錄用，不會影響金額。</li>
       <li><b>自摸</b>：連點胡牌者的卡片三下。</li>
       <li><b>覺得手勢不好操作？</b>本局卡片上方「🖱️ 改用點選」可以切成點選模式：自摸就按「🎯 自摸」再點那個人；放槍按「💥 放槍」，先點誰胡牌、再點誰放槍（點到同一個人可以取消重選）。兩種輸入方式都在，手勢（長按拖曳、連點三下）隨時都還能用，點選只是另一種按法；選用哪種記在這台裝置上，不用每次重開都重選。</li>
@@ -3057,6 +3057,28 @@
     loadActiveWinnerUi();
     renderGameTab();
   }
+  // 一炮多響的「加入其他也胡牌的人」改成點兩下可以取消：不小心點到某
+  // 個人（手滑誤觸）的話，再點他的名字一次就能直接移除，不用先切換過去
+  // 再按另一顆「移除目前這位胡牌者」。這手真的確認記上去之後，這整塊
+  // UI 就不存在了（只有還沒記上去、ui.pendingHand 還在的時候才看得到這
+  // 些名字chip），所以「除非有紀錄」這個但書本來就自動成立，不用另外判斷。
+  function removeWinnerByName(name){
+    var p = ui.pendingHand;
+    if(!p || p.method !== "discard" || p.winners.length <= 1){
+      if(p && p.method === "discard") showToast("至少要留一位胡牌者，不能整手都移除；真的要整手重選可以按「取消」。");
+      return;
+    }
+    snapshotActiveWinner();
+    var idx = -1;
+    p.winners.forEach(function(w, i){ if(w.name === name) idx = i; });
+    if(idx === -1) return;
+    p.winners.splice(idx, 1);
+    if(idx < p.activeWinnerIdx) p.activeWinnerIdx -= 1;
+    else if(idx === p.activeWinnerIdx) p.activeWinnerIdx = Math.max(0, p.activeWinnerIdx - 1);
+    if(p.activeWinnerIdx >= p.winners.length) p.activeWinnerIdx = p.winners.length - 1;
+    loadActiveWinnerUi();
+    renderGameTab();
+  }
   function toggleIntercepted(name){
     var p = ui.pendingHand;
     if(!p || p.method !== "discard") return;
@@ -4085,12 +4107,19 @@
     game.players.forEach(function(name){
       if(name === p.loserName) return;
       var isWinner = p.winners.some(function(w){ return w.name === name; });
-      if(isWinner) return;
+      // 這排名字chip不管有沒有已經是胡牌者都列出來：已經加進去的人點一下
+      // 高亮選中的狀態，再點一次就直接移除（不小心點到可以馬上復原），
+      // 還沒加進去的人點了就正常加入，行為上是同一顆按鈕雙向切換。
       var ab = document.createElement("button");
-      ab.type = "button"; ab.className = "chip"; ab.textContent = name;
-      ab.addEventListener("click", function(){ addWinnerToPendingHand(name); });
+      ab.type = "button";
+      ab.className = "chip" + (isWinner ? " chip-selected" : "");
+      ab.textContent = name;
+      ab.addEventListener("click", function(){
+        if(isWinner) removeWinnerByName(name); else addWinnerToPendingHand(name);
+      });
       addRow.appendChild(ab);
 
+      if(isWinner) return; // 已經是胡牌者的人不能同時又被標記成攔胡
       var ib = document.createElement("button");
       ib.type = "button";
       var isIntercepted = p.intercepted.indexOf(name) !== -1;
