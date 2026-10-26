@@ -579,9 +579,7 @@
         </div>
         <div id="diceInputPanel" style="display:none; margin-top:8px; text-align:center;">
           <div style="display:flex; gap:8px; justify-content:center; align-items:center;">
-            <input type="number" id="diceInput1" min="1" max="6" placeholder="骰1" style="width:64px; text-align:center;">
-            <input type="number" id="diceInput2" min="1" max="6" placeholder="骰2" style="width:64px; text-align:center;">
-            <input type="number" id="diceInput3" min="1" max="6" placeholder="骰3" style="width:64px; text-align:center;">
+            <input type="number" id="diceInputSum" min="3" max="18" placeholder="共幾點(3~18)" style="width:140px; text-align:center;">
             <button type="button" class="btn btn-primary" id="diceInputApplyBtn">套用</button>
           </div>
         </div>
@@ -968,7 +966,7 @@
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張，改用專門的「花牌」加減鈕記錄實際張數，會照張數算台，記錄跟畫面上都會顯示成「3花+3」這種「張數+對應台數」的寫法。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
-      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，輸入三顆各自的點數再按「套用」，一樣會算出共幾點、是不是豹子（三顆一樣），跟真的按骰骰子結果顯示完全一樣。這個純粹是小工具，跟台數/金額計算完全無關。</li>
+      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，直接輸入「共幾點」（3~18，不用分開填三顆各自的點數）再按「套用」；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
 
@@ -3613,8 +3611,10 @@
   // 開豹子、開幾倍。骰三顆，因為「豹子」原本就是骰寶那種三顆一樣的說法。
   // 按下去先用隨機點數閃幾下做出「正在骰」的感覺，停下來才是真正結果，
   // 不要一按就直接顯示答案。不是每次都會用網站這邊骰，有時候是拿真的
-  // 骰子骰、只是想把點數記下來看看，所以另外開一個「自己輸入」的入口，
-  // 輸入完套用之後顯示結果的樣子（含豹子判斷）跟真的按骰骰子完全一樣。
+  // 骰子骰、只是想把總點數記下來看看，所以另外開一個「自己輸入」的入口，
+  // 只填「共幾點」（3~18）就好，不用分開填三顆各自的點數；因為只知道
+  // 總點數沒辦法判斷是不是豹子（同一個總點數可能是不同組合湊出來的），
+  // 這個入口就不顯示骰子面、也不判斷豹子，只算總點數跟開門。
   var DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
   var diceRolling = false;
   function renderDiceResult(values){
@@ -3635,6 +3635,22 @@
       doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
     }
     resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
+    renderTaiTags();
+  }
+  // 自己輸入的話只填「共幾點」，不是分開填三顆各自的點數——沒有三顆各自
+  // 的數字就沒辦法判斷是不是豹子（同一個總點數可能是不同組合湊出來的），
+  // 所以這裡只顯示總點數跟開門，不顯示骰子面、也不判斷豹子。
+  function renderDiceResultFromSum(sum){
+    var resultEl = document.getElementById("diceResult");
+    resultEl.style.display = "block";
+    resultEl.classList.remove("rolling", "leopard-hit");
+    var doorPhrase = "";
+    var game = activeGame(), set = game && activeSet(game);
+    if(set){
+      ui.doorSeat = set.seatOrder[doorIndexFromDice(set, sum)];
+      doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
+    }
+    resultEl.innerHTML = "共 "+sum+" 點" + doorPhrase;
     renderTaiTags();
   }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
@@ -3667,12 +3683,9 @@
   });
   document.getElementById("diceInputApplyBtn").addEventListener("click", function(){
     if(diceRolling) return;
-    var vals = [1,2,3].map(function(i){
-      var v = parseInt(document.getElementById("diceInput"+i).value, 10);
-      return (v>=1 && v<=6) ? v : null;
-    });
-    if(vals.indexOf(null) !== -1){ showToast("請輸入1~6的點數，三顆都要填"); return; }
-    renderDiceResult(vals);
+    var sum = parseInt(document.getElementById("diceInputSum").value, 10);
+    if(isNaN(sum) || sum < 3 || sum > 18){ showToast("請輸入3~18的點數"); return; }
+    renderDiceResultFromSum(sum);
   });
 
   // 這場最輸的要不要請飲料，開局時先決定，本局畫面跟歷史牌局都能再改
