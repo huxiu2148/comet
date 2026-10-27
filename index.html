@@ -996,7 +996,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析、擂台幾個子分頁，都只統計已經結束的牌局。</li>
       <li><b>篩選場次</b>：上面「場次範圍」下拉選單可以只看總計、某一年、某一個月，或單獨一場。想跳著看不相連、不同月/年的特定場次，按「🔀 自選特定幾場來看」逐場勾選，跟上面的下拉選單互斥——選了自選場次，下拉選單會先讓路；清掉自選，下拉選單再恢復。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序；「常胡的牌」則是把每手記錄的胡牌牌型彙整起來，看這位玩家最常胡到哪些牌。</li>
-      <li>「擂台」子分頁列出大家的總排行榜，下面「🏆 稱號牆」整理各種稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行。幾乎每一項都另外有對應的「單場」版本（單場胡牌王、單場自摸王、單場放槍王、單場攔胡王、單場最衰被攔胡、單場贏最多錢、單場苦主、單場當莊最賺、單場陪打最多手、單場零放槍紀錄、單場豹子愛用王、單場八仙過海王、單場流局王），比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰，可能同時並列好幾筆；連莊最久紀錄本身就是單一一次的紀錄，也會附上是哪一場。這些「哪一場」的場次資訊是小字，排在稱號那一行的數字下面一整行，不會跟稱號名稱擠在同一行。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
+      <li>「擂台」子分頁列出大家的總排行榜，下面「🏆 稱號牆（總計）」整理各種累計稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）、天選之人（天胡／地胡次數最多）、一炮多響體質（放槍被同時多人胡次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行；連莊最久紀錄本身就是單一一次的紀錄，會附上是哪一場。再下面獨立一區「📅 單場紀錄」，列出幾乎每項稱號對應的「單場」版本，比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰（小字排在數字下面一整行），可能同時並列好幾筆；如果目前篩選範圍剛好只剩一場牌局，單場版本的數字一定跟總計版本完全一樣，這整區會自動不顯示，不會重複。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
       <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
@@ -5325,7 +5325,8 @@
         name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
         dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
         dealerHands: 0, dealerNet: 0, maxStreak: 0, maxStreakGame: null, interceptCount: 0, gotInterceptedCount: 0,
-        maxWin: null, maxDealIn: null, leopardWins: 0, baxianCount: 0, drawsAsDealer: 0
+        maxWin: null, maxDealIn: null, leopardWins: 0, baxianCount: 0, drawsAsDealer: 0,
+        tianDiHu: 0, multiHit: 0
       };
     });
     var overallMaxWin = null, overallMaxDealIn = null; // {name, amt, detail}
@@ -5341,7 +5342,8 @@
       netWin: makeSingleGameTracker(), netLose: makeSingleGameTracker(),
       dealerNet: makeSingleGameTracker(), hands: makeSingleGameTracker(),
       zeroDealInHands: makeSingleGameTracker(),
-      leopardWin: makeSingleGameTracker(), baxian: makeSingleGameTracker()
+      leopardWin: makeSingleGameTracker(), baxian: makeSingleGameTracker(),
+      tianDiHu: makeSingleGameTracker(), multiHit: makeSingleGameTracker()
     };
     endedGames.forEach(function(g){
       var totals = computeGameTotals(g);
@@ -5358,7 +5360,8 @@
       g.players.forEach(function(n){
         if(stats[n]) gameCounters[n] = {
           selfWins: 0, wins: 0, dealIns: 0, drawsAsDealer: 0, hands: 0,
-          interceptCount: 0, gotInterceptedCount: 0, dealerNet: 0, leopardWins: 0, baxianCount: 0
+          interceptCount: 0, gotInterceptedCount: 0, dealerNet: 0, leopardWins: 0, baxianCount: 0,
+          tianDiHu: 0, multiHit: 0
         };
       });
       allHandsOf(g).forEach(function(h){
@@ -5416,6 +5419,12 @@
             s.interceptCount++;
             if(gameCounters[h.winnerName]) gameCounters[h.winnerName].interceptCount++;
           }
+          // 天選之人：胡到天胡／地胡（牌型表裡本來就有的高台型，開局第一手
+          // 直接胡，或莊家以外的人第一輪摸到就胡），標籤名稱存在 h.tags 裡。
+          if(h.tags && (h.tags.indexOf('天胡') !== -1 || h.tags.indexOf('地胡') !== -1)){
+            s.tianDiHu++;
+            if(gameCounters[h.winnerName]) gameCounters[h.winnerName].tianDiHu++;
+          }
         }
         // 被攔胡的次數算在被攔的人自己身上，跟上面攔胡別人的次數是分開
         // 的兩件事：這手不管誰贏，只要名字出現在 h.intercepted 裡，就是
@@ -5432,6 +5441,14 @@
           var dealDetail = whenStr+'・放槍給'+escapeHtml(h.winnerName)+(breakdown ? '<br>'+breakdown : '');
           if(!s2.maxDealIn || loseDelta < s2.maxDealIn.amt) s2.maxDealIn = { amt: loseDelta, detail: dealDetail };
           if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail };
+          // 一炮多響體質（放槍者角度）：這手是不是一炮多響其中一組。一炮
+          // 多響一組事件會拆成好幾筆各自的手紀錄（每位胡牌者一筆），全部
+          // 共用同一份 multiWinMates，只在 winnerName 是這組第一位時才算
+          // 一次，不然同一次事件會被重複算好幾次。
+          if(h.multiWinMates && h.multiWinMates.length > 1 && h.winnerName === h.multiWinMates[0]){
+            s2.multiHit++;
+            if(gameCounters[h.loserName]) gameCounters[h.loserName].multiHit++;
+          }
         }
       });
       // 八仙過海額外結算的錢也是真的換了手，排行榜的淨輸贏要算進去，
@@ -5470,6 +5487,8 @@
         considerSingleGame(singleGame.netWin, totals[n] || 0, n, gameLabel);
         considerSingleGame(singleGame.netLose, totals[n] || 0, n, gameLabel, { lowest: true });
         if(gc.dealIns === 0 && gc.hands > 0) considerSingleGame(singleGame.zeroDealInHands, gc.hands, n, gameLabel);
+        considerSingleGame(singleGame.tianDiHu, gc.tianDiHu, n, gameLabel);
+        considerSingleGame(singleGame.multiHit, gc.multiHit, n, gameLabel);
       });
     });
     return {
@@ -5483,6 +5502,10 @@
       return endedGames.some(function(g){ return g.players.indexOf(n) !== -1; });
     });
     if(!names.length) return '<div class="empty-hint">還沒有結束的牌局。打完幾場之後，這裡會排名比較每個人的戰績。</div>';
+    // 篩選到只剩一場牌局時，「單場」系列稱號（單場胡牌王之類）跟「總計」
+    // 版本的數字一定完全一樣，顯示出來只是重複、沒有額外資訊，整段都不
+    // 用列出來；連莊最久紀錄附的「哪一場」也一樣多餘，直接省略。
+    var isSingleGame = endedGames.length === 1;
     var arena = computeArenaStats(endedGames, names);
     var stats = arena.stats;
     function pct(n, d){ return d>0 ? Math.round(n/d*100)+'%' : '－'; }
@@ -5556,11 +5579,17 @@
         '<div class="stat-amt">'+fmt(tracker.value)+'</div></div><div class="stat-mid">'+detail+'</div></div>';
     }
     // 連莊最久紀錄不是累加出來的次數，本身就是「某一次」的紀錄（哪一將
-    // 連莊到第幾次），所以也比照單場稱號附上是哪一場，不是只秀數字。
+    // 連莊到第幾次），所以也比照單場稱號附上是哪一場，不是只秀數字；但
+    // 篩選本來就只剩一場的時候，附上「哪一場」沒有意義（當然就是這場），
+    // 退回跟一般 titleRow 一樣的單行格式。
     function titleRowWithGame(emoji, label, result, gameLookup, fmt){
       if(result.value === null || !result.winners.length){
         return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
           '<div class="stat-amt zero">尚無紀錄</div></div></div>';
+      }
+      if(isSingleGame){
+        return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div>' +
+          '<div class="stat-mid">'+result.winners.map(escapeHtml).join('、')+'</div><div class="stat-amt">'+fmt(result.value)+'</div></div>';
       }
       var detail = result.winners.map(function(n){ return escapeHtml(n)+'（'+(gameLookup(n)||'－')+'）'; }).join('、');
       return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
@@ -5572,37 +5601,46 @@
       titleRowCombo('🀄','胡牌王／胡牌率最高',
         '🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('🀄','單場胡牌王（單場總胡牌次數最多）', arena.singleGame.win, function(v){ return v+'次'; }) +
       titleRowCombo('🎯','自摸王／自摸率最高',
         '🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🍜','自摸率最高', topBy(function(s){ return s.hands ? s.selfWins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('🎯','單場自摸王（單場自摸次數最多）', arena.singleGame.selfWin, function(v){ return v+'次'; }) +
       titleRowCombo('💣','放槍王／放槍率最高',
         '💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🧲','放槍率最高（最容易放槍）', topBy(function(s){ return s.hands ? s.dealIns/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('💣','單場放槍王（單場放槍次數最多）', arena.singleGame.dealIn, function(v){ return v+'次'; }) +
       titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow(' 🈲','單場攔胡王（單場攔胡別人次數最多）', arena.singleGame.intercept, function(v){ return v+'次'; }) +
       titleRow('🥶','最衰被攔胡（本來也胡得到、卻被攔次數最多）', topBy(function(s){ return s.gotInterceptedCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow('🥶','單場最衰被攔胡（單場被攔次數最多）', arena.singleGame.gotIntercepted, function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
-      singleGameTitleRow('💰','單場贏最多錢', arena.singleGame.netWin, fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
-      singleGameTitleRow('😭','單場苦主（單場輸最多錢）', arena.singleGame.netLose, fmtAmt) +
       titleRowWithGame('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(n){ return stats[n].maxStreakGame; }, function(v){ return '連莊'+v+'次'; }) +
       titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
-      singleGameTitleRow('🏯','單場當莊最賺', arena.singleGame.dealerNet, fmtAmt) +
       titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; }) +
-      singleGameTitleRow('🎲','單場陪打最多手', arena.singleGame.hands, function(v){ return v+'手'; }) +
       titleRow('🤖','零放槍紀錄（手數夠多、卻從沒放過槍）', topBy(function(s){ return s.dealIns === 0 ? s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return v+'手'; }) +
-      singleGameTitleRow('🤖','單場零放槍紀錄（單場手數夠多、卻沒放過槍）', arena.singleGame.zeroDealInHands, function(v){ return v+'手'; }) +
       titleRow('🐆','豹子愛用王（用豹子加倍胡牌次數最多）', topBy(function(s){ return s.leopardWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow('🐆','單場豹子愛用王（單場豹子加倍胡牌次數最多）', arena.singleGame.leopardWin, function(v){ return v+'次'; }) +
       titleRow('⛩️','八仙過海王（八仙過海次數最多）', topBy(function(s){ return s.baxianCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow('⛩️','單場八仙過海王（單場八仙過海次數最多）', arena.singleGame.baxian, function(v){ return v+'次'; }) +
       titleRow('🌊','流局王（總計當莊流局次數最多）', topBy(function(s){ return s.drawsAsDealer; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow('🌊','單場流局王（單場當莊流局次數最多）', arena.singleGame.drawAsDealer, function(v){ return v+'次'; });
-    var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆</div><div class="stat-list">'+titleRows+'</div>';
+      titleRow('👼','天選之人（天胡／地胡次數最多）', topBy(function(s){ return s.tianDiHu; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      titleRow('🎆','一炮多響體質（放槍被同時多人胡次數最多）', topBy(function(s){ return s.multiHit; }, {excludeZero:true}), function(v){ return v+'次'; });
+    // 篩選到只剩一場的時候，單場版本的數字一定跟上面總計版本完全一樣，
+    // 整段都不用顯示；其他情況下，單場系列收在自己獨立的區塊，不要再
+    // 跟總計稱號兩兩交錯排列。
+    var singleGameRows = isSingleGame ? '' :
+      singleGameTitleRow('🀄','單場胡牌王（單場總胡牌次數最多）', arena.singleGame.win, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🎯','單場自摸王（單場自摸次數最多）', arena.singleGame.selfWin, function(v){ return v+'次'; }) +
+      singleGameTitleRow('💣','單場放槍王（單場放槍次數最多）', arena.singleGame.dealIn, function(v){ return v+'次'; }) +
+      singleGameTitleRow(' 🈲','單場攔胡王（單場攔胡別人次數最多）', arena.singleGame.intercept, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🥶','單場最衰被攔胡（單場被攔次數最多）', arena.singleGame.gotIntercepted, function(v){ return v+'次'; }) +
+      singleGameTitleRow('💰','單場贏最多錢', arena.singleGame.netWin, fmtAmt) +
+      singleGameTitleRow('😭','單場苦主（單場輸最多錢）', arena.singleGame.netLose, fmtAmt) +
+      singleGameTitleRow('🏯','單場當莊最賺', arena.singleGame.dealerNet, fmtAmt) +
+      singleGameTitleRow('🎲','單場陪打最多手', arena.singleGame.hands, function(v){ return v+'手'; }) +
+      singleGameTitleRow('🤖','單場零放槍紀錄（單場手數夠多、卻沒放過槍）', arena.singleGame.zeroDealInHands, function(v){ return v+'手'; }) +
+      singleGameTitleRow('🐆','單場豹子愛用王（單場豹子加倍胡牌次數最多）', arena.singleGame.leopardWin, function(v){ return v+'次'; }) +
+      singleGameTitleRow('⛩️','單場八仙過海王（單場八仙過海次數最多）', arena.singleGame.baxian, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🌊','單場流局王（單場當莊流局次數最多）', arena.singleGame.drawAsDealer, function(v){ return v+'次'; }) +
+      singleGameTitleRow('👼','單場天選之人', arena.singleGame.tianDiHu, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🎆','單場一炮多響體質', arena.singleGame.multiHit, function(v){ return v+'次'; });
+    var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆（總計）</div><div class="stat-list">'+titleRows+'</div>' +
+      (isSingleGame ? '' : '<div class="stat-summary" style="margin-top:14px;">📅 單場紀錄（同一場牌局裡表現最突出的一次）</div><div class="stat-list">'+singleGameRows+'</div>');
 
     function extremeCard(label, item){
       if(!item){
