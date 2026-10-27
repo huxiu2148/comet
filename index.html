@@ -577,9 +577,10 @@
           <button type="button" class="btn btn-outline" id="diceInputToggleBtn">✏️ 自己輸入</button>
           <div id="diceResult" class="dice-result" style="display:none;"></div>
         </div>
-        <div id="diceInputPanel" style="display:none; margin-top:8px;">
+        <div id="diceInputPanel" style="display:block; margin-top:8px;">
           <p class="hint-text" style="margin:0 0 6px; text-align:center;">點一個數字，直接套用共幾點</p>
-          <div class="chip-row" id="diceInputChips" style="justify-content:center;"></div>
+          <div class="chip-row" id="diceInputChipsRow1" style="justify-content:center;"></div>
+          <div class="chip-row" id="diceInputChipsRow2" style="justify-content:center;"></div>
         </div>
         <button type="button" class="btn btn-outline btn-block" id="drinkToggleBtn" style="margin-top:10px;">🍹 最輸請飲料</button>
       </div>
@@ -964,7 +965,7 @@
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
-      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，展開3~18的數字按鈕，點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
+      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，下面預設就會顯示3~10、11~18兩排數字按鈕（也可以按旁邊的「✏️ 自己輸入」收起/展開），點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
 
@@ -3764,9 +3765,12 @@
   });
   // 骰骰子自己輸入改成直接點數字按鈕套用（3~18），不用再打開鍵盤輸入，
   // 點哪個數字就直接套用那個點數，比打字直覺。這排按鈕內容固定不變，
-  // 開局前就先建好一次，不用每次重繪整個畫面都重新產生。
+  // 開局前就先建好一次，不用每次重繪整個畫面都重新產生。分兩排固定排版
+  // （3~10、11~18），不要讓瀏覽器自動換行決定每排幾個。預設就展開顯示，
+  // 不用先點「自己輸入」才看得到。
   (function(){
-    var container = document.getElementById("diceInputChips");
+    var row1 = document.getElementById("diceInputChipsRow1");
+    var row2 = document.getElementById("diceInputChipsRow2");
     for(var n=3;n<=18;n++){
       (function(n){
         var b = document.createElement("button");
@@ -3775,7 +3779,7 @@
           if(diceRolling) return;
           renderDiceResultFromSum(n);
         });
-        container.appendChild(b);
+        (n<=10 ? row1 : row2).appendChild(b);
       })(n);
     }
   })();
