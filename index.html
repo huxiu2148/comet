@@ -577,11 +577,9 @@
           <button type="button" class="btn btn-outline" id="diceInputToggleBtn">✏️ 自己輸入</button>
           <div id="diceResult" class="dice-result" style="display:none;"></div>
         </div>
-        <div id="diceInputPanel" style="display:none; margin-top:8px; text-align:center;">
-          <div style="display:flex; gap:8px; justify-content:center; align-items:center;">
-            <input type="number" id="diceInputSum" min="3" max="18" placeholder="共幾點(3~18)" style="width:140px; text-align:center;">
-            <button type="button" class="btn btn-primary" id="diceInputApplyBtn">套用</button>
-          </div>
+        <div id="diceInputPanel" style="display:none; margin-top:8px;">
+          <p class="hint-text" style="margin:0 0 6px; text-align:center;">點一個數字，直接套用共幾點</p>
+          <div class="chip-row" id="diceInputChips" style="justify-content:center;"></div>
         </div>
         <button type="button" class="btn btn-outline btn-block" id="drinkToggleBtn" style="margin-top:10px;">🍹 最輸請飲料</button>
       </div>
@@ -961,12 +959,12 @@
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上；如果這手結束前已經先按好骰規、豹子之類的台型準備要記，流局的時候會一起清掉，不會留到下一手。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
-      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選。</li>
+      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選，已經點好的台型、記錄胡的牌、花牌、豹子都會一起清掉，不會帶到下一手。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
-      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，直接輸入「共幾點」（3~18，不用分開填三顆各自的點數）再按「套用」；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
+      <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，可以按旁邊的「✏️ 自己輸入」，展開3~18的數字按鈕，點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
 
@@ -2671,8 +2669,6 @@
     ui.doorSeat = null;
     var resultEl = document.getElementById("diceResult");
     if(resultEl) resultEl.style.display = "none";
-    var sumInput = document.getElementById("diceInputSum");
-    if(sumInput) sumInput.value = "";
   }
   function roundWindFor(game){
     return (game && game.roundWind) || "東";
@@ -3158,7 +3154,12 @@
     }
   }
   function cancelPendingHand(){
+    // 取消這手跟流局一樣，不會真的記上去，所以已經點好的台型、記錄胡的
+    // 牌、花牌、豹子、骰出來的開門都要一併清掉，不然下一手一開始就莫名
+    // 其妙帶著上一次沒用到的狀態。
     ui.pendingHand = null;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    resetDoorSeat();
     renderGameTab();
   }
 
@@ -3761,12 +3762,23 @@
     var panel = document.getElementById("diceInputPanel");
     panel.style.display = (panel.style.display === "none") ? "block" : "none";
   });
-  document.getElementById("diceInputApplyBtn").addEventListener("click", function(){
-    if(diceRolling) return;
-    var sum = parseInt(document.getElementById("diceInputSum").value, 10);
-    if(isNaN(sum) || sum < 3 || sum > 18){ showToast("請輸入3~18的點數"); return; }
-    renderDiceResultFromSum(sum);
-  });
+  // 骰骰子自己輸入改成直接點數字按鈕套用（3~18），不用再打開鍵盤輸入，
+  // 點哪個數字就直接套用那個點數，比打字直覺。這排按鈕內容固定不變，
+  // 開局前就先建好一次，不用每次重繪整個畫面都重新產生。
+  (function(){
+    var container = document.getElementById("diceInputChips");
+    for(var n=3;n<=18;n++){
+      (function(n){
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.textContent = String(n);
+        b.addEventListener("click", function(){
+          if(diceRolling) return;
+          renderDiceResultFromSum(n);
+        });
+        container.appendChild(b);
+      })(n);
+    }
+  })();
 
   // 這場最輸的要不要請飲料，開局時先決定，本局畫面跟歷史牌局都能再改
   // （沒有明確設過的舊牌局一律當作「要」，維持原本一直都有的行為，
