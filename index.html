@@ -996,7 +996,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析、擂台幾個子分頁，都只統計已經結束的牌局。</li>
       <li><b>篩選場次</b>：上面「場次範圍」下拉選單可以只看總計、某一年、某一個月，或單獨一場。想跳著看不相連、不同月/年的特定場次，按「🔀 自選特定幾場來看」逐場勾選，跟上面的下拉選單互斥——選了自選場次，下拉選單會先讓路；清掉自選，下拉選單再恢復。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序；「常胡的牌」則是把每手記錄的胡牌牌型彙整起來，看這位玩家最常胡到哪些牌。</li>
-      <li>「擂台」子分頁列出大家的總排行榜，下面「🏆 稱號牆」整理各種稱號——胡牌王、自摸王、放槍王、攔胡王、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行。另外還有「單場」系列稱號——單場胡牌王、單場自摸王、單場放槍王、單場流局王，比的是同一場牌局裡加總次數最多的那一次（不是總計），每一筆都會附上是哪一場、是誰，可能同時並列好幾筆。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
+      <li>「擂台」子分頁列出大家的總排行榜，下面「🏆 稱號牆」整理各種稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行。幾乎每一項都另外有對應的「單場」版本（單場胡牌王、單場自摸王、單場放槍王、單場攔胡王、單場最衰被攔胡、單場贏最多錢、單場苦主、單場當莊最賺、單場陪打最多手、單場零放槍紀錄、單場豹子愛用王、單場八仙過海王、單場流局王），比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰，可能同時並列好幾筆；連莊最久紀錄本身就是單一一次的紀錄，也會附上是哪一場。這些「哪一場」的場次資訊是小字，排在稱號那一行的數字下面一整行，不會跟稱號名稱擠在同一行。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
       <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
@@ -5306,10 +5306,17 @@
   // 不同人在不同場各自打出一樣的次數），所以用 entries 陣列全部列出來，
   // 不是只存一筆。
   function makeSingleGameTracker(){ return { value: null, entries: [] }; }
-  function considerSingleGame(tracker, value, name, gameLabel){
-    if(!value) return; // 排除0次跟null/undefined，沒發生過的不用列進來
-    if(tracker.value === null || value > tracker.value){ tracker.value = value; tracker.entries = [{ name: name, game: gameLabel }]; }
-    else if(value === tracker.value){ tracker.entries.push({ name: name, game: gameLabel }); }
+  // opts.lowest 用在「金額越小（輸越多）越好」的稱號，例如單場苦主；
+  // 其他次數類稱號預設找最大值，而且排除0次/null（沒發生過不用列進來）。
+  function considerSingleGame(tracker, value, name, gameLabel, opts){
+    opts = opts || {};
+    if(value === null || value === undefined) return;
+    if(opts.lowest){ if(value >= 0) return; } else if(value <= 0) return;
+    if(tracker.value === null || (opts.lowest ? value < tracker.value : value > tracker.value)){
+      tracker.value = value; tracker.entries = [{ name: name, game: gameLabel }];
+    }else if(value === tracker.value){
+      tracker.entries.push({ name: name, game: gameLabel });
+    }
   }
   function computeArenaStats(endedGames, names){
     var stats = {};
@@ -5317,7 +5324,7 @@
       stats[n] = {
         name: n, hands: 0, wins: 0, selfWins: 0, discardWins: 0,
         dealIns: 0, netAmt: 0, gamesPlayed: 0, gamesWon: 0,
-        dealerHands: 0, dealerNet: 0, maxStreak: 0, interceptCount: 0, gotInterceptedCount: 0,
+        dealerHands: 0, dealerNet: 0, maxStreak: 0, maxStreakGame: null, interceptCount: 0, gotInterceptedCount: 0,
         maxWin: null, maxDealIn: null, leopardWins: 0, baxianCount: 0, drawsAsDealer: 0
       };
     });
@@ -5327,10 +5334,15 @@
       if(!pairwise[payer]) pairwise[payer] = {};
       pairwise[payer][receiver] = (pairwise[payer][receiver] || 0) + amt;
     }
-    var singleGameSelfWin = makeSingleGameTracker();
-    var singleGameWin = makeSingleGameTracker();
-    var singleGameDealIn = makeSingleGameTracker();
-    var singleGameDrawAsDealer = makeSingleGameTracker();
+    var singleGame = {
+      selfWin: makeSingleGameTracker(), win: makeSingleGameTracker(),
+      dealIn: makeSingleGameTracker(), drawAsDealer: makeSingleGameTracker(),
+      intercept: makeSingleGameTracker(), gotIntercepted: makeSingleGameTracker(),
+      netWin: makeSingleGameTracker(), netLose: makeSingleGameTracker(),
+      dealerNet: makeSingleGameTracker(), hands: makeSingleGameTracker(),
+      zeroDealInHands: makeSingleGameTracker(),
+      leopardWin: makeSingleGameTracker(), baxian: makeSingleGameTracker()
+    };
     endedGames.forEach(function(g){
       var totals = computeGameTotals(g);
       g.players.forEach(function(n){
@@ -5344,7 +5356,10 @@
       // 全部場次裡的最高紀錄（singleGame*）比大小，不會累加到下一場。
       var gameCounters = {};
       g.players.forEach(function(n){
-        if(stats[n]) gameCounters[n] = { selfWins: 0, wins: 0, dealIns: 0, drawsAsDealer: 0 };
+        if(stats[n]) gameCounters[n] = {
+          selfWins: 0, wins: 0, dealIns: 0, drawsAsDealer: 0, hands: 0,
+          interceptCount: 0, gotInterceptedCount: 0, dealerNet: 0, leopardWins: 0, baxianCount: 0
+        };
       });
       allHandsOf(g).forEach(function(h){
         if(h.method === "manual") return; // 補記只有總輸贏，沒有逐手的自摸/放槍細節
@@ -5352,11 +5367,16 @@
           if(!stats[n]) return;
           stats[n].hands++;
           stats[n].netAmt += (h.deltas[n] || 0);
+          if(gameCounters[n]) gameCounters[n].hands++;
         });
         if(stats[h.dealerName]){
           stats[h.dealerName].dealerHands++;
           stats[h.dealerName].dealerNet += (h.deltas[h.dealerName] || 0);
-          if(h.streak > stats[h.dealerName].maxStreak) stats[h.dealerName].maxStreak = h.streak;
+          if(gameCounters[h.dealerName]) gameCounters[h.dealerName].dealerNet += (h.deltas[h.dealerName] || 0);
+          if(h.streak > stats[h.dealerName].maxStreak){
+            stats[h.dealerName].maxStreak = h.streak;
+            stats[h.dealerName].maxStreakGame = gameLabel;
+          }
           if(h.method === "draw"){
             stats[h.dealerName].drawsAsDealer++;
             if(gameCounters[h.dealerName]) gameCounters[h.dealerName].drawsAsDealer++;
@@ -5381,6 +5401,7 @@
           if(gameCounters[h.winnerName]){
             gameCounters[h.winnerName].wins++;
             if(h.method === "self") gameCounters[h.winnerName].selfWins++;
+            if(h.leopard) gameCounters[h.winnerName].leopardWins++;
           }
           var myDelta = h.deltas[h.winnerName] || 0;
           var winWhat = h.method === "self" ? "自摸" : "放槍（"+escapeHtml(h.loserName)+"）";
@@ -5391,13 +5412,17 @@
           // 贏家攔到別人一次（不是算被攔的人幾次，那個是被攔的次數，不是
           // 攔胡王）。一炮多響時每個贏家各自一筆手紀錄、各自的 winnerName
           // 不同，天生就不會重複算到同一次攔胡。
-          if(h.intercepted && h.intercepted.length) s.interceptCount++;
+          if(h.intercepted && h.intercepted.length){
+            s.interceptCount++;
+            if(gameCounters[h.winnerName]) gameCounters[h.winnerName].interceptCount++;
+          }
         }
         // 被攔胡的次數算在被攔的人自己身上，跟上面攔胡別人的次數是分開
         // 的兩件事：這手不管誰贏，只要名字出現在 h.intercepted 裡，就是
         // 「這手其實也胡得到、卻被攔下沒拿到錢」一次。
         (h.intercepted || []).forEach(function(n){
           if(stats[n]) stats[n].gotInterceptedCount++;
+          if(gameCounters[n]) gameCounters[n].gotInterceptedCount++;
         });
         if(h.method === "discard" && stats[h.loserName]){
           var s2 = stats[h.loserName];
@@ -5409,13 +5434,6 @@
           if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail };
         }
       });
-      Object.keys(gameCounters).forEach(function(n){
-        var gc = gameCounters[n];
-        considerSingleGame(singleGameSelfWin, gc.selfWins, n, gameLabel);
-        considerSingleGame(singleGameWin, gc.wins, n, gameLabel);
-        considerSingleGame(singleGameDealIn, gc.dealIns, n, gameLabel);
-        considerSingleGame(singleGameDrawAsDealer, gc.drawsAsDealer, n, gameLabel);
-      });
       // 八仙過海額外結算的錢也是真的換了手，排行榜的淨輸贏要算進去，
       // 但故意不碰 hands/wins/dealIns 這些逐手統計——它不是一手真正的
       // 胡牌，陪打手數、胡牌率等數字不該被這個算進去。
@@ -5424,7 +5442,10 @@
           Object.keys(ev.deltas).forEach(function(n){
             if(stats[n]) stats[n].netAmt += (ev.deltas[n] || 0);
           });
-          if(ev.type === "baxian" && stats[ev.achieverName]) stats[ev.achieverName].baxianCount++;
+          if(ev.type === "baxian" && stats[ev.achieverName]){
+            stats[ev.achieverName].baxianCount++;
+            if(gameCounters[ev.achieverName]) gameCounters[ev.achieverName].baxianCount++;
+          }
           if(ev.style === "discard"){
             addPair(ev.payerName, ev.achieverName, ev.unitAmount);
           }else{
@@ -5434,11 +5455,26 @@
           }
         });
       });
+      Object.keys(gameCounters).forEach(function(n){
+        var gc = gameCounters[n];
+        considerSingleGame(singleGame.selfWin, gc.selfWins, n, gameLabel);
+        considerSingleGame(singleGame.win, gc.wins, n, gameLabel);
+        considerSingleGame(singleGame.dealIn, gc.dealIns, n, gameLabel);
+        considerSingleGame(singleGame.drawAsDealer, gc.drawsAsDealer, n, gameLabel);
+        considerSingleGame(singleGame.intercept, gc.interceptCount, n, gameLabel);
+        considerSingleGame(singleGame.gotIntercepted, gc.gotInterceptedCount, n, gameLabel);
+        considerSingleGame(singleGame.dealerNet, gc.dealerNet, n, gameLabel);
+        considerSingleGame(singleGame.hands, gc.hands, n, gameLabel);
+        considerSingleGame(singleGame.leopardWin, gc.leopardWins, n, gameLabel);
+        considerSingleGame(singleGame.baxian, gc.baxianCount, n, gameLabel);
+        considerSingleGame(singleGame.netWin, totals[n] || 0, n, gameLabel);
+        considerSingleGame(singleGame.netLose, totals[n] || 0, n, gameLabel, { lowest: true });
+        if(gc.dealIns === 0 && gc.hands > 0) considerSingleGame(singleGame.zeroDealInHands, gc.hands, n, gameLabel);
+      });
     });
     return {
       stats: stats, overallMaxWin: overallMaxWin, overallMaxDealIn: overallMaxDealIn, pairwise: pairwise,
-      singleGameSelfWin: singleGameSelfWin, singleGameWin: singleGameWin,
-      singleGameDealIn: singleGameDealIn, singleGameDrawAsDealer: singleGameDrawAsDealer
+      singleGame: singleGame
     };
   }
 
@@ -5505,13 +5541,30 @@
     // 單場紀錄：比的是「同一場牌局裡」加總次數最多的那一次（跟上面比
     // 總計次數的 topBy 不一樣），所以每筆都要附上是哪一場、是誰，可能
     // 同時並列好幾筆（不同人、不同場都打平最高紀錄）。
+    // 名字＋場次合起來常常很長（尤其並列好幾筆的時候），跟 titleRow 一樣
+    // 塞進單行的 .stat-row 會把左邊的稱號名稱擠到一個字一行、整排排版
+    // 跑掉；改用 .stat-row2（上面稱號＋數字、下面單獨一整行小字列出是
+    // 誰、哪一場），跟「單手紀錄」卡片同一套排版，場次資訊自然就是數字
+    // 下面的小字，不會跟稱號名稱搶空間。
     function singleGameTitleRow(emoji, label, tracker, fmt){
       if(tracker.value === null || !tracker.entries.length){
-        return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div><div class="stat-amt zero">尚無紀錄</div></div>';
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
+          '<div class="stat-amt zero">尚無紀錄</div></div></div>';
       }
       var detail = tracker.entries.map(function(e){ return escapeHtml(e.name)+'（'+e.game+'）'; }).join('、');
-      return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div>' +
-        '<div class="stat-mid">'+detail+'</div><div class="stat-amt">'+fmt(tracker.value)+'</div></div>';
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
+        '<div class="stat-amt">'+fmt(tracker.value)+'</div></div><div class="stat-mid">'+detail+'</div></div>';
+    }
+    // 連莊最久紀錄不是累加出來的次數，本身就是「某一次」的紀錄（哪一將
+    // 連莊到第幾次），所以也比照單場稱號附上是哪一場，不是只秀數字。
+    function titleRowWithGame(emoji, label, result, gameLookup, fmt){
+      if(result.value === null || !result.winners.length){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
+          '<div class="stat-amt zero">尚無紀錄</div></div></div>';
+      }
+      var detail = result.winners.map(function(n){ return escapeHtml(n)+'（'+(gameLookup(n)||'－')+'）'; }).join('、');
+      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
+        '<div class="stat-amt">'+fmt(result.value)+'</div></div><div class="stat-mid">'+detail+'</div></div>';
     }
     var MIN_RATE_HANDS = 8; // 手數太少的話比率一下就100%或0%，沒有參考價值，先排除
     var pctFmt = function(v){ return Math.round(v*100)+'%'; };
@@ -5519,27 +5572,36 @@
       titleRowCombo('🀄','胡牌王／胡牌率最高',
         '🀄','胡牌王（總胡牌次數最多）', topBy(function(s){ return s.wins; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🔥','胡牌率最高', topBy(function(s){ return s.hands ? s.wins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('🀄','單場胡牌王（單場總胡牌次數最多）', arena.singleGameWin, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🀄','單場胡牌王（單場總胡牌次數最多）', arena.singleGame.win, function(v){ return v+'次'; }) +
       titleRowCombo('🎯','自摸王／自摸率最高',
         '🎯','自摸王（自摸次數最多）', topBy(function(s){ return s.selfWins; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🍜','自摸率最高', topBy(function(s){ return s.hands ? s.selfWins/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('🎯','單場自摸王（單場自摸次數最多）', arena.singleGameSelfWin, function(v){ return v+'次'; }) +
+      singleGameTitleRow('🎯','單場自摸王（單場自摸次數最多）', arena.singleGame.selfWin, function(v){ return v+'次'; }) +
       titleRowCombo('💣','放槍王／放槍率最高',
         '💣','放槍王（放槍次數最多）', topBy(function(s){ return s.dealIns; }, {excludeZero:true}), function(v){ return v+'次'; },
         '🧲','放槍率最高（最容易放槍）', topBy(function(s){ return s.hands ? s.dealIns/s.hands : null; }, {minHands:MIN_RATE_HANDS}), pctFmt) +
-      singleGameTitleRow('💣','單場放槍王（單場放槍次數最多）', arena.singleGameDealIn, function(v){ return v+'次'; }) +
+      singleGameTitleRow('💣','單場放槍王（單場放槍次數最多）', arena.singleGame.dealIn, function(v){ return v+'次'; }) +
       titleRow(' 🈲','攔胡王（攔胡別人次數最多）', topBy(function(s){ return s.interceptCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      singleGameTitleRow(' 🈲','單場攔胡王（單場攔胡別人次數最多）', arena.singleGame.intercept, function(v){ return v+'次'; }) +
       titleRow('🥶','最衰被攔胡（本來也胡得到、卻被攔次數最多）', topBy(function(s){ return s.gotInterceptedCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      singleGameTitleRow('🥶','單場最衰被攔胡（單場被攔次數最多）', arena.singleGame.gotIntercepted, function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
+      singleGameTitleRow('💰','單場贏最多錢', arena.singleGame.netWin, fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
-      titleRow('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(v){ return '連莊'+v+'次'; }) +
+      singleGameTitleRow('😭','單場苦主（單場輸最多錢）', arena.singleGame.netLose, fmtAmt) +
+      titleRowWithGame('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(n){ return stats[n].maxStreakGame; }, function(v){ return '連莊'+v+'次'; }) +
       titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
+      singleGameTitleRow('🏯','單場當莊最賺', arena.singleGame.dealerNet, fmtAmt) +
       titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; }) +
+      singleGameTitleRow('🎲','單場陪打最多手', arena.singleGame.hands, function(v){ return v+'手'; }) +
       titleRow('🤖','零放槍紀錄（手數夠多、卻從沒放過槍）', topBy(function(s){ return s.dealIns === 0 ? s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return v+'手'; }) +
+      singleGameTitleRow('🤖','單場零放槍紀錄（單場手數夠多、卻沒放過槍）', arena.singleGame.zeroDealInHands, function(v){ return v+'手'; }) +
       titleRow('🐆','豹子愛用王（用豹子加倍胡牌次數最多）', topBy(function(s){ return s.leopardWins; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      singleGameTitleRow('🐆','單場豹子愛用王（單場豹子加倍胡牌次數最多）', arena.singleGame.leopardWin, function(v){ return v+'次'; }) +
       titleRow('⛩️','八仙過海王（八仙過海次數最多）', topBy(function(s){ return s.baxianCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
+      singleGameTitleRow('⛩️','單場八仙過海王（單場八仙過海次數最多）', arena.singleGame.baxian, function(v){ return v+'次'; }) +
       titleRow('🌊','流局王（總計當莊流局次數最多）', topBy(function(s){ return s.drawsAsDealer; }, {excludeZero:true}), function(v){ return v+'次'; }) +
-      singleGameTitleRow('🌊','單場流局王（單場當莊流局次數最多）', arena.singleGameDrawAsDealer, function(v){ return v+'次'; });
+      singleGameTitleRow('🌊','單場流局王（單場當莊流局次數最多）', arena.singleGame.drawAsDealer, function(v){ return v+'次'; });
     var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆</div><div class="stat-list">'+titleRows+'</div>';
 
     function extremeCard(label, item){
