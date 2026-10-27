@@ -964,7 +964,7 @@
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上；如果這手結束前已經先按好骰規、豹子之類的台型準備要記，流局的時候會一起清掉，不會留到下一手。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
-      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選，已經點好的台型、記錄胡的牌、花牌、豹子都會一起清掉，不會帶到下一手。</li>
+      <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選，已經點好的台型、記錄胡的牌、花牌、豹子都會一起清掉，不會帶到下一手。這手還沒確認記錄前的狀態（骰出來的點數、點了哪些台型、花牌、記錄的牌）會即時同步到雲端，不同裝置打開同一桌都會看到一模一樣的畫面、也都能接著點，不用等按下「確認記錄」才看得到變化；確認或取消之後，這份暫存狀態也會跟著清掉。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
@@ -1377,6 +1377,15 @@
     if(!changed && out.length === tags.length) return tags;
     return out;
   }
+  // 這手正在記錄中、還沒確認的暫存狀態（骰骰子結果、選了哪些台型等），
+  // 同步上雲端讓不同裝置即時看到同一手正在怎麼記——這份資料是過渡用的
+  // 草稿，不是正式戰績，所以驗證從寬，格式不對就直接當沒有，不嘗試
+  // 修補或擋下整個 state 的同步。
+  function normalizePending(p){
+    if(!p || typeof p !== "object") return null;
+    if(!p.pendingHand || typeof p.pendingHand !== "object") return null;
+    return p;
+  }
   function normalizeSet(s, players){
     if(!s || typeof s !== "object") return null;
     var out = {
@@ -1392,7 +1401,8 @@
       sideEvents: Array.isArray(s.sideEvents) ? s.sideEvents : [],
       status: s.status==="ended" ? "ended" : "active",
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
-      endedAt: typeof s.endedAt==="number" ? s.endedAt : null
+      endedAt: typeof s.endedAt==="number" ? s.endedAt : null,
+      pending: normalizePending(s.pending)
     };
     return out;
   }
@@ -1572,6 +1582,106 @@
       setCloudBadge();
       showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
     });
+  }
+
+  // ---------- 這手正在記錄中的狀態也即時同步上雲端 ----------
+  // 骰骰子結果、點選的台型、花牌、豹子、記錄的牌這些「還沒確認」的暫存
+  // 狀態，以前只存在記錄者自己手機的 ui 裡，旁邊看的人要等按下「確認
+  // 記錄」才看得到變化。這裡把它鏡射到目前這將（set）的 pending 欄位，
+  // 讓任何打開同一桌的裝置都即時看到正在發生的操作，而且誰的裝置都能
+  // 接著點（不是唯讀跟播）——沿用整個 app 既有的「整份 state 覆蓋、後
+  // 寫的為準」同步模式，不是另外設計一套權限/鎖定機制。
+  var lastPendingSyncJSON = JSON.stringify(null);
+  var pendingSyncTimer = null;
+  function cancelPendingSyncTimer(){
+    if(pendingSyncTimer){ clearTimeout(pendingSyncTimer); pendingSyncTimer = null; }
+  }
+  function buildPendingSnapshotFromUi(){
+    if(!ui.pendingHand) return null;
+    return {
+      pendingHand: deepClone(ui.pendingHand),
+      tai: ui.tai,
+      taiTags: ui.taiTags.slice(),
+      huaCount: ui.huaCount,
+      leopard: { enabled: ui.leopard.enabled, multiplier: ui.leopard.multiplier },
+      winningTiles: deepClone(ui.winningTiles),
+      doorSeat: ui.doorSeat,
+      diceResultHtml: ui.diceResultHtml,
+      diceLeopardHit: !!ui.diceLeopardHit
+    };
+  }
+  function adoptPendingSnapshotIntoUi(snap){
+    if(!snap){
+      ui.pendingHand = null; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
+      ui.leopard = { enabled: false, multiplier: 2 }; ui.winningTiles = {};
+      ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false;
+      return;
+    }
+    ui.pendingHand = deepClone(snap.pendingHand);
+    ui.tai = snap.tai || 0;
+    ui.taiTags = Array.isArray(snap.taiTags) ? snap.taiTags.slice() : [];
+    ui.huaCount = snap.huaCount || 0;
+    ui.leopard = snap.leopard ? { enabled: !!snap.leopard.enabled, multiplier: snap.leopard.multiplier || 2 } : { enabled: false, multiplier: 2 };
+    ui.winningTiles = snap.winningTiles ? deepClone(snap.winningTiles) : {};
+    ui.doorSeat = snap.doorSeat || null;
+    ui.diceResultHtml = snap.diceResultHtml || null;
+    ui.diceLeopardHit = !!snap.diceLeopardHit;
+    // 別人那邊可能已經展開「記錄胡的牌」在選牌，這邊也跟著展開，不然
+    // 看起來像這手憑空多了選好的牌、卻找不到是在哪裡選的。
+    ui.tilesPickerOpen = true;
+  }
+  function pushPendingSnapshotToCloud(gameId, setId){
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
+    if(!ng) return;
+    var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
+    if(!ns) return;
+    ns.pending = buildPendingSnapshotFromUi();
+    commitState(newState);
+  }
+  // 每次畫面要畫目前這桌（game/set）之前先呼叫一次：比較「這台裝置自己
+  // 上次同步出去的內容」跟「現在本機 ui 的內容」——不一樣就是使用者剛
+  // 操作過，debounce 一下再推上雲端（連點的話只送最後結果，不用每點一下
+  // 就發一次網路請求）；一樣的話代表這台裝置閒著，改比對雲端現在的值，
+  // 不一樣就代表別人那邊動了，直接採用過來（adopt），讓這台裝置的畫面
+  // 立刻跟上。
+  function reconcilePendingWithCloud(game, set){
+    if(!game || !set) return;
+    var localSnap = buildPendingSnapshotFromUi();
+    var localJSON = JSON.stringify(localSnap);
+    if(localJSON === lastPendingSyncJSON){
+      // 還有排隊中、debounce還沒真的送出去的變更時，雲端那份還是舊的，
+      // 這時候拿它跟本機比對、採用過來，會把使用者剛點好、還沒送出去的
+      // 東西洗掉（例如連點好幾下花牌+、點到第三下時本機數字已經不變了，
+      // 但上一次debounce還沒真的送出，此時remote仍是舊的）。還有排隊中
+      // 的送出就先不要比對/採用，等真的送出去、雲端資料跟上了才比較。
+      if(pendingSyncTimer) return;
+      var remoteSnap = set.pending || null;
+      var remoteJSON = JSON.stringify(remoteSnap);
+      if(remoteJSON !== localJSON){
+        adoptPendingSnapshotIntoUi(remoteSnap);
+        lastPendingSyncJSON = remoteJSON;
+      }
+      return;
+    }
+    lastPendingSyncJSON = localJSON;
+    cancelPendingSyncTimer();
+    var gameId = game.id, setId = set.id;
+    pendingSyncTimer = setTimeout(function(){
+      pendingSyncTimer = null;
+      pushPendingSnapshotToCloud(gameId, setId);
+    }, 250);
+  }
+  // 换桌（切到別的進行中的牌局）的時候，本機暫存的這手要整個丟掉重來
+  // ——這台裝置接下來改成跟著「新切過去那桌」的 pending 走，不然舊桌
+  // 沒清掉的暫存資料會被誤判成「本機剛改過」，寫錯地方（新桌的 set.id）。
+  function resetPendingSyncForTableSwitch(){
+    ui.pendingHand = null; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
+    ui.leopard = { enabled: false, multiplier: 2 }; ui.winningTiles = {};
+    ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false;
+    ui.tilesPickerOpen = false;
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
   }
 
   // 第一次連上、資料庫還完全是空的（全新專案）時，用這份內建的種子資料
@@ -1962,6 +2072,8 @@
     editingVenueDraft: null,
     editRoundWindOpen: false,
     doorSeat: null,
+    diceResultHtml: null,
+    diceLeopardHit: false,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     titleView: loadTitleView(),
@@ -2378,7 +2490,13 @@
       ui.showSetLog = true; ui.endSetPanelOpen = false; ui.pendingHand = null;
       ui.wantNewGame = false;
       ui.doorSeat = null; // 新開一桌，舊的開門（如果還留著）不再適用
+      ui.diceResultHtml = null; ui.diceLeopardHit = false;
       ui.showSuits = true; // 一開局就先展開撲克牌花色，不用自己點「展開」找
+      // 要切去的是全新開的桌子，不會有殘留的「正在記錄中」暫存，但同步
+      // 用的 bookkeeping 還是要重置，不然可能帶著舊桌（切桌前正在看的
+      // 那桌）的比對基準，誤判成本機剛改過，把東西寫錯桌。
+      cancelPendingSyncTimer();
+      lastPendingSyncJSON = JSON.stringify(null);
       if(newGameId) ui.viewingGameId = newGameId; // 剛開好的桌子自動切到那一桌看
     }
 
@@ -2686,6 +2804,8 @@
   // 誤導成還在算下一手，容易算錯自風。
   function resetDoorSeat(){
     ui.doorSeat = null;
+    ui.diceResultHtml = null;
+    ui.diceLeopardHit = false;
     var resultEl = document.getElementById("diceResult");
     if(resultEl) resultEl.style.display = "none";
   }
@@ -2795,6 +2915,13 @@
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
     syncDealerFromHands(ns);
+    // 這手正式記上去了，雲端的「正在記錄中」暫存也要在同一次提交裡一起
+    // 清掉，不然其他裝置會在這手已經記錄完成之後，還短暫看到這手殘留
+    // 的暫存畫面。順便取消本機還沒送出的 debounce 同步，避免等一下又把
+    // 剛清掉的暫存重新寫回去。
+    ns.pending = null;
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     resetDoorSeat();
     commitState(newState);
@@ -2829,6 +2956,9 @@
       ns.hands.push(record);
     });
     syncDealerFromHands(ns);
+    ns.pending = null;
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     resetDoorSeat();
     commitState(newState);
@@ -2864,6 +2994,9 @@
     // 流局之前可能已經先按好骰規、豹子之類準備記下一手胡牌用的台型，
     // 流局不算一手，這些預先按好的狀態要清掉，不然會原封不動帶到下一手，
     // 讓下一手一開始就莫名其妙多了沒點過的台型。
+    ns.pending = null;
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     resetDoorSeat();
     commitState(newState);
@@ -3167,6 +3300,19 @@
     ui.pendingHand = null;
     ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
     resetDoorSeat();
+    // 取消也要讓雲端的「正在記錄中」暫存一起清掉，不然其他裝置還會看到
+    // 這手明明已經取消、畫面卻還停在原地；跟確認記錄一樣直接整合進同一
+    // 次提交，不靠事後的 debounce（debounce 一樣要取消，避免延遲送出
+    // 一份已經過時的暫存，把剛清掉的畫面又蓋回去）。
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
+    var game = activeGame(), set = game && activeSet(game);
+    if(set && set.pending){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng && ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      if(ns){ ns.pending = null; commitState(newState); return; }
+    }
     renderGameTab();
   }
 
@@ -3703,14 +3849,26 @@
   // 這個入口就不顯示骰子面、也不判斷豹子，只算總點數跟開門。
   var DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
   var diceRolling = false;
-  function renderDiceResult(values){
+  // 骰骰子結果的畫面內容（骰子面／總點數／開門）存進 ui.diceResultHtml，
+  // 不是只直接操作DOM——這樣其他裝置即時同步收到遠端的骰骰子結果時，
+  // 也能用同一套邏輯（renderDiceResultDisplay）畫出一模一樣的畫面，不用
+  // 另外維護一套唯讀版的顯示邏輯。
+  function renderDiceResultDisplay(){
     var resultEl = document.getElementById("diceResult");
+    if(!resultEl) return;
+    if(!ui.doorSeat || !ui.diceResultHtml){
+      resultEl.style.display = "none";
+      return;
+    }
+    resultEl.style.display = "block";
+    resultEl.classList.remove("rolling");
+    resultEl.classList.toggle("leopard-hit", !!ui.diceLeopardHit);
+    resultEl.innerHTML = ui.diceResultHtml;
+  }
+  function renderDiceResult(values){
     var sum = values[0] + values[1] + values[2];
     var isLeopard = values[0] === values[1] && values[1] === values[2];
     var facesText = values.map(function(v){ return DICE_FACES[v] + v; }).join("　");
-    resultEl.style.display = "block";
-    resultEl.classList.remove("rolling");
-    resultEl.classList.toggle("leopard-hit", isLeopard);
     // 骰出來的點數順便算出這一手的開門：從莊家開始算1，逆時針數到骰出來
     // 的點數，數到的那家這手就當「虛擬東」，自風照這個算（見 seatWindFor）。
     // 只對「這一手」有效，記上去之後會被清掉，下一手要重新骰才有。
@@ -3720,7 +3878,9 @@
       ui.doorSeat = set.seatOrder[doorIndexFromDice(set, sum)];
       doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
     }
-    resultEl.innerHTML = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
+    ui.diceLeopardHit = isLeopard;
+    ui.diceResultHtml = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
+    renderDiceResultDisplay();
     renderTaiTags();
     renderHuaVal();
   }
@@ -3728,16 +3888,15 @@
   // 的數字就沒辦法判斷是不是豹子（同一個總點數可能是不同組合湊出來的），
   // 所以這裡只顯示總點數跟開門，不顯示骰子面、也不判斷豹子。
   function renderDiceResultFromSum(sum){
-    var resultEl = document.getElementById("diceResult");
-    resultEl.style.display = "block";
-    resultEl.classList.remove("rolling", "leopard-hit");
     var doorPhrase = "";
     var game = activeGame(), set = game && activeSet(game);
     if(set){
       ui.doorSeat = set.seatOrder[doorIndexFromDice(set, sum)];
       doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
     }
-    resultEl.innerHTML = "共 "+sum+" 點" + doorPhrase;
+    ui.diceLeopardHit = false;
+    ui.diceResultHtml = "共 "+sum+" 點" + doorPhrase;
+    renderDiceResultDisplay();
     renderTaiTags();
     renderHuaVal();
   }
@@ -4294,6 +4453,7 @@
     renderTilesPicker();
     renderBaxianPanel(game);
     renderDrinkToggle(game);
+    renderDiceResultDisplay();
 
     var setTotals = computeSetTotals(set);
     // 「今晚累計」要不要顯示，看的是「今天這一天」現在是不是真的有過
@@ -4551,7 +4711,7 @@
       var isViewing = g.id === viewingId;
       b.className = "chip" + (isViewing ? " chip-selected" : "");
       b.textContent = "桌"+(idx+1)+"："+g.players.join("/");
-      b.addEventListener("click", function(){ ui.viewingGameId = g.id; ui.wantNewGame = false; renderGameTab(); });
+      b.addEventListener("click", function(){ resetPendingSyncForTableSwitch(); ui.viewingGameId = g.id; ui.wantNewGame = false; renderGameTab(); });
       chipsEl.appendChild(b);
     });
     var newBtn = document.createElement("button");
@@ -4567,7 +4727,7 @@
     var show = ui.wantNewGame && games.length > 0;
     btn.style.display = show ? "block" : "none";
     if(!show) return;
-    btn.onclick = function(){ ui.viewingGameId = games[0].id; ui.wantNewGame = false; renderGameTab(); };
+    btn.onclick = function(){ resetPendingSyncForTableSwitch(); ui.viewingGameId = games[0].id; ui.wantNewGame = false; renderGameTab(); };
   }
   function renderGameTab(){
     renderTableSwitcher();
@@ -4598,7 +4758,10 @@
       if(showBackfill) renderBackfillForm(); else renderNewGameForm();
     }else{
       var set = activeSet(game);
-      if(set) renderActiveSet(game, set);
+      if(set){
+        reconcilePendingWithCloud(game, set);
+        renderActiveSet(game, set);
+      }
     }
   }
 
