@@ -759,6 +759,10 @@
           <button type="button" class="btn btn-outline" id="statsMultiCancelBtn">取消</button>
         </div>
       </div>
+      <div class="chip-row" id="kingsTitleViewRow" style="display:none; margin-top:8px;">
+        <button type="button" class="chip" id="kingsTitleViewTotalBtn">🏆 總計</button>
+        <button type="button" class="chip" id="kingsTitleViewSingleBtn">📅 單場紀錄</button>
+      </div>
       <div id="statsContent"></div>
     </div>
   </section>
@@ -996,7 +1000,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析、擂台幾個子分頁，都只統計已經結束的牌局。</li>
       <li><b>篩選場次</b>：上面「場次範圍」下拉選單可以只看總計、某一年、某一個月，或單獨一場。想跳著看不相連、不同月/年的特定場次，按「🔀 自選特定幾場來看」逐場勾選，跟上面的下拉選單互斥——選了自選場次，下拉選單會先讓路；清掉自選，下拉選單再恢復。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序；「常胡的牌」則是把每手記錄的胡牌牌型彙整起來，看這位玩家最常胡到哪些牌。</li>
-      <li>「擂台」子分頁列出大家的總排行榜，下面「🏆 稱號牆（總計）」整理各種累計稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）、天選之人（天胡／地胡次數最多）、一炮多響體質（放槍被同時多人胡次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行；連莊最久紀錄本身就是單一一次的紀錄，會附上是哪一場。再下面獨立一區「📅 單場紀錄」，列出幾乎每項稱號對應的「單場」版本，比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰（小字排在數字下面一整行），可能同時並列好幾筆；如果目前篩選範圍剛好只剩一場牌局，單場版本的數字一定跟總計版本完全一樣，這整區會自動不顯示，不會重複。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
+      <li>「擂台」子分頁列出大家的總排行榜，下面是「🏆 稱號牆」，用「🏆 總計」「📅 單場紀錄」兩顆切換鈕點按切換，一次只看其中一邊，不會兩邊都疊在畫面上太長。「總計」整理各種累計稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）、天選之人（天胡／地胡次數最多）、一炮多響體質（放槍被同時多人胡次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行；連莊最久紀錄本身就是單一一次的紀錄，會附上是哪一場。「單場紀錄」列出幾乎每項稱號對應的「單場」版本，比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰（小字排在數字下面一整行），可能同時並列好幾筆；如果目前篩選範圍剛好只剩一場牌局，單場版本的數字一定跟總計版本完全一樣，切換鈕會自動收起來、強制看總計那邊，不會重複。切換鈕選的是哪一邊會記住，下次打開還是上次選的那邊。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
       <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
@@ -1172,6 +1176,19 @@
   }
   function saveInputMode(mode){
     try{ localStorage.setItem(INPUT_MODE_KEY, mode); }catch(e){}
+  }
+  // 擂台「稱號牆」總計跟單場兩區以前是上下都顯示，太長了；改成點按切換
+  // 只看其中一邊，記住使用者上次選的是哪一邊，跟輸入模式一樣跨重新整理
+  // 還留著。
+  var TITLE_VIEW_KEY = "twmj_title_view_v1";
+  function loadTitleView(){
+    try{
+      var v = localStorage.getItem(TITLE_VIEW_KEY);
+      return v === "single" ? "single" : "total";
+    }catch(e){ return "total"; }
+  }
+  function saveTitleView(view){
+    try{ localStorage.setItem(TITLE_VIEW_KEY, view); }catch(e){}
   }
   // 「今天的分工」收起／展開跟花色一樣是看當下畫面的狀態，沒有存起來——
   // 收起之後重新整理、或是手機瀏覽器把分頁背景清掉重載，就會變回預設
@@ -1947,6 +1964,7 @@
     doorSeat: null,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
+    titleView: loadTitleView(),
     inputMode: loadInputMode(),
     tapPending: null,
     pendingHand: null,
@@ -2858,6 +2876,16 @@
     saveInputMode(ui.inputMode);
     ui.tapPending = null;
     renderGameTab();
+  });
+  document.getElementById("kingsTitleViewTotalBtn").addEventListener("click", function(){
+    ui.titleView = "total";
+    saveTitleView("total");
+    renderStatsTab();
+  });
+  document.getElementById("kingsTitleViewSingleBtn").addEventListener("click", function(){
+    ui.titleView = "single";
+    saveTitleView("single");
+    renderStatsTab();
   });
   document.getElementById("tapSelfBtn").addEventListener("click", function(){
     ui.tapPending = { type: "self" };
@@ -5639,8 +5667,13 @@
       singleGameTitleRow('🌊','單場流局王（單場當莊流局次數最多）', arena.singleGame.drawAsDealer, function(v){ return v+'次'; }) +
       singleGameTitleRow('👼','單場天選之人', arena.singleGame.tianDiHu, function(v){ return v+'次'; }) +
       singleGameTitleRow('🎆','單場一炮多響體質', arena.singleGame.multiHit, function(v){ return v+'次'; });
-    var titleSection = '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆（總計）</div><div class="stat-list">'+titleRows+'</div>' +
-      (isSingleGame ? '' : '<div class="stat-summary" style="margin-top:14px;">📅 單場紀錄（同一場牌局裡表現最突出的一次）</div><div class="stat-list">'+singleGameRows+'</div>');
+    // 總計跟單場兩區以前上下都顯示，太長了；改成上面的切換鈕點按切換，
+    // 這裡只渲染目前選到的那一邊。篩選到只剩一場的時候切換鈕會被收起來
+    // （見 renderStatsTab），強制看總計那一邊，不管 ui.titleView 存的是什麼。
+    var effectiveTitleView = isSingleGame ? "total" : ui.titleView;
+    var titleSection = effectiveTitleView === "single"
+      ? '<div class="stat-summary" style="margin-top:14px;">📅 稱號牆（單場紀錄，同一場牌局裡表現最突出的一次）</div><div class="stat-list">'+singleGameRows+'</div>'
+      : '<div class="stat-summary" style="margin-top:14px;">🏆 稱號牆（總計）</div><div class="stat-list">'+titleRows+'</div>';
 
     function extremeCard(label, item){
       if(!item){
@@ -6091,6 +6124,15 @@
     // （配對本身可能橫跨篩選邊界），所以只有「總計」或真的只剩一場時才
     // 顯示，避免看起來像是只算篩選到的場次、實際上卻混了全部場次的配對。
     var singleGameId = (filteredGames.length === 1) ? filteredGames[0].id : null;
+    // 擂台的「總計／單場」切換：篩選到只剩一場的時候，單場數字一定跟
+    // 總計一樣，切換鈕沒有意義，收起來、強制看總計那一邊。
+    var titleViewRow = document.getElementById("kingsTitleViewRow");
+    var showTitleViewToggle = ui.statsSub === "kings" && !singleGameId && filteredGames.length > 0;
+    titleViewRow.style.display = showTitleViewToggle ? "flex" : "none";
+    if(showTitleViewToggle){
+      document.getElementById("kingsTitleViewTotalBtn").classList.toggle("chip-selected", ui.titleView !== "single");
+      document.getElementById("kingsTitleViewSingleBtn").classList.toggle("chip-selected", ui.titleView === "single");
+    }
     if(ui.statsSub === "longterm"){
       content.innerHTML = renderLongTermHtml(filteredGames);
       if(!hasAnyFilter || singleGameId){
