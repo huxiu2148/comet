@@ -249,6 +249,19 @@
   .tab-btn .tab-icon{ font-size:1.2rem; }
   .tab-btn.active{ color: var(--accent); }
 
+  /* 懷疑雲端同步沒跟上（例如另一台裝置點了東西，這台卻沒反應）時，
+     不用等 5 分鐘自動檢查版本，直接按這顆懸浮按鈕強制重新整理，
+     重新整理會讓 Firebase 的監聽重新接上、直接拿到最新資料。 */
+  .refresh-fab{
+    position:fixed; right:14px; z-index:55;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    width:44px; height:44px; border-radius:50%; border:none;
+    background: var(--accent); color:#fff; font-size:1.2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .refresh-fab:active{ transform: scale(.92); }
+
   .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
   .chip{
     border:1px solid var(--border); background: var(--bg); color: var(--ink);
@@ -879,6 +892,8 @@
   <button type="button" class="tab-btn" data-tab="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
 </nav>
 
+<button type="button" class="refresh-fab" id="refreshFab" title="懷疑其他裝置的畫面沒有同步過來？按這裡強制重新整理">🔄</button>
+
 <div id="modalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" id="modalMessage"></div>
@@ -931,6 +946,12 @@
       <li>iPhone：用 Safari 打開這個網址，點下方分享鈕（方框加箭頭）→「加入主畫面」→「新增」。</li>
       <li>Android：用 Chrome 打開這個網址，點右上角選單（三個點）→「新增至主畫面」或「安裝應用程式」。</li>
       <li>加好之後從主畫面點圖示打開，會像一般 App 一樣沒有網址列。如果之前加過舊圖示，記得先刪除再重新加一次才會是最新的。</li>
+    </ul>
+
+    <h3>🔄 多裝置同步</h3>
+    <ul>
+      <li>記錄的牌局、還沒確認的這手、開局前的草稿都會即時同步到雲端，不同裝置打開同一個網址應該都會自動看到一樣的畫面，不用手動按什麼。</li>
+      <li>如果網路不穩、或懷疑另一台裝置的畫面卡住沒跟上，右下角有一顆「🔄」懸浮按鈕，不管在哪個分頁都看得到，按一下會強制重新整理、重新接上雲端拿最新資料；「設定」分頁下面「☁️ 雲端狀態」裡也有同樣功能的按鈕。</li>
     </ul>
 
     <h3>🎬 開新牌局</h3>
@@ -6619,6 +6640,9 @@
       .catch(function(){});
   }
   document.getElementById("updateReloadBtn").addEventListener("click", function(){
+    location.reload();
+  });
+  document.getElementById("refreshFab").addEventListener("click", function(){
     location.reload();
   });
   setInterval(checkForUpdate, 5 * 60 * 1000);
