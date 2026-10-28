@@ -1811,8 +1811,14 @@
   function adoptNewGameDraftSnapshotIntoUi(snap){
     var venueEl = document.getElementById("ngVenue");
     if(venueEl) venueEl.value = (snap && typeof snap.venue === "string") ? snap.venue : "";
-    ui.newGame.selectedPlayers = (snap && Array.isArray(snap.selectedPlayers)) ? snap.selectedPlayers.slice() : [];
-    ui.newGame.seatOrder = null; // 人選變了，座位要重新照選人順序排
+    var newSelected = (snap && Array.isArray(snap.selectedPlayers)) ? snap.selectedPlayers.slice() : [];
+    // 兩個人一起開局時，常見一邊在排座位、另一邊同時在填地點——如果每次
+    // 採用遠端草稿（就算只有地點變、人選根本沒變）都把座位洗回選人順序，
+    // 正在排座位那邊會覺得「怎麼都排不起來」，因為剛排好馬上又被重設。
+    // 人選真的有變才需要重排，單純地點變了不該動到已經排好的座位。
+    var playersChanged = JSON.stringify(newSelected) !== JSON.stringify(ui.newGame.selectedPlayers);
+    ui.newGame.selectedPlayers = newSelected;
+    if(playersChanged) ui.newGame.seatOrder = null;
   }
   function pushNewGameDraftSnapshotToCloud(){
     var newState = deepClone(state);
