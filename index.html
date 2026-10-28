@@ -850,8 +850,9 @@
       <h2>☁️ 雲端狀態</h2>
       <div class="cloud-badge-lg local" id="cloudBadgeLg">💾 本機模式</div>
       <p class="hint-text" id="cloudHint"></p>
+      <p class="hint-text" id="cloudDebugLine" style="font-size:.72rem; line-height:1.6;"></p>
       <button type="button" class="btn btn-outline btn-block" id="manualReloadBtn" style="margin-top:8px;">🔄 重新整理</button>
-      <p class="hint-text">加到主畫面用 PWA 模式打開時沒有網址列，沒辦法用瀏覽器的下拉重新整理，畫面卡住或想強制拿最新資料時可以按這裡。</p>
+      <p class="hint-text">加到主畫面用 PWA 模式打開時沒有網址列，沒辦法用瀏覽器的下拉重新整理，畫面卡住或想強制拿最新資料時可以按這裡。懷疑多裝置同步沒跟上的話，這張卡片上面幾行可以回報給我判斷問題出在哪裡。</p>
     </div>
     <div class="card">
       <h2>💾 資料備份</h2>
@@ -951,7 +952,7 @@
     <h3>🔄 多裝置同步</h3>
     <ul>
       <li>記錄的牌局、還沒確認的這手、開局前的草稿都會即時同步到雲端，不同裝置打開同一個網址應該都會自動看到一樣的畫面，不用手動按什麼。</li>
-      <li>如果網路不穩、或懷疑另一台裝置的畫面卡住沒跟上，右下角有一顆「🔄」懸浮按鈕，不管在哪個分頁都看得到，按一下會強制重新整理、重新接上雲端拿最新資料；「設定」分頁下面「☁️ 雲端狀態」裡也有同樣功能的按鈕。</li>
+      <li>如果網路不穩、或懷疑另一台裝置的畫面卡住沒跟上，右下角有一顆「🔄」懸浮按鈕，不管在哪個分頁都看得到，按一下會強制重新整理、重新接上雲端拿最新資料；「設定」分頁下面「☁️ 雲端狀態」裡也有同樣功能的按鈕，下面多了幾行小字顯示「最後收到雲端資料」「最後成功寫入雲端」的時間，如果曾經同步失敗還會多一行錯誤內容，重新整理都解決不了的話，這幾行可以直接回報。</li>
     </ul>
 
     <h3>🎬 開新牌局</h3>
@@ -1578,7 +1579,17 @@
   var db = null;
   var cloudReady = false; // 已連上 Firebase、且至少收過一次資料
   var syncing = false;
+  // 下面三個純粹是給使用者回報問題用的診斷資訊——「即時同步沒作用」這
+  // 種問題沒辦法在這個開發環境裡連真的 Firebase 重現，只能請使用者直接
+  // 把這幾行讀出來，才能判斷到底是寫不進去、還是收不到。
+  var lastPushAt = null; // 上次成功把資料寫進雲端的時間
+  var lastPullAt = null; // 上次成功從雲端收到資料（不管是誰寫的）的時間
+  var lastSyncError = null; // { message, at } 上次寫入或監聽失敗的錯誤內容
 
+  function timeStrOfSec(d){
+    var ss = String(d.getSeconds()); if(ss.length<2) ss="0"+ss;
+    return timeStrOf(d) + ":" + ss;
+  }
   function setCloudBadge(){
     var text, cls, hint;
     if(typeof firebase === "undefined"){ text="💾 本機模式"; cls="local"; hint="連不上雲端資料庫（可能網路問題或擋住了 Firebase），資料只存在這台裝置的瀏覽器裡。"; }
@@ -1591,6 +1602,16 @@
     if(elLg){ elLg.textContent=text; elLg.className="cloud-badge-lg "+cls; }
     var hintEl = document.getElementById("cloudHint");
     if(hintEl) hintEl.textContent = hint;
+    var dbgEl = document.getElementById("cloudDebugLine");
+    if(dbgEl){
+      var lines = [];
+      lines.push("最後收到雲端資料：" + (lastPullAt ? timeStrOfSec(new Date(lastPullAt)) : "尚未收到"));
+      lines.push("最後成功寫入雲端：" + (lastPushAt ? timeStrOfSec(new Date(lastPushAt)) : "尚未寫入過"));
+      if(lastSyncError){
+        lines.push("⚠️ 上次同步失敗（" + timeStrOfSec(new Date(lastSyncError.at)) + "）：" + lastSyncError.message);
+      }
+      dbgEl.innerHTML = lines.join("<br>");
+    }
   }
 
   function applyLocally(newState){
@@ -1608,9 +1629,12 @@
     syncing = true; setCloudBadge();
     db.ref(STATE_PATH).set(newState).then(function(){
       syncing = false;
+      lastPushAt = Date.now();
+      lastSyncError = null;
       setCloudBadge();
-    }).catch(function(){
+    }).catch(function(err){
       syncing = false;
+      lastSyncError = { message: (err && err.message) ? err.message : String(err), at: Date.now() };
       setCloudBadge();
       showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
     });
@@ -1785,8 +1809,10 @@
       var normalized = normalizeState(val);
       if(normalized){ state = normalized; saveLocal(state); renderAll(); }
       cloudReady = true;
+      lastPullAt = Date.now();
       setCloudBadge();
-    }, function(){
+    }, function(err){
+      lastSyncError = { message: (err && err.message) ? err.message : String(err), at: Date.now() };
       setCloudBadge();
     });
   }
