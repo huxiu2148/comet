@@ -959,7 +959,7 @@
     <ul>
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
       <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。不想用自動指派的人選也可以，下面就有分工的名字chip，直接點名字就能自己改，再點一次可以取消。</li>
-      <li>還沒按下「開局」之前，已經填的地點、已經選的人員、排好的座位（點兩人互換、▲▼調整）也都會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填或接著排；按下「開局」之後這份草稿就會清掉。</li>
+      <li>還沒按下「開局」之前，整張開局表單——地點、已經選的人員、排好的座位（點兩人互換、▲▼調整）、日期時間、底/台、自摸算法、請飲料開關、延續金額開關、今天的分工（拍照/音樂人員指定）——都會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填；按下「開局」之後這份草稿就會清掉。開局中途的「🔁 換位」調整中的狀態也會即時同步，跟還沒確認的那手一樣，任何裝置都能接著調整。多桌（例如8人分兩桌）的時候，看哪一桌是各裝置自己選的、不會被強制帶著走，切到哪一桌就即時看到那一桌目前的狀態。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
       <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
@@ -1422,6 +1422,12 @@
     p.pendingHand = ph;
     return p;
   }
+  // 本局中途「🔁 換位」調整中的草稿（跟 pending 同一套道理，驗證從寬）。
+  function normalizeSwap(s){
+    if(!s || typeof s !== "object") return null;
+    if(!Array.isArray(s.swapSeatOrder) || s.swapSeatOrder.length !== 4) return null;
+    return s;
+  }
   function normalizeSet(s, players){
     if(!s || typeof s !== "object") return null;
     var out = {
@@ -1438,7 +1444,8 @@
       status: s.status==="ended" ? "ended" : "active",
       createdAt: typeof s.createdAt==="number" ? s.createdAt : Date.now(),
       endedAt: typeof s.endedAt==="number" ? s.endedAt : null,
-      pending: normalizePending(s.pending)
+      pending: normalizePending(s.pending),
+      swap: normalizeSwap(s.swap)
     };
     return out;
   }
@@ -1786,6 +1793,67 @@
     ui.tilesPickerOpen = false;
     cancelPendingSyncTimer();
     lastPendingSyncJSON = JSON.stringify(null);
+    ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
+    cancelSwapSyncTimer();
+    lastSwapSyncJSON = JSON.stringify(null);
+  }
+
+  // ---------- 本局中途「🔁 換位」調整中的草稿也即時同步上雲端 ----------
+  // 跟「這手正在記錄中」(pending) 同一套道理：換位調整的過程（點兩人
+  // 互換、還沒按下「換位」結束確認）以前只存在操作那台裝置的 ui 裡，
+  // 旁邊的人要等真的按完才看得到變化。鏡射到這將（set）的 swap 欄位，
+  // 讓任何打開同一桌的裝置都即時看到正在調整的座位、也都能接著調整。
+  var lastSwapSyncJSON = JSON.stringify(null);
+  var swapSyncTimer = null;
+  function cancelSwapSyncTimer(){
+    if(swapSyncTimer){ clearTimeout(swapSyncTimer); swapSyncTimer = null; }
+  }
+  function buildSwapSnapshotFromUi(){
+    if(!ui.swapMode) return null;
+    return { swapSelected: ui.swapSelected, swapSeatOrder: ui.swapSeatOrder ? ui.swapSeatOrder.slice() : null };
+  }
+  function adoptSwapSnapshotIntoUi(snap){
+    if(!snap){
+      ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
+      return;
+    }
+    ui.swapMode = true;
+    ui.swapSelected = snap.swapSelected || null;
+    ui.swapSeatOrder = Array.isArray(snap.swapSeatOrder) ? snap.swapSeatOrder.slice() : null;
+  }
+  function pushSwapSnapshotToCloud(gameId, setId){
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === gameId; })[0];
+    if(!ng) return;
+    var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
+    if(!ns) return;
+    ns.swap = buildSwapSnapshotFromUi();
+    commitState(newState);
+  }
+  function reconcileSwapWithCloud(game, set){
+    if(!game || !set) return;
+    var localSnap = buildSwapSnapshotFromUi();
+    var localJSON = JSON.stringify(localSnap);
+    if(localJSON === lastSwapSyncJSON){
+      if(swapSyncTimer) return;
+      var remoteSnap = set.swap || null;
+      var remoteJSON = JSON.stringify(remoteSnap);
+      if(remoteJSON !== localJSON){
+        adoptSwapSnapshotIntoUi(remoteSnap);
+        // 不能直接存 remoteJSON：理由跟 reconcilePendingWithCloud 一樣，
+        // Firebase 回傳的欄位順序不保證跟寫入時一樣，要用
+        // buildSwapSnapshotFromUi() 依固定順序重新序列化一次當作基準。
+        lastSwapSyncJSON = JSON.stringify(buildSwapSnapshotFromUi());
+      }
+      return;
+    }
+    lastSwapSyncJSON = localJSON;
+    cancelSwapSyncTimer();
+    var gameId = game.id, setId = set.id;
+    swapSyncTimer = setTimeout(function(){
+      swapSyncTimer = null;
+      pushSwapSnapshotToCloud(gameId, setId);
+    }, 250);
   }
 
   // ---------- 開局前的「場地跟人員」草稿也即時同步上雲端 ----------
@@ -1818,11 +1886,38 @@
     // 上一組人選留下的座位資料。
     var seatOrder = (Array.isArray(ui.newGame.seatOrder) && sameNameSet(ui.newGame.seatOrder, selectedPlayers))
       ? ui.newGame.seatOrder.slice() : null;
-    return { venue: venue, selectedPlayers: selectedPlayers, seatOrder: seatOrder };
+    var dateEl = document.getElementById("ngDate"), timeEl = document.getElementById("ngTime");
+    var baseEl = document.getElementById("ngBase"), taiEl = document.getElementById("ngTai");
+    var dutyOverride = {};
+    Object.keys(ui.newGame.dutyOverride || {}).forEach(function(k){ dutyOverride[k] = ui.newGame.dutyOverride[k]; });
+    return {
+      venue: venue, selectedPlayers: selectedPlayers, seatOrder: seatOrder,
+      date: dateEl ? dateEl.value : "", time: timeEl ? timeEl.value : "",
+      base: baseEl ? baseEl.value : "", tai: taiEl ? taiEl.value : "",
+      selfDrawMode: ui.newGameSelfDrawMode,
+      drinkEnabled: ui.newGame.drinkEnabled !== false,
+      carryInEnabled: ui.newGame.carryInEnabled !== false,
+      dutyOverride: dutyOverride
+    };
   }
   function adoptNewGameDraftSnapshotIntoUi(snap){
     var venueEl = document.getElementById("ngVenue");
     if(venueEl) venueEl.value = (snap && typeof snap.venue === "string") ? snap.venue : "";
+    var dateEl = document.getElementById("ngDate"), timeEl = document.getElementById("ngTime");
+    var baseEl = document.getElementById("ngBase"), taiEl = document.getElementById("ngTai");
+    if(dateEl && snap && typeof snap.date === "string") dateEl.value = snap.date;
+    if(timeEl && snap && typeof snap.time === "string") timeEl.value = snap.time;
+    if(baseEl && snap && typeof snap.base === "string") baseEl.value = snap.base;
+    if(taiEl && snap && typeof snap.tai === "string") taiEl.value = snap.tai;
+    ui.newGameSelfDrawMode = (snap && snap.selfDrawMode === "split") ? "split" : "full";
+    ui.newGame.drinkEnabled = snap ? (snap.drinkEnabled !== false) : true;
+    ui.newGame.carryInEnabled = snap ? (snap.carryInEnabled !== false) : true;
+    var newDutyOverride = {};
+    if(snap && snap.dutyOverride && typeof snap.dutyOverride === "object"){
+      Object.keys(snap.dutyOverride).forEach(function(k){ newDutyOverride[k] = snap.dutyOverride[k]; });
+    }
+    ui.newGame.dutyOverride = newDutyOverride;
+
     var newSelected = (snap && Array.isArray(snap.selectedPlayers)) ? snap.selectedPlayers.slice() : [];
     // 兩個人一起開局時，常見一邊在排座位、另一邊同時在填地點——如果每次
     // 採用遠端草稿（就算只有地點變、人選根本沒變）都把座位洗回選人順序，
@@ -2569,6 +2664,13 @@
   // 不然每打一個字都重建一次 chip 列表，可能把輸入框的游標位置弄亂。
   document.getElementById("ngVenue").addEventListener("input", function(){
     reconcileNewGameDraftWithCloud();
+  });
+  // 日期/時間/底/台一樣是純輸入框，打字或選擇也不會自動觸發重繪，跟場地
+  // 同樣的理由只呼叫 reconcile 本身，不整個重繪表單。
+  ["ngDate","ngTime","ngBase","ngTai"].forEach(function(id){
+    document.getElementById(id).addEventListener("input", function(){
+      reconcileNewGameDraftWithCloud();
+    });
   });
   document.getElementById("ngModeFull").addEventListener("click", function(){ ui.newGameSelfDrawMode="full"; renderGameTab(); });
   document.getElementById("ngModeSplit").addEventListener("click", function(){ ui.newGameSelfDrawMode="split"; renderGameTab(); });
@@ -3915,11 +4017,18 @@
     ui.swapSelected = null;
     var newOrder = ui.swapSeatOrder;
     ui.swapSeatOrder = null;
-    if(newOrder && JSON.stringify(newOrder) !== JSON.stringify(set.seatOrder)){
+    cancelSwapSyncTimer();
+    lastSwapSyncJSON = JSON.stringify(null);
+    var hasChange = newOrder && JSON.stringify(newOrder) !== JSON.stringify(set.seatOrder);
+    if(hasChange || set.swap){
+      // 結束換位時，不管這次真的改了座位、還是調整過又調回原本的樣子，
+      // 只要雲端上還留著這將的 swap 草稿就要一併清掉，不然別的裝置重新
+      // 整理一次會看到一份早就結束、不該存在的「正在換位」狀態。
       var newState = deepClone(state);
       var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
       var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
-      ns.seatOrder = newOrder;
+      if(hasChange) ns.seatOrder = newOrder;
+      ns.swap = null;
       commitState(newState);
     }else{
       renderGameTab();
@@ -4985,6 +5094,7 @@
       var set = activeSet(game);
       if(set){
         reconcilePendingWithCloud(game, set);
+        reconcileSwapWithCloud(game, set);
         renderActiveSet(game, set);
       }
     }
