@@ -959,7 +959,7 @@
     <ul>
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
       <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。不想用自動指派的人選也可以，下面就有分工的名字chip，直接點名字就能自己改，再點一次可以取消。</li>
-      <li>還沒按下「開局」之前，已經填的地點、已經選的人員也會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填；按下「開局」之後這份草稿就會清掉。</li>
+      <li>還沒按下「開局」之前，已經填的地點、已經選的人員、排好的座位（點兩人互換、▲▼調整）也都會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填或接著排；按下「開局」之後這份草稿就會清掉。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
       <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
@@ -1800,13 +1800,25 @@
   function cancelNewGameDraftSyncTimer(){
     if(newGameDraftSyncTimer){ clearTimeout(newGameDraftSyncTimer); newGameDraftSyncTimer = null; }
   }
+  // 兩個陣列裝的是不是同一組名字（不管順序），用來判斷座位排列是不是
+  // 真的對應目前這組選好的人，不是上一組人選留下來的殘值。
+  function sameNameSet(a, b){
+    if(!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    var sa = a.slice().sort().join("\u0001"), sb = b.slice().sort().join("\u0001");
+    return sa === sb;
+  }
   function buildNewGameDraftSnapshotFromUi(){
     if(!ui.newGameFormReady) return null;
     var venueEl = document.getElementById("ngVenue");
     var venue = venueEl ? venueEl.value : "";
     var selectedPlayers = ui.newGame.selectedPlayers.slice();
     if(!venue && selectedPlayers.length === 0) return null; // 都還沒填，不用同步一份空白草稿
-    return { venue: venue, selectedPlayers: selectedPlayers };
+    // 座位排列（點兩人互換、▲▼）也一起同步，不然一邊排好、另一邊看到的
+    // 還是選人順序；只有在座位確實對應目前這組人選時才帶上去，避免帶著
+    // 上一組人選留下的座位資料。
+    var seatOrder = (Array.isArray(ui.newGame.seatOrder) && sameNameSet(ui.newGame.seatOrder, selectedPlayers))
+      ? ui.newGame.seatOrder.slice() : null;
+    return { venue: venue, selectedPlayers: selectedPlayers, seatOrder: seatOrder };
   }
   function adoptNewGameDraftSnapshotIntoUi(snap){
     var venueEl = document.getElementById("ngVenue");
@@ -1818,7 +1830,16 @@
     // 人選真的有變才需要重排，單純地點變了不該動到已經排好的座位。
     var playersChanged = JSON.stringify(newSelected) !== JSON.stringify(ui.newGame.selectedPlayers);
     ui.newGame.selectedPlayers = newSelected;
-    if(playersChanged) ui.newGame.seatOrder = null;
+    var remoteSeatOrder = (snap && Array.isArray(snap.seatOrder) && sameNameSet(snap.seatOrder, newSelected))
+      ? snap.seatOrder.slice() : null;
+    if(playersChanged){
+      // 人選變了：對方如果已經附上對應新人選的座位（例如對方剛排完座位
+      // 才傳過來），直接採用；沒有的話清空，讓畫面照新的選人順序重排。
+      ui.newGame.seatOrder = remoteSeatOrder;
+    }else if(remoteSeatOrder && JSON.stringify(remoteSeatOrder) !== JSON.stringify(ui.newGame.seatOrder || null)){
+      // 人選沒變，但座位本身不一樣（對方排的）——採用過來。
+      ui.newGame.seatOrder = remoteSeatOrder;
+    }
   }
   function pushNewGameDraftSnapshotToCloud(){
     var newState = deepClone(state);
