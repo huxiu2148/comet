@@ -937,6 +937,7 @@
     <ul>
       <li>先到「名單」分頁標好誰是「我」（只是固定記錄身份用，不一定要真的在場上）。</li>
       <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。不想用自動指派的人選也可以，下面就有分工的名字chip，直接點名字就能自己改，再點一次可以取消。</li>
+      <li>還沒按下「開局」之前，已經填的地點、已經選的人員也會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填；按下「開局」之後這份草稿就會清掉。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
       <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
@@ -1255,7 +1256,8 @@
       defaultBase: 100,
       defaultTai: 20,
       dutyRotation: { photoIdx: 0, musicIdx: 0 },
-      drinkPaid: {}
+      drinkPaid: {},
+      newGameDraft: null
     };
   }
 
@@ -1479,6 +1481,14 @@
     };
   }
 
+  // 開局前「場地跟人員」這些還沒按下「開始」的草稿設定，也即時同步上
+  // 雲端，格式驗證一樣從寬——這是過渡用的草稿，不是正式資料，欄位不對
+  // 就直接當沒有，不嘗試修補。
+  function normalizeNewGameDraft(d){
+    if(!d || typeof d !== "object") return null;
+    if(!Array.isArray(d.selectedPlayers)) return null;
+    return d;
+  }
   function normalizeState(parsed){
     if(!parsed || typeof parsed !== "object") return null;
     if(Array.isArray(parsed.history) && Array.isArray(parsed.players) && !Array.isArray(parsed.games)){
@@ -1524,6 +1534,7 @@
         if(parsed.drinkPaid[key]) s.drinkPaid[key] = true;
       });
     }
+    s.newGameDraft = normalizeNewGameDraft(parsed.newGameDraft);
     return s;
   }
 
@@ -1682,6 +1693,62 @@
     ui.tilesPickerOpen = false;
     cancelPendingSyncTimer();
     lastPendingSyncJSON = JSON.stringify(null);
+  }
+
+  // ---------- 開局前的「場地跟人員」草稿也即時同步上雲端 ----------
+  // 開新局的表單按下「開始」之前，場地文字跟已選的人只存在填表那台裝置
+  // 的 ui 裡，旁邊的人要等真的按下開局才看得到。跟「這手正在記錄中」
+  // 用同一套 reconcile 模式，鏡射到 state.newGameDraft（這時候還沒有
+  // game/set 可以掛，所以是放在最外層）。範圍先只收「場地」跟「已選的
+  // 人」這兩項——使用者明確要的就是這兩個同步，其他像座位、分工、底/台
+  // 這些開局前的細節欄位先不跟著同步，需要的話之後再加。
+  var lastNewGameDraftSyncJSON = JSON.stringify(null);
+  var newGameDraftSyncTimer = null;
+  function cancelNewGameDraftSyncTimer(){
+    if(newGameDraftSyncTimer){ clearTimeout(newGameDraftSyncTimer); newGameDraftSyncTimer = null; }
+  }
+  function buildNewGameDraftSnapshotFromUi(){
+    if(!ui.newGameFormReady) return null;
+    var venueEl = document.getElementById("ngVenue");
+    var venue = venueEl ? venueEl.value : "";
+    var selectedPlayers = ui.newGame.selectedPlayers.slice();
+    if(!venue && selectedPlayers.length === 0) return null; // 都還沒填，不用同步一份空白草稿
+    return { venue: venue, selectedPlayers: selectedPlayers };
+  }
+  function adoptNewGameDraftSnapshotIntoUi(snap){
+    var venueEl = document.getElementById("ngVenue");
+    if(venueEl) venueEl.value = (snap && typeof snap.venue === "string") ? snap.venue : "";
+    ui.newGame.selectedPlayers = (snap && Array.isArray(snap.selectedPlayers)) ? snap.selectedPlayers.slice() : [];
+    ui.newGame.seatOrder = null; // 人選變了，座位要重新照選人順序排
+  }
+  function pushNewGameDraftSnapshotToCloud(){
+    var newState = deepClone(state);
+    newState.newGameDraft = buildNewGameDraftSnapshotFromUi();
+    commitState(newState);
+  }
+  function reconcileNewGameDraftWithCloud(){
+    var localSnap = buildNewGameDraftSnapshotFromUi();
+    var localJSON = JSON.stringify(localSnap);
+    if(localJSON === lastNewGameDraftSyncJSON){
+      if(newGameDraftSyncTimer) return;
+      var remoteSnap = state.newGameDraft || null;
+      var remoteJSON = JSON.stringify(remoteSnap);
+      if(remoteJSON !== localJSON){
+        adoptNewGameDraftSnapshotIntoUi(remoteSnap);
+        lastNewGameDraftSyncJSON = remoteJSON;
+      }
+      return;
+    }
+    lastNewGameDraftSyncJSON = localJSON;
+    cancelNewGameDraftSyncTimer();
+    newGameDraftSyncTimer = setTimeout(function(){
+      newGameDraftSyncTimer = null;
+      pushNewGameDraftSnapshotToCloud();
+    }, 250);
+  }
+  function resetNewGameDraftSync(){
+    cancelNewGameDraftSyncTimer();
+    lastNewGameDraftSyncJSON = JSON.stringify(null);
   }
 
   // 第一次連上、資料庫還完全是空的（全新專案）時，用這份內建的種子資料
@@ -2138,6 +2205,7 @@
       }
       ui.newGameFormReady = true;
     }
+    reconcileNewGameDraftWithCloud();
     renderChipRow("ngVenueChips", state.venues, function(v){ document.getElementById("ngVenue").value = v; renderGameTab(); }, document.getElementById("ngVenue").value);
     document.getElementById("ngModeFull").classList.toggle("selected", ui.newGameSelfDrawMode !== "split");
     document.getElementById("ngModeSplit").classList.toggle("selected", ui.newGameSelfDrawMode === "split");
@@ -2355,6 +2423,12 @@
     renderGameTab();
   }
 
+  // 場地是純文字輸入框，打字不會自動觸發重繪，要自己接 input 事件才能
+  // 讓同步邏輯知道本機剛改過；只呼叫 reconcile 本身，不整個重繪表單，
+  // 不然每打一個字都重建一次 chip 列表，可能把輸入框的游標位置弄亂。
+  document.getElementById("ngVenue").addEventListener("input", function(){
+    reconcileNewGameDraftWithCloud();
+  });
   document.getElementById("ngModeFull").addEventListener("click", function(){ ui.newGameSelfDrawMode="full"; renderGameTab(); });
   document.getElementById("ngModeSplit").addEventListener("click", function(){ ui.newGameSelfDrawMode="split"; renderGameTab(); });
   document.getElementById("ngDrinkBtn").addEventListener("click", function(){ ui.newGame.drinkEnabled = !ui.newGame.drinkEnabled; renderGameTab(); });
@@ -2480,6 +2554,9 @@
       ns.defaultBase = newGame.base;
       ns.defaultTai = newGame.tai;
       if(venue && ns.venues.indexOf(venue) === -1) ns.venues.push(venue);
+      // 這場正式開局了，開局前的場地/人員草稿同步在這裡一起清掉，不然
+      // 其他裝置還會看到已經開完局的表單殘留在那邊。
+      ns.newGameDraft = null;
       return ns;
     }
 
@@ -2497,6 +2574,7 @@
       // 那桌）的比對基準，誤判成本機剛改過，把東西寫錯桌。
       cancelPendingSyncTimer();
       lastPendingSyncJSON = JSON.stringify(null);
+      resetNewGameDraftSync();
       if(newGameId) ui.viewingGameId = newGameId; // 剛開好的桌子自動切到那一桌看
     }
 
@@ -5882,8 +5960,12 @@
     var pairSection = netPairs.length ?
       ('<div class="stat-summary" style="margin-top:14px;">🏧 提款機排行（誰累計輸最多錢給誰）</div><div class="stat-list">'+pairRows+'</div>') : '';
 
-    return '<div class="stat-summary">總排行榜（依淨輸贏排序）</div><div class="stat-list">'+rankRows+'</div>' +
-      titleSection + extremeSection + fullSection + pairSection;
+    // 總排行榜本來就是把所有篩選範圍內的場次加總起來排名，概念上跟稱號
+    // 牆的「總計」是同一國的；切到「單場紀錄」的時候拿掉它，不要讓畫面
+    // 一開頭先出現一段跟目前選的檢視範圍對不上的總計排名。
+    var rankSection = effectiveTitleView === "single" ? '' :
+      '<div class="stat-summary">總排行榜（依淨輸贏排序）</div><div class="stat-list">'+rankRows+'</div>';
+    return rankSection + titleSection + extremeSection + fullSection + pairSection;
   }
 
   function renderGamesListInto(container, endedGames){
