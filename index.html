@@ -1407,7 +1407,19 @@
   // 修補或擋下整個 state 的同步。
   function normalizePending(p){
     if(!p || typeof p !== "object") return null;
-    if(!p.pendingHand || typeof p.pendingHand !== "object") return null;
+    var ph = p.pendingHand;
+    if(!ph || typeof ph !== "object") return null;
+    // 這份資料是從雲端整份覆蓋進來的，不像本機建立時一定是用
+    // recordSelfDrawGesture／recordDiscardGesture 那套固定形狀——舊版本
+    // 寫進去的殘留資料欄位可能不齊全，少了欄位會讓 renderPendingPreview
+    // 直接噴錯，而且是在 renderAll() 最前面噴，會連 initFirebase 都呼叫
+    // 不到、整個雲端同步看起來像完全連不上，所以這裡要補齊預設值。
+    if(ph.method === "discard"){
+      ph.intercepted = Array.isArray(ph.intercepted) ? ph.intercepted : [];
+      ph.winners = Array.isArray(ph.winners) && ph.winners.length ? ph.winners : [makeWinnerEntry(ph.winnerName || "")];
+      ph.activeWinnerIdx = (typeof ph.activeWinnerIdx === "number" && ph.winners[ph.activeWinnerIdx]) ? ph.activeWinnerIdx : 0;
+    }
+    p.pendingHand = ph;
     return p;
   }
   function normalizeSet(s, players){
@@ -4520,6 +4532,12 @@
     if(!p){ panel.style.display = "none"; renderMultiWinnerBlock(null, game); return; }
     panel.style.display = "block";
     if(p.method === "discard"){
+      // 這兩個欄位理論上在 normalizePending 已經補齊過，這裡再防一層只是
+      // 避免哪天來源沒經過 normalize 就直接賦值給 ui.pendingHand，不想再
+      // 重演一次「一筆資料格式不如預期就讓整個 renderAll() 中斷、連雲端
+      // 都連不上」的狀況。
+      if(!Array.isArray(p.intercepted)) p.intercepted = [];
+      if(!Array.isArray(p.winners) || !p.winners.length) p.winners = [makeWinnerEntry(p.winnerName || "")];
       snapshotActiveWinner(); // 讓 winners[] 跟目前畫面上正在調整的台數同步，預覽才會即時反映
       var interceptedLine = p.intercepted.length ?
         ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+p.intercepted.map(escapeHtml).join('、')+'</div>') : '';
@@ -6674,14 +6692,27 @@
   }
 
   // ================= render all =================
+  // renderAll() 是 initFirebase() 在程式最下面啟動雲端連線之前，一定會
+  // 先跑的那一步（見檔案最下面 renderAll(); initFirebase();）。如果任何
+  // 一個子畫面的渲染（例如某筆雲端資料格式不如預期）丟出例外、又沒有
+  // 擋住，會整個中斷後面同一行的程式碼，導致 initFirebase() 根本沒被
+  // 呼叫到——使用者看到的就是雲端狀態永遠卡在「連線中」，而且完全看
+  // 不出是程式當掉、還是真的連不上網路。曾經因為這樣整個誤判成網路/
+  // 防火牆問題，實際上是某個分頁渲染時的程式錯誤。每個子畫面分開包一層
+  // try/catch，單一分頁壞掉只會那一塊顯示不出來、記一筆 console.error，
+  // 不會拖累雲端連線跟其他分頁。
+  function safeRender(fn, label){
+    try{ fn(); }
+    catch(e){ console.error("[renderAll] " + label + " 渲染失敗：", e); }
+  }
   function renderAll(){
-    updateTabVisibility();
-    renderGameTab();
-    renderStatsTab();
-    renderCalendarTab();
-    renderRosterTab();
-    renderSettingsTab();
-    setCloudBadge();
+    safeRender(updateTabVisibility, "updateTabVisibility");
+    safeRender(renderGameTab, "renderGameTab");
+    safeRender(renderStatsTab, "renderStatsTab");
+    safeRender(renderCalendarTab, "renderCalendarTab");
+    safeRender(renderRosterTab, "renderRosterTab");
+    safeRender(renderSettingsTab, "renderSettingsTab");
+    safeRender(setCloudBadge, "setCloudBadge");
   }
 
   // ---------- 版本檢查（有新版本強制要求重新整理） ----------
