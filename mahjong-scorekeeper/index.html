@@ -1001,7 +1001,7 @@
       <li>「戰績」分頁下面有長期統計、門風、歷史牌局、分析、擂台幾個子分頁，都只統計已經結束的牌局。</li>
       <li><b>篩選場次</b>：上面「場次範圍」下拉選單可以只看總計、某一年、某一個月，或單獨一場。想跳著看不相連、不同月/年的特定場次，按「🔀 自選特定幾場來看」逐場勾選，跟上面的下拉選單互斥——選了自選場次，下拉選單會先讓路；清掉自選，下拉選單再恢復。</li>
       <li>「分析」子分頁可以切換要看誰的統計；「單手最大胡牌」「單手最大放槍」是依實際贏／輸的金額排的（不是台數），底下會列出那手疊了哪些台型、各自幾台；「常胡台型」則列出這位玩家最常靠什麼台型贏，依次數由多到少排序；「常胡的牌」則是把每手記錄的胡牌牌型彙整起來，看這位玩家最常胡到哪些牌。</li>
-      <li>「擂台」子分頁列出大家的總排行榜，下面是「🏆 稱號牆」，用「🏆 總計」「📅 單場紀錄」兩顆切換鈕點按切換，一次只看其中一邊，不會兩邊都疊在畫面上太長。「總計」整理各種累計稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）、天選之人（天胡／地胡次數最多）、一炮多響體質（放槍被同時多人胡次數最多）等等；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行；連莊最久紀錄本身就是單一一次的紀錄，會附上是哪一場。「單場紀錄」列出幾乎每項稱號對應的「單場」版本，比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰（小字排在數字下面一整行），可能同時並列好幾筆；如果目前篩選範圍剛好只剩一場牌局，單場版本的數字一定跟總計版本完全一樣，切換鈕會自動收起來、強制看總計那邊，不會重複。切換鈕選的是哪一邊會記住，下次打開還是上次選的那邊。再下面是「💎 單手紀錄」跟「🏧 提款機排行」，看誰累計輸最多錢給誰。</li>
+      <li>「擂台」子分頁用「🏆 總計」「📅 單場紀錄」兩顆切換鈕點按切換，一次只看其中一邊，不會兩邊都疊在畫面上太長。「總計」看得到「總排行榜（依淨輸贏排序）」、「🏆 稱號牆」整理各種累計稱號——胡牌王、自摸王、放槍王、攔胡王、最衰被攔胡、贏最多錢、苦主、連莊最久、當莊最賺、陪打最多手、零放槍紀錄、豹子愛用王、八仙過海王、流局王（總計當莊流局次數最多）、天選之人（天胡／地胡次數最多）、一炮多響體質（放槍被同時多人胡次數最多）等等，以及「🏧 提款機排行（誰累計輸最多錢給誰）」；次數類跟比率類（例如胡牌王跟胡牌率最高）如果剛好是同一個人同時拿下，會合併成一行顯示，不是同一個人就分開各列一行；連莊最久紀錄本身就是單一一次的紀錄，會附上是哪一場。「單場紀錄」不顯示總排行榜，稱號牆改列出幾乎每項稱號對應的「單場」版本，比的是同一場牌局裡加總次數（或金額）最多的那一次，不是總計，每一筆都會附上是哪一場、是誰（小字排在數字下面一整行），可能同時並列好幾筆；提款機排行也換成「🏧 單場提款機排行（同一場牌局裡輸最多錢給誰）」，比的是單一場牌局裡輸最多錢給誰，不是累計整季；如果目前篩選範圍剛好只剩一場牌局，單場版本的數字一定跟總計版本完全一樣，切換鈕會自動收起來、強制看總計那邊，不會重複。切換鈕選的是哪一邊會記住，下次打開還是上次選的那邊。再下面是「💎 單手紀錄」。</li>
       <li>「月曆」上面可以選任何一位玩家，日期下面顯示那天他的輸贏（綠贏紅輸），點日期可以看當天紀錄，或直接補記一場。</li>
       <li>🍹 請飲料：每場結束的牌局裡，那場輸最多錢的人請客；如果連續好幾場都是同一個人最輸（不管是不是同一天），只算他請一次，中間只要換成別人最輸就算重新開始算。開局時可以決定這場要不要算（預設要），本局畫面跟歷史牌局也都能再改。</li>
     </ul>
@@ -5574,6 +5574,26 @@
   // 可能同時有好幾筆並列最高（同一個人剛好打平自己另一場的紀錄、或是
   // 不同人在不同場各自打出一樣的次數），所以用 entries 陣列全部列出來，
   // 不是只存一筆。
+  // 把「A付給B」「B付給A」互相抵銷，取淨轉帳方向跟金額——擂台總計的
+  // 「🏧 提款機排行」跟單場版本都用這個算，所以抽成共用函式。
+  function netPairsForPairwise(pw, names){
+    var out = [];
+    var seen = {};
+    names.forEach(function(a){
+      names.forEach(function(b){
+        if(a === b) return;
+        var key = [a,b].sort().join('|');
+        if(seen[key]) return;
+        seen[key] = true;
+        var ab = (pw[a] && pw[a][b]) || 0;
+        var ba = (pw[b] && pw[b][a]) || 0;
+        var net = ab - ba;
+        if(net > 0) out.push({ from: a, to: b, amt: net });
+        else if(net < 0) out.push({ from: b, to: a, amt: -net });
+      });
+    });
+    return out;
+  }
   function makeSingleGameTracker(){ return { value: null, entries: [] }; }
   // opts.lowest 用在「金額越小（輸越多）越好」的稱號，例如單場苦主；
   // 其他次數類稱號預設找最大值，而且排除0次/null（沒發生過不用列進來）。
@@ -5600,9 +5620,14 @@
     });
     var overallMaxWin = null, overallMaxDealIn = null; // {name, amt, detail}
     var pairwise = {}; // pairwise[付錢的人][收錢的人] = 累計付了多少錢
-    function addPair(payer, receiver, amt){
+    var singleGamePairEntries = []; // 單場提款機排行：每場各自淨算一次，不是總計
+    function addPair(payer, receiver, amt, gamePw){
       if(!pairwise[payer]) pairwise[payer] = {};
       pairwise[payer][receiver] = (pairwise[payer][receiver] || 0) + amt;
+      if(gamePw){
+        if(!gamePw[payer]) gamePw[payer] = {};
+        gamePw[payer][receiver] = (gamePw[payer][receiver] || 0) + amt;
+      }
     }
     var singleGame = {
       selfWin: makeSingleGameTracker(), win: makeSingleGameTracker(),
@@ -5626,6 +5651,7 @@
       // 這場裡每個人各自的次數，牌局打完這一輪比完就丟掉，只用來跟目前
       // 全部場次裡的最高紀錄（singleGame*）比大小，不會累加到下一場。
       var gameCounters = {};
+      var gamePairwise = {};
       g.players.forEach(function(n){
         if(stats[n]) gameCounters[n] = {
           selfWins: 0, wins: 0, dealIns: 0, drawsAsDealer: 0, hands: 0,
@@ -5657,12 +5683,12 @@
         if(h.method === "draw") return;
         var breakdown = handTaiBreakdownText(h);
         if(h.method === "discard"){
-          addPair(h.loserName, h.winnerName, h.amount);
+          addPair(h.loserName, h.winnerName, h.amount, gamePairwise);
         }else{
           h.seatOrderAtHand.forEach(function(n){
             if(n === h.winnerName) return;
             var paid = -(h.deltas[n] || 0);
-            if(paid > 0) addPair(n, h.winnerName, paid);
+            if(paid > 0) addPair(n, h.winnerName, paid, gamePairwise);
           });
         }
         if(stats[h.winnerName]){
@@ -5733,10 +5759,10 @@
             if(gameCounters[ev.achieverName]) gameCounters[ev.achieverName].baxianCount++;
           }
           if(ev.style === "discard"){
-            addPair(ev.payerName, ev.achieverName, ev.unitAmount);
+            addPair(ev.payerName, ev.achieverName, ev.unitAmount, gamePairwise);
           }else{
             set.seatOrder.forEach(function(n){
-              if(n !== ev.achieverName) addPair(n, ev.achieverName, ev.unitAmount);
+              if(n !== ev.achieverName) addPair(n, ev.achieverName, ev.unitAmount, gamePairwise);
             });
           }
         });
@@ -5759,10 +5785,16 @@
         considerSingleGame(singleGame.tianDiHu, gc.tianDiHu, n, gameLabel);
         considerSingleGame(singleGame.multiHit, gc.multiHit, n, gameLabel);
       });
+      // 單場提款機排行：這場自己的轉帳淨算一次（跟總計那份累加所有場次
+      // 不一樣），每一筆都附上是哪一場，最後全部場次的淨轉帳混在一起，
+      // 照金額排序取前幾名顯示。
+      netPairsForPairwise(gamePairwise, g.players).forEach(function(p){
+        singleGamePairEntries.push({ from: p.from, to: p.to, amt: p.amt, game: gameLabel });
+      });
     });
     return {
       stats: stats, overallMaxWin: overallMaxWin, overallMaxDealIn: overallMaxDealIn, pairwise: pairwise,
-      singleGame: singleGame
+      singleGame: singleGame, singleGamePairEntries: singleGamePairEntries
     };
   }
 
@@ -5937,28 +5969,26 @@
 
     // 提款機排行：把「A 付給 B」跟「B 付給 A」互相抵銷後，取淨轉帳方向跟
     // 金額最大的幾組——這樣才是真正「誰一直在輸錢給誰」，不是只看誰放槍
-    // 次數多（放槍金額可能很小，自摸反而讓人一次付很多）。
-    var netPairs = [];
-    var seen = {};
-    names.forEach(function(a){
-      names.forEach(function(b){
-        if(a === b) return;
-        var key = [a,b].sort().join('|');
-        if(seen[key]) return;
-        seen[key] = true;
-        var ab = (arena.pairwise[a] && arena.pairwise[a][b]) || 0;
-        var ba = (arena.pairwise[b] && arena.pairwise[b][a]) || 0;
-        var net = ab - ba;
-        if(net > 0) netPairs.push({ from: a, to: b, amt: net });
-        else if(net < 0) netPairs.push({ from: b, to: a, amt: -net });
-      });
-    });
-    netPairs.sort(function(x,y){ return y.amt - x.amt; });
-    var pairRows = netPairs.slice(0, 8).map(function(p){
-      return '<div class="stat-row"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div><div class="stat-amt lose">－'+p.amt+'</div></div>';
-    }).join('');
-    var pairSection = netPairs.length ?
-      ('<div class="stat-summary" style="margin-top:14px;">🏧 提款機排行（誰累計輸最多錢給誰）</div><div class="stat-list">'+pairRows+'</div>') : '';
+    // 次數多（放槍金額可能很小，自摸反而讓人一次付很多）。跟稱號牆一樣
+    // 分總計／單場兩個版本，跟著同一顆切換鈕一起切換，單場篩選到只剩
+    // 一場時只顯示總計那版（這時候兩版數字本來就會一樣）。
+    var pairSection = '';
+    if(effectiveTitleView === "single"){
+      var singlePairs = arena.singleGamePairEntries.slice().sort(function(x,y){ return y.amt - x.amt; });
+      var singlePairRows = singlePairs.slice(0, 8).map(function(p){
+        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div>' +
+          '<div class="stat-amt lose">－'+p.amt+'</div></div><div class="stat-mid">'+p.game+'</div></div>';
+      }).join('');
+      pairSection = singlePairs.length ?
+        ('<div class="stat-summary" style="margin-top:14px;">🏧 單場提款機排行（同一場牌局裡輸最多錢給誰）</div><div class="stat-list">'+singlePairRows+'</div>') : '';
+    }else{
+      var netPairs = netPairsForPairwise(arena.pairwise, names).sort(function(x,y){ return y.amt - x.amt; });
+      var pairRows = netPairs.slice(0, 8).map(function(p){
+        return '<div class="stat-row"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div><div class="stat-amt lose">－'+p.amt+'</div></div>';
+      }).join('');
+      pairSection = netPairs.length ?
+        ('<div class="stat-summary" style="margin-top:14px;">🏧 提款機排行（誰累計輸最多錢給誰）</div><div class="stat-list">'+pairRows+'</div>') : '';
+    }
 
     // 總排行榜本來就是把所有篩選範圍內的場次加總起來排名，概念上跟稱號
     // 牆的「總計」是同一國的；切到「單場紀錄」的時候拿掉它，不要讓畫面
