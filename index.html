@@ -952,7 +952,7 @@
     <h3>🔄 多裝置同步</h3>
     <ul>
       <li>記錄的牌局、還沒確認的這手、開局前的草稿都會即時同步到雲端，不同裝置打開同一個網址應該都會自動看到一樣的畫面，不用手動按什麼。</li>
-      <li>如果網路不穩、或懷疑另一台裝置的畫面卡住沒跟上，右下角有一顆「🔄」懸浮按鈕，不管在哪個分頁都看得到，按一下會強制重新整理、重新接上雲端拿最新資料；「設定」分頁下面「☁️ 雲端狀態」裡也有同樣功能的按鈕，下面多了幾行小字顯示「最後收到雲端資料」「最後成功寫入雲端」的時間，如果曾經同步失敗還會多一行錯誤內容，重新整理都解決不了的話，這幾行可以直接回報。</li>
+      <li>如果網路不穩、或懷疑另一台裝置的畫面卡住沒跟上，右下角有一顆「🔄」懸浮按鈕，不管在哪個分頁都看得到，按一下會強制重新整理、重新接上雲端拿最新資料；「設定」分頁下面「☁️ 雲端狀態」裡也有同樣功能的按鈕，下面多了幾行小字顯示「最後收到雲端資料」「最後成功寫入雲端」的時間，如果曾經同步失敗還會多一行錯誤內容。還沒連上雲端（一直顯示「連線中…」）的時候，會多顯示「身份驗證」「開始監聽雲端」這兩步各自完成了沒，方便分辨是卡在哪一步；重新整理都解決不了的話，這幾行可以直接回報。</li>
     </ul>
 
     <h3>🎬 開新牌局</h3>
@@ -1585,6 +1585,8 @@
   var lastPushAt = null; // 上次成功把資料寫進雲端的時間
   var lastPullAt = null; // 上次成功從雲端收到資料（不管是誰寫的）的時間
   var lastSyncError = null; // { message, at } 上次寫入或監聽失敗的錯誤內容
+  var authReady = false; // 匿名登入是否已經成功完成
+  var listenerAttached = false; // 是否已經送出 db.ref(...).on(...) 開始監聽
 
   function timeStrOfSec(d){
     var ss = String(d.getSeconds()); if(ss.length<2) ss="0"+ss;
@@ -1605,6 +1607,14 @@
     var dbgEl = document.getElementById("cloudDebugLine");
     if(dbgEl){
       var lines = [];
+      // 一直卡在「連線中」不代表卡在同一個地方——匿名登入跟「開始監聽雲
+      // 端」是兩個分開的非同步步驟，分開顯示才看得出來是卡在認證、還是
+      // 認證過了但資料庫本身連不上（例如 WebSocket 被防火牆擋住，不會
+      // 丟出明確的錯誤，只會一直沒有回應）。
+      if(!cloudReady){
+        lines.push("身份驗證：" + (authReady ? "已完成" : "尚未完成"));
+        lines.push("開始監聽雲端：" + (listenerAttached ? "已送出，等待回應中" : "尚未送出"));
+      }
       lines.push("最後收到雲端資料：" + (lastPullAt ? timeStrOfSec(new Date(lastPullAt)) : "尚未收到"));
       lines.push("最後成功寫入雲端：" + (lastPushAt ? timeStrOfSec(new Date(lastPushAt)) : "尚未寫入過"));
       if(lastSyncError){
@@ -1634,7 +1644,7 @@
       setCloudBadge();
     }).catch(function(err){
       syncing = false;
-      lastSyncError = { message: (err && err.message) ? err.message : String(err), at: Date.now() };
+      lastSyncError = { message: "寫入失敗：" + ((err && err.message) ? err.message : String(err)), at: Date.now() };
       setCloudBadge();
       showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
     });
@@ -1800,6 +1810,7 @@
   // 當起始值寫進去，避免每個人打開都看到空白的名單跟牌局。之後就完全
   // 由 Firebase 裡的資料當唯一真相，這份種子只在「從來沒人寫過」時用一次。
   function attachStateListener(){
+    listenerAttached = true;
     db.ref(STATE_PATH).on("value", function(snapshot){
       var val = snapshot.val();
       if(val === null){
@@ -1812,7 +1823,7 @@
       lastPullAt = Date.now();
       setCloudBadge();
     }, function(err){
-      lastSyncError = { message: (err && err.message) ? err.message : String(err), at: Date.now() };
+      lastSyncError = { message: "監聽失敗：" + ((err && err.message) ? err.message : String(err)), at: Date.now() };
       setCloudBadge();
     });
   }
@@ -1820,14 +1831,22 @@
   function initFirebase(){
     if(typeof firebase === "undefined"){ setCloudBadge(); return; }
     try{ firebase.initializeApp(FIREBASE_CONFIG); }
-    catch(e){ setCloudBadge(); return; }
+    catch(e){
+      lastSyncError = { message: "初始化失敗：" + ((e && e.message) ? e.message : String(e)), at: Date.now() };
+      setCloudBadge();
+      return;
+    }
     db = firebase.database();
     // 用匿名登入擋掉完全陌生人隨便寫入（資料庫規則要求 auth != null），
     // 對使用者來說不需要任何登入畫面，第一次打開就自動處理好。
     firebase.auth().onAuthStateChanged(function(user){
-      if(user) attachStateListener();
+      if(user){ authReady = true; attachStateListener(); }
+      setCloudBadge();
     });
-    firebase.auth().signInAnonymously().catch(function(){ setCloudBadge(); });
+    firebase.auth().signInAnonymously().catch(function(err){
+      lastSyncError = { message: "匿名登入失敗：" + ((err && err.message) ? err.message : String(err)), at: Date.now() };
+      setCloudBadge();
+    });
     setCloudBadge();
   }
 
