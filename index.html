@@ -1751,7 +1751,20 @@
       var remoteJSON = JSON.stringify(remoteSnap);
       if(remoteJSON !== localJSON){
         adoptPendingSnapshotIntoUi(remoteSnap);
-        lastPendingSyncJSON = remoteJSON;
+        // 這裡故意不是直接存 remoteJSON：Firebase 回傳的物件欄位順序不保證
+        // 跟寫進去時一樣（常見是依字母排序），JSON.stringify 對同一份資料
+        // 若欄位順序不同就會產生不同字串。如果把 remoteJSON（Firebase的
+        // 順序）當基準存起來，下一輪 reconcile 用 buildPendingSnapshotFromUi()
+        // 重建的 localSnap 是固定的程式碼字面順序，兩者會被誤判「不一樣」
+        // ——明明剛採用完、使用者什麼都還沒點，卻被當成「本機剛改過」，
+        // 排隊把這份其實沒變的資料又推回雲端。這本身只是多餘的推送，但如果
+        // 剛好在這個debounce視窗內，另一台裝置又送出了新的變更，這次多餘的
+        // 推送在250ms後觸發時就會用這台裝置「尚未收到新變更」的舊快照整個
+        // 覆蓋掉雲端，等於把另一台裝置剛做的操作洗掉——這正是使用者實際
+        // 回報的「B裝置沒有動作，A裝置的操作卻被取消了」。改成用
+        // buildPendingSnapshotFromUi() 重新序列化一次剛採用的內容，確保
+        // 跟下一輪 localSnap 用同一套固定順序，才不會被欄位順序誤判成有變更。
+        lastPendingSyncJSON = JSON.stringify(buildPendingSnapshotFromUi());
       }
       return;
     }
@@ -1815,7 +1828,12 @@
       var remoteJSON = JSON.stringify(remoteSnap);
       if(remoteJSON !== localJSON){
         adoptNewGameDraftSnapshotIntoUi(remoteSnap);
-        lastNewGameDraftSyncJSON = remoteJSON;
+        // 跟 reconcilePendingWithCloud 同一個理由：不能直接存 remoteJSON
+        // （Firebase回傳的欄位順序不保證跟寫入時一樣），要用
+        // buildNewGameDraftSnapshotFromUi() 依固定順序重新序列化一次剛
+        // 採用的內容，下一輪才不會因為欄位順序不同被誤判成「本機剛改
+        // 過」，進而把別人剛做的變更覆蓋掉。
+        lastNewGameDraftSyncJSON = JSON.stringify(buildNewGameDraftSnapshotFromUi());
       }
       return;
     }
