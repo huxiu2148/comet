@@ -501,7 +501,13 @@
         </div>
         <button type="button" class="btn btn-outline btn-block" id="ngSplitModeBtn" style="margin-top:10px;">🎲 隨機分2桌（先選8位）</button>
         <button type="button" class="btn btn-primary btn-block" id="ngSplitConfirmBtn" style="display:none; margin-top:8px;" disabled>🎲 隨機分組（拆成4+4）</button>
-        <p class="hint-text" id="ngSplitHint" style="display:none;">選滿8位之後按「隨機分組」，會隨機拆成兩組各4人：這組4人先直接帶進下面抓位，按「開局」確認；另外4人會先記住，等你按「開新桌」的時候自動帶出來，再按一次「開局」確認就好。</p>
+        <button type="button" class="btn btn-outline btn-block" id="ngSplitManualModeBtn" style="display:none; margin-top:8px;">✋ 手動分組</button>
+        <p class="hint-text" id="ngSplitHint" style="display:none;">選滿8位之後按「隨機分組」直接隨機拆成兩組各4人，或按「手動分組」自己指定哪4人這桌：這組4人先直接帶進下面抓位，按「開局」確認；另外4人會先記住，等你按「開新桌」的時候自動帶出來，再按一次「開局」確認就好。</p>
+        <div id="ngSplitManualBlock" style="display:none; margin-top:8px;">
+          <div class="section-label">選這桌的4人 <span id="ngSplitManualCount" class="badge">0/4</span></div>
+          <div class="chip-row" id="ngSplitManualChips"></div>
+          <button type="button" class="btn btn-primary btn-block" id="ngSplitManualConfirmBtn" style="margin-top:8px;" disabled>✋ 確認分組</button>
+        </div>
       </div>
 
       <div id="ngSeatBlock" style="display:none;">
@@ -577,6 +583,17 @@
           <div style="display:flex; gap:8px; margin-top:8px;">
             <button type="button" class="btn btn-primary" id="editVenueSaveBtn">更新</button>
             <button type="button" class="btn btn-outline" id="editVenueCancelBtn">取消</button>
+          </div>
+        </div>
+        <button type="button" class="link-btn" id="editDateTimeBtn" style="margin:2px 0 0;">📅 改日期時間</button>
+        <div id="editDateTimePanel" style="display:none; margin-top:6px;">
+          <div class="grid2 dt-row">
+            <input type="date" id="editDateTimeDateInput">
+            <input type="time" id="editDateTimeTimeInput">
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-primary" id="editDateTimeSaveBtn">更新</button>
+            <button type="button" class="btn btn-outline" id="editDateTimeCancelBtn">取消</button>
           </div>
         </div>
         <button type="button" class="link-btn" id="editRoundWindBtn" style="margin:2px 0 0;">🀄 圈風：東</button>
@@ -699,6 +716,7 @@
         <p class="hint-text" style="margin-top:10px;">長按胡牌者拖曳到放槍者卡片＝放槍　卡片點三下＝自摸　點門風圈圈＝換莊家。換位時可以直接點兩張卡片互換，或用下面清單的 ▲▼ 指定東南西北分別是誰。選好後可以再調整台數，畫面上會先預覽金額，按「確認記錄」才會真的記上。</p>
 
         <div class="undo-row" style="margin-top:6px;">
+          <button class="btn btn-outline" id="editLastHandBtn">✏️ 編輯上一筆</button>
           <button class="btn btn-outline" id="undoBtn">↩️ 刪除上一筆</button>
           <button class="btn btn-danger-outline" id="endSetBtn">🏁 這將打完</button>
         </div>
@@ -961,10 +979,10 @@
       <li>自由選 4 位玩家、填地點、設定底／台，就能按「開局」。地點一定要填，沒填的話按「開局」會被擋下來；選滿4人之後，開局按鈕上面也會先預告這場按下去會自動指派誰記錄、音樂、拍照（還沒按就看得到，不用等開完局才知道）。不想用自動指派的人選也可以，下面就有分工的名字chip，直接點名字就能自己改，再點一次可以取消。</li>
       <li>還沒按下「開局」之前，整張開局表單——地點、已經選的人員、排好的座位（點兩人互換、▲▼調整）、日期時間、底/台、自摸算法、請飲料開關、延續金額開關、今天的分工（拍照/音樂人員指定）——都會即時同步到雲端，不同裝置打開都看得到一樣的進度、也都能接著填；按下「開局」之後這份草稿就會清掉。開局中途的「🔁 換位」調整中的狀態也會即時同步，跟還沒確認的那手一樣，任何裝置都能接著調整。多桌（例如8人分兩桌）的時候，看哪一桌是各裝置自己選的、不會被強制帶著走，切到哪一桌就即時看到那一桌目前的狀態。</li>
       <li>座位預設照選人的順序排，第一個選的坐東、當第一位莊家；想要隨機排就按「重新抓位」。開局前也能用清單的 ▲▼ 或「點兩人互換」手動調整。</li>
-      <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」可以點。</li>
+      <li>開局之後如果發現地點填錯或忘記填（舊資料、補記過去的牌局），可以在「本局」卡片點「📍 改地點」（沒填的話會顯示「📍 補填地點」）隨時回來補上或修改，不用整場取消重開。日期時間也一樣，旁邊有「📅 改日期時間」可以改。就算已經結算完的場次也補得到：到「戰績」的「歷史牌局」點開那一場，展開之後一樣有「📍 改地點／補填地點」跟「📅 改日期時間」可以點。</li>
       <li>沒有逐手紀錄的舊牌局，可以用「補記過去的牌局」，只填最終每人輸贏多少錢即可，一樣算進戰績跟月曆（但門風、分析這類逐手統計不會算到）。</li>
       <li><b>同時開兩桌</b>：只要兩桌的玩家完全不重疊，可以同時各自有一桌在「進行中」。只要有任何一桌在進行，「本局」最上面會出現「進行中的牌桌」切換列，點 chip 切換目前要看、要記錄的是哪一桌；點「➕ 開新桌」可以在別桌還在打的時候開新的一桌。已經在其他進行中牌桌的人，選人時會標「・進行中」且不能重複選。每台裝置（手機）各自記住自己正在看哪一桌，互不影響，適合兩個人各拿自己的手機分別記錄兩桌。</li>
-      <li><b>隨機分兩桌</b>：8個人要一次分成兩桌的話，選人畫面按「隨機分2桌」，先勾滿8位再按「隨機分組」，會自動拆成4+4：第一組直接進到抓位畫面可以按「開局」，第二組等你之後按「開新桌」時會自動幫你把名單選好，不用再重新勾一次。</li>
+      <li><b>分兩桌（隨機或手動）</b>：8個人要一次分成兩桌的話，選人畫面按「隨機分2桌」，先勾滿8位，接著按「隨機分組」直接自動拆成4+4，或是按「✋ 手動分組」自己勾要在這桌的4人（勾滿4人才能按「確認分組」）；不管是哪一種，第一組都會直接進到抓位畫面可以按「開局」，第二組等之後按「開新桌」時會自動幫你把名單選好，不用再重新勾一次。</li>
       <li><b>延續今天其他場次的金額</b>：如果今天真的同時開過不只一桌（例如中途重新分組），開新局時會出現「延續今天其他場次的金額」開關，把這幾位今天目前為止的淨輸贏當成這場的起始值，畫面上每人卡片下面會多顯示一行「今晚累計」；不想延續的話可以關掉，就跟平常一樣從0開始算。單純同一批人今天稍早打過、現在單獨重開一場（不是真的同時開過兩桌），不會出現這個開關。這個開關開著的話，拿撲克牌算點數的這幾位，花色也會一併從他們今天最近一次的紀錄帶過來，不用重新指派一次——畢竟同一個人整晚拿的是同一張牌，不會因為分桌換座重新發牌。</li>
     </ul>
 
@@ -991,7 +1009,7 @@
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
-      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手。</li>
+      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手；如果是台型/贏家/放槍者/記錄的牌點錯，按「✏️ 編輯上一筆」更快——會先把那一手刪掉、把原本點好的內容（贏家、方法、台數、台型標籤、記錄的牌）重新載回記錄表單，調整之後重新骰骰子、按「確認記錄」才會真的寫回去，不用整手重點。只能編輯「最新那一手」，中間其他手還是只能用「刪除上一筆」往回刪；補記的總輸贏、流局、一炮多響那組目前也還沒有結構化資料可以編輯，點了會提示改用「刪除上一筆」。</li>
       <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，下面預設就會顯示3~10、11~18兩排數字按鈕（也可以按旁邊的「✏️ 自己輸入」收起/展開），點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
@@ -2352,8 +2370,9 @@
     wantNewGame: false,
     newGameFormReady: false,
     newGameSelfDrawMode: "full",
-    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {} },
+    newGame: { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {}, manualSplitSelected: [] },
     splitMode: false,
+    splitManualMode: false,
     pendingSplitGroup: null,
     suitsModalDismissedGameId: null,
     backfillFormOpen: false,
@@ -2373,6 +2392,9 @@
     editVenueOpen: false,
     editingVenueGameId: null,
     editingVenueDraft: null,
+    editDateTimeOpen: false,
+    editingDateTimeGameId: null,
+    editingDateTimeDraft: null,
     editRoundWindOpen: false,
     doorSeat: null,
     diceResultHtml: null,
@@ -2430,8 +2452,9 @@
       document.getElementById("ngBase").value = state.defaultBase;
       document.getElementById("ngTai").value = state.defaultTai;
       ui.newGameSelfDrawMode = "full";
-      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {} };
+      ui.newGame = { selectedPlayers: [], seatOrder: null, swapMode: false, swapSelected: null, drinkEnabled: true, carryInEnabled: true, dutyOverride: {}, manualSplitSelected: [] };
       ui.splitMode = false;
+      ui.splitManualMode = false;
       // 「隨機分2桌」拆出來的另外4人，開新桌的表單一重新準備好就直接
       // 帶出來、先幫忙選好，不用再自己重新勾一次；用掉就清空，只用一次。
       if(ui.pendingSplitGroup && ui.pendingSplitGroup.length === 4){
@@ -2480,6 +2503,43 @@
     var splitConfirmBtn = document.getElementById("ngSplitConfirmBtn");
     splitConfirmBtn.style.display = ui.splitMode ? "block" : "none";
     splitConfirmBtn.disabled = ui.newGame.selectedPlayers.length !== 8;
+
+    // 手動分組：選滿8位之後，除了「隨機分組」也可以自己指定哪4人這桌、
+    // 哪4人下一桌，不想交給隨機。
+    var readyToSplit = ui.splitMode && ui.newGame.selectedPlayers.length === 8;
+    var manualModeBtn = document.getElementById("ngSplitManualModeBtn");
+    manualModeBtn.style.display = readyToSplit ? "block" : "none";
+    manualModeBtn.textContent = ui.splitManualMode ? "✋ 取消手動分組" : "✋ 手動分組";
+    manualModeBtn.classList.toggle("selected", ui.splitManualMode);
+    if(!readyToSplit && ui.splitManualMode){ ui.splitManualMode = false; ui.newGame.manualSplitSelected = []; }
+    // 選的8人若中途換掉其中幾位，手動分組裡選到的那組要跟著清掉已經不在
+    // 選人名單裡的名字，不然會卡著一個選不到的人。
+    ui.newGame.manualSplitSelected = ui.newGame.manualSplitSelected.filter(function(n){
+      return ui.newGame.selectedPlayers.indexOf(n) !== -1;
+    });
+    var manualBlock = document.getElementById("ngSplitManualBlock");
+    manualBlock.style.display = (readyToSplit && ui.splitManualMode) ? "block" : "none";
+    if(readyToSplit && ui.splitManualMode){
+      document.getElementById("ngSplitManualCount").textContent = ui.newGame.manualSplitSelected.length + "/4";
+      var manualChipsEl = document.getElementById("ngSplitManualChips");
+      manualChipsEl.innerHTML = "";
+      ui.newGame.selectedPlayers.forEach(function(name){
+        var b = document.createElement("button");
+        b.type = "button";
+        var selected = ui.newGame.manualSplitSelected.indexOf(name) !== -1;
+        b.className = "chip" + (selected ? " chip-selected" : "");
+        b.textContent = name;
+        if(!selected && ui.newGame.manualSplitSelected.length >= 4) b.disabled = true;
+        b.addEventListener("click", function(){
+          var idx = ui.newGame.manualSplitSelected.indexOf(name);
+          if(idx !== -1){ ui.newGame.manualSplitSelected.splice(idx, 1); }
+          else if(ui.newGame.manualSplitSelected.length < 4){ ui.newGame.manualSplitSelected.push(name); }
+          renderGameTab();
+        });
+        manualChipsEl.appendChild(b);
+      });
+      document.getElementById("ngSplitManualConfirmBtn").disabled = ui.newGame.manualSplitSelected.length !== 4;
+    }
 
     var seatBlock = document.getElementById("ngSeatBlock");
     var carryInBlock = document.getElementById("ngCarryInBlock");
@@ -2559,6 +2619,8 @@
     ui.splitMode = !ui.splitMode;
     ui.newGame.selectedPlayers = [];
     ui.newGame.seatOrder = null;
+    ui.splitManualMode = false;
+    ui.newGame.manualSplitSelected = [];
     renderGameTab();
   });
   // 隨機分2桌：把選好的8人洗牌後拆前4、後4——前4直接變成這次要開的
@@ -2574,6 +2636,27 @@
     ui.pendingSplitGroup = groupB;
     renderGameTab();
     showToast("已經隨機分成兩組，這桌先確認開局，另一組按「開新桌」會自動帶出來。");
+  });
+  document.getElementById("ngSplitManualModeBtn").addEventListener("click", function(){
+    ui.splitManualMode = !ui.splitManualMode;
+    ui.newGame.manualSplitSelected = [];
+    renderGameTab();
+  });
+  // 手動分組：使用者自己指定哪4人這桌，跟隨機分組一樣——這4人直接帶
+  // 進這桌的抓位流程，另外4人存進 ui.pendingSplitGroup 等開新桌時自動
+  // 帶出來。順序照使用者點選的順序排（第一個點的坐東、當第一位莊家）。
+  document.getElementById("ngSplitManualConfirmBtn").addEventListener("click", function(){
+    if(ui.newGame.manualSplitSelected.length !== 4) return;
+    var groupA = ui.newGame.manualSplitSelected.slice();
+    var groupB = ui.newGame.selectedPlayers.filter(function(n){ return groupA.indexOf(n) === -1; });
+    ui.splitMode = false;
+    ui.splitManualMode = false;
+    ui.newGame.selectedPlayers = groupA;
+    ui.newGame.seatOrder = groupA.slice();
+    ui.newGame.manualSplitSelected = [];
+    ui.pendingSplitGroup = groupB;
+    renderGameTab();
+    showToast("已經手動分好兩組，這桌先確認開局，另一組按「開新桌」會自動帶出來。");
   });
 
   document.getElementById("ngNewOpponentBtn").addEventListener("click", function(){
@@ -3224,6 +3307,34 @@
     var huaLabel = huaTagLabelFor(w.name);
     for(var i=0;i<w.huaCount;i++) labels.push(huaLabel);
     return labels;
+  }
+
+  // ---------- 編輯上一筆：把已經記上去的手牌紀錄逆推回記錄表單用的
+  // ui.taiTags（key陣列）跟 huaCount，供「編輯上一筆」重新載入進畫面 ----------
+  // record.tags 存的是已經轉成顯示字串的台型標籤（自風/圈風/花牌這幾個
+  // 還是動態算出來的、依當下骰出來的開門或圈風顯示文字，不是固定字串），
+  // 跟 taiTagLabels() 是對應的逆運算：用 baseTagLabel() 把動態文字還原成
+  // 固定底標籤，再查對應的 key；花牌的台型不是查key，是數有幾個花牌
+  // 標籤字串，還原成 huaCount。
+  function reverseHandTagsToKeys(tags){
+    var huaCount = 0;
+    var taiTags = [];
+    var hpLabel = huapaiTag().label;
+    (tags || []).forEach(function(label){
+      var base = baseTagLabel(label);
+      if(base === hpLabel){ huaCount++; return; }
+      var tag = TAI_TAGS.filter(function(t){ return t.label === base; })[0];
+      if(tag) taiTags.push(tag.key);
+    });
+    return { taiTags: taiTags, huaCount: huaCount };
+  }
+  // record.tiles 存的是攤平成重複字串的陣列（flattenTileMap），記錄胡的牌
+  // 選牌面板要的是 {code: 張數} 這種形狀——TILE_DEFS 裡 code 直接就是
+  // label 本身（見 TILE_DEFS 的註解），所以單純數每個字串出現幾次就好。
+  function unflattenTileArray(arr){
+    var map = {};
+    (arr || []).forEach(function(label){ map[label] = (map[label] || 0) + 1; });
+    return map;
   }
 
   function commitHand(winnerName, method, loserName){
@@ -4042,6 +4153,59 @@
   document.getElementById("cancelPendingBtn").addEventListener("click", function(){ cancelPendingHand(); });
   document.getElementById("removeActiveWinnerBtn").addEventListener("click", function(){ removeActiveWinner(); });
 
+  // 編輯上一筆：不是在原地改資料，而是先刪掉最後一筆、把它的內容逆推
+  // 回記錄表單（跟手勢剛做完一樣的畫面），讓使用者用原本就很熟的介面
+  // 調整，調好按「確認記錄」才真的重新寫回去——這樣完全沿用既有的金額
+  // /台數計算邏輯，不用另外做一套「直接編輯數字」的校驗。只支援編輯
+  // 「最新那一手」：中間其他手如果也能改，莊家輪替、連莊次數都要跟著
+  // 重新算一遍，風險高很多，目前先不做。補記的總輸贏（method:"manual"）、
+  // 流局（method:"draw"）沒有結構化的台型/牌可以編輯，一炮多響那組因為
+  // 牽涉好幾筆記錄一起處理也還不支援，這幾種情況維持只能用「刪除上一筆」。
+  document.getElementById("editLastHandBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
+    if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
+    var lastHand = set.hands[set.hands.length - 1];
+    if(lastHand.method === "manual"){ showToast("補記的總輸贏沒有結構化的台型可以編輯，用「刪除上一筆」重新補記就可以。"); return; }
+    if(lastHand.method === "draw"){ showToast("流局沒有可以編輯的內容，用「刪除上一筆」就能重記。"); return; }
+    if(lastHand.multiWinMates && lastHand.multiWinMates.length > 1){ showToast("一炮多響那組目前還不能直接編輯，請用「刪除上一筆」整組刪掉重記。"); return; }
+    showConfirm("確定要編輯上一筆紀錄嗎？會先刪掉這筆，改好之後要重新按「確認記錄」才會真的寫回去。", function(){
+      var newState = deepClone(state);
+      var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+      var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+      var removed = ns.hands.pop();
+      syncDealerFromHands(ns);
+      commitState(newState);
+
+      var reversed = reverseHandTagsToKeys(removed.tags);
+      var tiles = unflattenTileArray(removed.tiles);
+      var leopard = removed.leopard
+        ? { enabled: true, multiplier: removed.leopard.multiplier }
+        : { enabled: false, multiplier: 2 };
+      if(removed.method === "self"){
+        ui.pendingHand = { method: "self", winnerName: removed.winnerName, loserName: null };
+        ui.tai = removed.tai; ui.taiTags = reversed.taiTags; ui.huaCount = reversed.huaCount;
+        ui.leopard = leopard; ui.winningTiles = tiles;
+      }else{
+        var winnerEntry = makeWinnerEntry(removed.winnerName);
+        winnerEntry.tai = removed.tai; winnerEntry.tags = reversed.taiTags; winnerEntry.huaCount = reversed.huaCount;
+        winnerEntry.leopard = leopard; winnerEntry.tiles = tiles;
+        ui.pendingHand = {
+          method: "discard", loserName: removed.loserName,
+          winners: [winnerEntry], activeWinnerIdx: 0,
+          intercepted: (removed.intercepted || []).slice()
+        };
+        ui.tai = winnerEntry.tai; ui.taiTags = winnerEntry.tags.slice(); ui.huaCount = winnerEntry.huaCount;
+        ui.leopard = leopard; ui.winningTiles = tiles;
+      }
+      ui.tilesPickerOpen = true;
+      renderGameTab();
+      ensureTilesPickerVisible();
+      showToast("已經把上一筆調出來，改好後記得重新按「確認記錄」。");
+    });
+  });
+
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
@@ -4157,6 +4321,32 @@
     ui.editVenueOpen = false;
     commitState(newState);
     showToast("地點已更新。");
+  });
+
+  document.getElementById("editDateTimeBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    ui.editDateTimeOpen = true;
+    document.getElementById("editDateTimeDateInput").value = game.date || todayISO();
+    document.getElementById("editDateTimeTimeInput").value = game.time || nowTimeStr();
+    renderGameTab();
+  });
+  document.getElementById("editDateTimeCancelBtn").addEventListener("click", function(){
+    ui.editDateTimeOpen = false;
+    renderGameTab();
+  });
+  document.getElementById("editDateTimeSaveBtn").addEventListener("click", function(){
+    var game = activeGame(); if(!game) return;
+    var d = document.getElementById("editDateTimeDateInput").value;
+    var t = document.getElementById("editDateTimeTimeInput").value;
+    if(!d){ showToast("請選日期"); return; }
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    if(!ng) return;
+    ng.date = d;
+    ng.time = t || "";
+    ui.editDateTimeOpen = false;
+    commitState(newState);
+    showToast("日期時間已更新。");
   });
 
   // 圈風預設東風圈，大部分場次用不到要改；這裡讓使用者需要的時候可以
@@ -4760,6 +4950,7 @@
     if(ui.editVenueOpen){
       renderChipRow("editVenueChips", state.venues, function(v){ document.getElementById("editVenueInput").value = v; renderGameTab(); }, document.getElementById("editVenueInput").value);
     }
+    document.getElementById("editDateTimePanel").style.display = ui.editDateTimeOpen ? "block" : "none";
     var currentRoundWind = roundWindFor(game);
     document.getElementById("editRoundWindBtn").textContent = "🀄 圈風：" + currentRoundWind;
     document.getElementById("editRoundWindPanel").style.display = ui.editRoundWindOpen ? "block" : "none";
@@ -6487,6 +6678,72 @@
         venueSaveRow.appendChild(venueCancelBtn);
         venueEditBlock.appendChild(venueSaveRow);
         detail.appendChild(venueEditBlock);
+      }
+
+      // 日期時間補填/改期，跟上面地點同一套邏輯（草稿值跨重繪保留）。
+      var dateTimeEditBtn = document.createElement("button");
+      dateTimeEditBtn.type = "button";
+      dateTimeEditBtn.className = "link-btn";
+      dateTimeEditBtn.style.marginTop = "6px";
+      dateTimeEditBtn.style.display = "block";
+      dateTimeEditBtn.textContent = "📅 改日期時間";
+      var dateTimeEditOpen = ui.editingDateTimeGameId === g.id;
+      dateTimeEditBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(dateTimeEditOpen){
+          ui.editingDateTimeGameId = null;
+          ui.editingDateTimeDraft = null;
+        }else{
+          ui.editingDateTimeGameId = g.id;
+          ui.editingDateTimeDraft = { date: g.date || todayISO(), time: g.time || "" };
+        }
+        renderStatsTab();
+      });
+      detail.appendChild(dateTimeEditBtn);
+      if(dateTimeEditOpen){
+        if(!ui.editingDateTimeDraft) ui.editingDateTimeDraft = { date: g.date || todayISO(), time: g.time || "" };
+        var dateTimeEditBlock = document.createElement("div");
+        dateTimeEditBlock.style.marginTop = "6px";
+        dateTimeEditBlock.addEventListener("click", function(e){ e.stopPropagation(); });
+        var dtRow = document.createElement("div");
+        dtRow.className = "grid2 dt-row";
+        var dateInput = document.createElement("input");
+        dateInput.type = "date";
+        dateInput.value = ui.editingDateTimeDraft.date;
+        var timeInput = document.createElement("input");
+        timeInput.type = "time";
+        timeInput.value = ui.editingDateTimeDraft.time;
+        dtRow.appendChild(dateInput);
+        dtRow.appendChild(timeInput);
+        dateTimeEditBlock.appendChild(dtRow);
+        var dtSaveRow = document.createElement("div");
+        dtSaveRow.style.display = "flex"; dtSaveRow.style.gap = "8px"; dtSaveRow.style.marginTop = "8px";
+        var dtSaveBtn = document.createElement("button");
+        dtSaveBtn.type = "button"; dtSaveBtn.className = "btn btn-primary"; dtSaveBtn.textContent = "更新";
+        dtSaveBtn.addEventListener("click", function(){
+          var d = dateInput.value;
+          if(!d){ showToast("請選日期"); return; }
+          var ns = deepClone(state);
+          var ng = ns.games.filter(function(x){ return x.id === g.id; })[0];
+          if(!ng) return;
+          ng.date = d;
+          ng.time = timeInput.value || "";
+          ui.editingDateTimeGameId = null;
+          ui.editingDateTimeDraft = null;
+          commitState(ns);
+          showToast("日期時間已更新。");
+        });
+        var dtCancelBtn = document.createElement("button");
+        dtCancelBtn.type = "button"; dtCancelBtn.className = "btn btn-outline"; dtCancelBtn.textContent = "取消";
+        dtCancelBtn.addEventListener("click", function(){
+          ui.editingDateTimeGameId = null;
+          ui.editingDateTimeDraft = null;
+          renderStatsTab();
+        });
+        dtSaveRow.appendChild(dtSaveBtn);
+        dtSaveRow.appendChild(dtCancelBtn);
+        dateTimeEditBlock.appendChild(dtSaveRow);
+        detail.appendChild(dateTimeEditBlock);
       }
 
       // 跟上面的按鍵拉開明顯距離，避免手滑點到刪除整場牌局。
