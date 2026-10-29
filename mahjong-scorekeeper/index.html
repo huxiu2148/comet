@@ -1737,6 +1737,30 @@
     });
   }
 
+  // pending／swap／newGameDraft 這幾種「正在操作中」的暫存同步，每點一下
+  // 就會debounce送一次，頻率遠高於其他操作；如果也跟 commitState 一樣整份
+  // state 覆蓋過去，一旦這台裝置送出時剛好漏接到別的裝置剛寫好的資料
+  // （例如對方剛按「確認記錄」真的記上一手），這次頻繁的背景同步就會把
+  // 對方剛記上的那一手整個蓋掉——這正是使用者實際回報的「A按確認記錄，
+  // 卻因為B而被清掉」。改成只寫這個欄位對應的那一小段雲端路徑，不管
+  // 本機快取多舊，都不可能動到 hands 之類其他資料，從根本上讓這幾種
+  // 背景同步不可能覆蓋掉別人剛寫好的正式紀錄。
+  function pushScopedCloudField(pathStr, value){
+    if(!db || !cloudReady) return;
+    syncing = true; setCloudBadge();
+    db.ref(STATE_PATH + "/" + pathStr).set((value === undefined) ? null : value).then(function(){
+      syncing = false;
+      lastPushAt = Date.now();
+      lastSyncError = null;
+      setCloudBadge();
+    }).catch(function(err){
+      syncing = false;
+      lastSyncError = { message: "寫入失敗：" + ((err && err.message) ? err.message : String(err)), at: Date.now() };
+      setCloudBadge();
+      showToast("雲端同步失敗，已先儲存在本機，下一步操作會再嘗試同步一次。");
+    });
+  }
+
   // ---------- 這手正在記錄中的狀態也即時同步上雲端 ----------
   // 骰骰子結果、點選的台型、花牌、豹子、記錄的牌這些「還沒確認」的暫存
   // 狀態，以前只存在記錄者自己手機的 ui 裡，旁邊看的人要等按下「確認
@@ -1789,8 +1813,12 @@
     if(!ng) return;
     var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
     if(!ns) return;
-    ns.pending = buildPendingSnapshotFromUi();
-    commitState(newState);
+    var snap = buildPendingSnapshotFromUi();
+    ns.pending = snap;
+    applyLocally(newState);
+    var gi = newState.games.indexOf(ng), si = ng.sets.indexOf(ns);
+    if(gi === -1 || si === -1) return;
+    pushScopedCloudField("games/"+gi+"/sets/"+si+"/pending", snap);
   }
   // 每次畫面要畫目前這桌（game/set）之前先呼叫一次：比較「這台裝置自己
   // 上次同步出去的內容」跟「現在本機 ui 的內容」——不一樣就是使用者剛
@@ -1882,8 +1910,12 @@
     if(!ng) return;
     var ns = ng.sets.filter(function(s){ return s.id === setId; })[0];
     if(!ns) return;
-    ns.swap = buildSwapSnapshotFromUi();
-    commitState(newState);
+    var snap = buildSwapSnapshotFromUi();
+    ns.swap = snap;
+    applyLocally(newState);
+    var gi = newState.games.indexOf(ng), si = ng.sets.indexOf(ns);
+    if(gi === -1 || si === -1) return;
+    pushScopedCloudField("games/"+gi+"/sets/"+si+"/swap", snap);
   }
   function reconcileSwapWithCloud(game, set){
     if(!game || !set) return;
@@ -1993,8 +2025,10 @@
   }
   function pushNewGameDraftSnapshotToCloud(){
     var newState = deepClone(state);
-    newState.newGameDraft = buildNewGameDraftSnapshotFromUi();
-    commitState(newState);
+    var snap = buildNewGameDraftSnapshotFromUi();
+    newState.newGameDraft = snap;
+    applyLocally(newState);
+    pushScopedCloudField("newGameDraft", snap);
   }
   function reconcileNewGameDraftWithCloud(){
     var localSnap = buildNewGameDraftSnapshotFromUi();
