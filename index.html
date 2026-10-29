@@ -2555,7 +2555,11 @@
       // 不算「換桌」，本來就該從0開始；顯示出來只會讓人搞不懂在問什麼。
       var todayDate = document.getElementById("ngDate").value || todayISO();
       var previewCarry = todaysOtherGamesTotal(state.games, ui.newGame.selectedPlayers, todayDate);
-      var hasPreviewCarry = hadMultiTableOverlapToday(state.games, todayDate) &&
+      // 跟 buildStartedState 裡同樣的道理：8人分兩桌開第二桌的這個當下，
+      // 歷史紀錄裡還只有桌1一場，hadMultiTableOverlapToday 比對不出「兩場
+      // 重疊」，要另外用「現在就已經有一桌在進行中」來補——這桌開下去
+      // 必定跟它同時重疊。
+      var hasPreviewCarry = (hadMultiTableOverlapToday(state.games, todayDate) || activeGames().length > 0) &&
         ui.newGame.selectedPlayers.some(function(n){ return previewCarry[n]; });
       if(hasPreviewCarry){
         carryInBlock.style.display = "block";
@@ -2821,9 +2825,15 @@
       // 累計基準。要不要真的帶這個起始值，由開局當下「延續今天其他場次
       // 的金額」那個開關決定，不想延續（例如真的想重新開始算）就關掉，
       // carryIn 全部留 0，畫面行為就跟以前一樣。
-      var carryIn = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
+      // alreadyActive.length > 0 代表「現在」就已經有另一桌在進行中，這桌
+      // 開下去必定跟它同時重疊——不用等 hadMultiTableOverlapToday 從歷史
+      // 紀錄裡比對出重疊的兩場，8人分兩桌開第二桌的當下，桌2才正要建立、
+      // 歷史紀錄裡還只有桌1一場，比對不出任何「兩場重疊」，會漏判成沒
+      // 同開過，害延續金額/花色失效。
+      var multiTableNow = hadMultiTableOverlapToday(baseState.games, date) || alreadyActive.length > 0;
+      var carryIn = (carryInEnabled && multiTableNow)
         ? todaysOtherGamesTotal(baseState.games, players, date) : {};
-      var carrySuits = (carryInEnabled && hadMultiTableOverlapToday(baseState.games, date))
+      var carrySuits = (carryInEnabled && multiTableNow)
         ? todaysLastKnownSuits(baseState.games, players, date) : {};
       // 使用者在開局前可以直接在表單上點名字蓋過下面這套自動指派；
       // dutyOverrideSnapshot 裡有某個角色的 key，就直接採用使用者選的值
