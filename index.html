@@ -1007,7 +1007,7 @@
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選，已經點好的台型、記錄胡的牌、花牌、豹子都會一起清掉，不會帶到下一手。這手還沒確認記錄前的狀態（骰出來的點數、點了哪些台型、花牌、記錄的牌）會即時同步到雲端，不同裝置打開同一桌都會看到一模一樣的畫面、也都能接著點，不用等按下「確認記錄」才看得到變化；確認或取消之後，這份暫存狀態也會跟著清掉。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
-      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，想改可以到「本局」畫面點「🀄 圈風」自己改成南/西/北。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
+      <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，而且會自動輪：莊家真的輪完一圈（不算連莊）、繞回這將一開始的第一位莊家時，圈風會自動跳下一個（東→南→西→北→中→發→白，跳到白之後不會再自動跳，固定住）；想自己手動改，可以到「本局」畫面點「🀄 圈風」直接選，手動改只會改這個標籤，不會影響莊家或連莊，莊家還是照原本的輪替繼續，之後輪完一圈也還是會接著從手動改的那個風繼續自動跳下去。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
       <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手；如果是台型/贏家/放槍者/記錄的牌點錯，按「✏️ 編輯上一筆」更快——會先把那一手刪掉、把原本點好的內容（贏家、方法、台數、台型標籤、記錄的牌）重新載回記錄表單，調整之後重新骰骰子、按「確認記錄」才會真的寫回去，不用整手重點。只能編輯「最新那一手」，中間其他手還是只能用「刪除上一筆」往回刪；補記的總輸贏、流局、一炮多響那組目前也還沒有結構化資料可以編輯，點了會提示改用「刪除上一筆」。</li>
       <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，下面預設就會顯示3~10、11~18兩排數字按鈕（也可以按旁邊的「✏️ 自己輸入」收起/展開），點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
@@ -1104,6 +1104,16 @@
     return a.every(function(n,i){ return n === b[i]; });
   }
   var WINDS = ["東","南","西","北"];
+  // 圈風輪完一圈（莊家繞回這將一開始的莊家）就往下跳一個，東南西北
+  // 跳完之後接著用中發白延伸（部分牌友的玩法），跳到白之後就不再自動
+  // 跳，固定在白，要繼續的話自己用「🀄 圈風」手動改。跟 WINDS 分開一個
+  // 陣列，因為 WINDS 另外還要給座位的自風（東南西北）用，不能混進中發白。
+  var ROUND_WIND_CYCLE = ["東","南","西","北","中","發","白"];
+  function advanceRoundWind(w){
+    var idx = ROUND_WIND_CYCLE.indexOf(w);
+    if(idx === -1) idx = 0;
+    return ROUND_WIND_CYCLE[Math.min(idx+1, ROUND_WIND_CYCLE.length-1)];
+  }
   // 正花對照：自風東對應1號花、南對應2號、西對應3號、北對應4號。這個
   // 對照純粹給「記錄胡的牌」時參考用（讓人知道自己這手正花是幾號），
   // 張數還是手動點 +/- 記，不會自動改張數。
@@ -1359,19 +1369,38 @@
   }
 
   // ---------- normalize / migrate ----------
-  function syncDealerFromHands(set){
-    if(!set.hands.length){ set.dealerIndex = 0; set.streak = 0; return; }
+  // game 參數是可選的：只有在對「目前這場正在進行的 game」做增刪/編輯一手
+  // 紀錄時才會傳進來，連帶把圈風也一起從最後一手往回推算（跟 dealerIndex/
+  // streak 同一套道理，永遠只看「最後一手」，這樣刪除/編輯上一筆之後，
+  // 圈風也會跟著正確退回去，不會卡在錯的風別）。搬資料/migrate 的地方
+  // 不傳 game，維持原來只管 dealerIndex/streak 的行為，不會動到既有資料
+  // 已經存好的圈風。
+  function syncDealerFromHands(set, game){
+    if(!set.hands.length){
+      set.dealerIndex = 0; set.streak = 0;
+      if(game && typeof set.startRoundWind === "string") game.roundWind = set.startRoundWind;
+      return;
+    }
     var last = set.hands[set.hands.length-1];
     // 流局（no winner）: dealer always stays and 連莊 continues, same as a dealer win
     if(last.method === "draw" || last.winnerName === last.dealerName){
       var di = set.seatOrder.indexOf(last.dealerName);
       set.dealerIndex = di===-1?0:di;
       set.streak = last.streak + 1;
+      if(game && typeof last.roundWind === "string") game.roundWind = last.roundWind;
     }else{
       var curIdx = set.seatOrder.indexOf(last.dealerName);
       if(curIdx===-1) curIdx = 0;
       set.dealerIndex = (curIdx+1)%4;
       set.streak = 0;
+      // 這手讓莊家真的換了人（不是連莊），換到的下一位如果正好是這將
+      // 一開始的第一位莊家，代表繞回來了、輪完一圈，圈風要往下跳一個；
+      // 不是的話圈風不變，繼續沿用這手當時的圈風。
+      if(game && typeof last.roundWind === "string"){
+        var anchor = set.firstDealerName || set.seatOrder[0];
+        var nextDealerName = set.seatOrder[set.dealerIndex];
+        game.roundWind = (nextDealerName === anchor) ? advanceRoundWind(last.roundWind) : last.roundWind;
+      }
     }
   }
 
@@ -1453,6 +1482,14 @@
       seatOrder: (Array.isArray(s.seatOrder) && s.seatOrder.length===4) ? s.seatOrder : players.slice(),
       dealerIndex: typeof s.dealerIndex==="number" ? s.dealerIndex : 0,
       streak: typeof s.streak==="number" ? s.streak : 0,
+      // 圈風輪完一圈要跳下一個風，判斷基準是「繞回這將一開始的莊家」，
+      // 所以每將一開局就要記住當時的第一位莊家是誰；舊資料沒有這個欄位
+      // 的話，退回用目前的座位第一位頂替，不會因為升級資料結構就跳風。
+      firstDealerName: (typeof s.firstDealerName === "string") ? s.firstDealerName :
+        ((Array.isArray(s.seatOrder) && s.seatOrder.length===4) ? s.seatOrder[0] : players[0]),
+      // 這將開局當下圈風原本是什麼，萬一這將紀錄被清空（刪到只剩0手），
+      // 要退回到這個值，不是憑空重設成「東」。
+      startRoundWind: (typeof s.startRoundWind === "string" && ROUND_WIND_CYCLE.indexOf(s.startRoundWind) !== -1) ? s.startRoundWind : "東",
       hands: Array.isArray(s.hands) ? s.hands.map(function(h){
         if(!h || !Array.isArray(h.tags)) return h;
         var migrated = migrateHandTags(h.tags);
@@ -1530,7 +1567,7 @@
       players: players, base: base, tai: tai, selfDrawMode: selfDrawMode,
       drinkEnabled: g.drinkEnabled !== false,
       status: g.status === "ended" ? "ended" : "active",
-      roundWind: (typeof g.roundWind === "string" && WINDS.indexOf(g.roundWind) !== -1) ? g.roundWind : "東",
+      roundWind: (typeof g.roundWind === "string" && ROUND_WIND_CYCLE.indexOf(g.roundWind) !== -1) ? g.roundWind : "東",
       sets: sets, duties: duties, dutyRotationAdvanced: dutyRotationAdvanced, suits: suits,
       manualSetsCount: typeof g.manualSetsCount === "number" ? g.manualSetsCount : null,
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
@@ -2816,6 +2853,7 @@
       var primaryActiveDuties = (primaryActive && primaryActive.duties) || null;
       var firstSet = {
         id: genId("s"), seatOrder: seatOrderSnapshot, dealerIndex: 0, streak: 0,
+        firstDealerName: seatOrderSnapshot[0], startRoundWind: "東",
         hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
       };
       // 今天（同一天）其他場次（不管已結束還是還在進行）這幾位各自的淨
@@ -3183,6 +3221,7 @@
       leopard: (leopard && leopard.enabled) ? { multiplier: leopard.multiplier, baseTai: baseTai } : null,
       amount: amount, deltas: deltas, tags: tags || [],
       seatOrderAtHand: set.seatOrder.slice(),
+      roundWind: roundWindFor(game),
       ts: Date.now()
     };
   }
@@ -3356,7 +3395,7 @@
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
-    syncDealerFromHands(ns);
+    syncDealerFromHands(ns, ng);
     // 這手正式記上去了，雲端的「正在記錄中」暫存也要在同一次提交裡一起
     // 清掉，不然其他裝置會在這手已經記錄完成之後，還短暫看到這手殘留
     // 的暫存畫面。順便取消本機還沒送出的 debounce 同步，避免等一下又把
@@ -3397,7 +3436,7 @@
       if(intercepted && intercepted.length) record.intercepted = intercepted.slice();
       ns.hands.push(record);
     });
-    syncDealerFromHands(ns);
+    syncDealerFromHands(ns, ng);
     ns.pending = null;
     cancelPendingSyncTimer();
     lastPendingSyncJSON = JSON.stringify(null);
@@ -3406,7 +3445,7 @@
     commitState(newState);
   }
 
-  function buildDrawRecord(set){
+  function buildDrawRecord(set, game){
     var dealerName = set.seatOrder[set.dealerIndex];
     var deltas = {};
     set.seatOrder.forEach(function(n){ deltas[n] = 0; });
@@ -3416,6 +3455,7 @@
       tai: 0, dealerBonusTai: 0, effectiveTai: 0,
       amount: 0, deltas: deltas,
       seatOrderAtHand: set.seatOrder.slice(),
+      roundWind: roundWindFor(game),
       ts: Date.now()
     };
   }
@@ -3427,12 +3467,12 @@
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     ui.tapPending = null; // 流局不算一手自摸/放槍，點選模式如果還武裝著就先清掉，避免誤觸
-    var record = buildDrawRecord(set);
+    var record = buildDrawRecord(set, game);
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
     ns.hands.push(record);
-    syncDealerFromHands(ns);
+    syncDealerFromHands(ns, ng);
     // 流局之前可能已經先按好骰規、豹子之類準備記下一手胡牌用的台型，
     // 流局不算一手，這些預先按好的狀態要清掉，不然會原封不動帶到下一手，
     // 讓下一手一開始就莫名其妙多了沒點過的台型。
@@ -4185,7 +4225,7 @@
       var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
       var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
       var removed = ns.hands.pop();
-      syncDealerFromHands(ns);
+      syncDealerFromHands(ns, ng);
       commitState(newState);
 
       var reversed = reverseHandTagsToKeys(removed.tags);
@@ -4226,7 +4266,7 @@
       var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
       var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
       ns.hands.pop();
-      syncDealerFromHands(ns);
+      syncDealerFromHands(ns, ng);
       commitState(newState);
     });
   });
@@ -4249,6 +4289,10 @@
     // 想換座位可以在新的一將裡用「換位」調整。
     ng.sets.push({
       id: genId("s"), seatOrder: ns.seatOrder.slice(), dealerIndex: 0, streak: 0,
+      // 新的一將莊家重新從東家算起，但圈風是整場累計的，不會因為開新的
+      // 一將就重設回東——新將的「起始莊家」重新設成這將東家位的人，圈風
+      // 繼續沿用上一將結束時的圈風當起點。
+      firstDealerName: ns.seatOrder[0], startRoundWind: roundWindFor(ng),
       hands: [], sideEvents: [], status: "active", createdAt: Date.now(), endedAt: null
     });
     ui.endSetPanelOpen = false; ui.dealerBonusEnabled = true;
@@ -4965,14 +5009,16 @@
     document.getElementById("editRoundWindBtn").textContent = "🀄 圈風：" + currentRoundWind;
     document.getElementById("editRoundWindPanel").style.display = ui.editRoundWindOpen ? "block" : "none";
     if(ui.editRoundWindOpen){
-      renderChipRow("editRoundWindChips", WINDS, function(w){
+      renderChipRow("editRoundWindChips", ROUND_WIND_CYCLE, function(w){
         var newState = deepClone(state);
         var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
         if(!ng) return;
         ng.roundWind = w;
         ui.editRoundWindOpen = false;
         commitState(newState);
-        showToast("圈風已改成「"+w+"」。");
+        // 防呆：手動改圈風純粹只改這個標籤，不會動到莊家、連莊——怕使用者
+        // 誤以為點了這個也會順便換莊家，特別在提示裡講清楚。
+        showToast("圈風已改成「"+w+"」，不會影響莊家或連莊，莊家還是照原本的輪替繼續。");
       }, currentRoundWind);
     }
     var setHandCount = set.hands.length;
