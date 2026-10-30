@@ -636,7 +636,7 @@
           <div class="section-label" style="margin-top:0;">目前選的牌<button type="button" class="link-btn" id="tilesClearBtn" style="margin-left:auto;">清空</button></div>
           <p class="hint-text" id="tilesSummary">還沒選牌</p>
           <div id="tilesGrid"></div>
-          <p class="hint-text">胡牌的牌只會有一張，點一張牌記錄，點別的牌會換成那張；點同一張可以取消。這只是記錄用，不會影響台數或金額計算。</p>
+          <p class="hint-text">胡牌的牌只會有一張，點一張牌記錄，點別的牌會換成那張；要取消選取請按上面的「清空」，點同一張不會取消（避免多裝置同時點到同一張時互相取消對方選好的牌）。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
         <div class="toggle-row" style="margin-top:10px;">
@@ -4121,9 +4121,12 @@
     var grid = document.getElementById("tilesGrid");
     grid.innerHTML = "";
     // 胡牌的牌永遠只有一張，所以這裡是單選：點一張牌會把其他已經選的
-    // 牌清掉、只留這張；再點同一張則取消選取。不像台型標籤可以點好幾次
-    // 疊張數。照萬/筒/條/字牌分組分行顯示，不要讓瀏覽器自己照寬度換行、
-    // 把同一門花色拆到兩行去，找牌的時候才不會眼花。
+    // 牌清掉、只留這張；再點同一張不會取消（要取消選取用上面的「清空」
+    // 按鈕）——不讓同一個點擊手勢身兼「選」跟「取消」兩種意思，不然多
+    // 裝置同時打開這桌、大家都能接著點的時候，兩個人剛好都點到同一張
+    // 已選的牌，就會互相把對方剛選好的牌取消掉。不像台型標籤可以點好
+    // 幾次疊張數。照萬/筒/條/字牌分組分行顯示，不要讓瀏覽器自己照寬度
+    // 換行、把同一門花色拆到兩行去，找牌的時候才不會眼花。
     var byGroup = {};
     TILE_DEFS.forEach(function(t){
       var g = tileGroupOf(t.code);
@@ -4145,9 +4148,14 @@
         b.className = "chip" + (count > 0 ? " chip-selected" : "");
         b.textContent = t.label;
         b.addEventListener("click", function(){
-          var wasSelected = !!ui.winningTiles[t.code];
+          // 這張牌已經選了的話，再點一下不取消——不然多裝置同時打開這桌、
+          // 大家都能接著點的時候，兩個人剛好都點到同一張已選的牌，就會
+          // 互相把對方剛選好的牌取消掉，變成「一直被取消」。要取消選取
+          // 改用上面明確的「清空」按鈕，不要讓同一個點擊手勢身兼「選」
+          // 跟「取消」兩種相反的意思。
+          if(ui.winningTiles[t.code]) return;
           ui.winningTiles = {};
-          if(!wasSelected) ui.winningTiles[t.code] = 1;
+          ui.winningTiles[t.code] = 1;
           renderGameTab();
         });
         row.appendChild(b);
