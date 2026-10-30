@@ -1306,18 +1306,22 @@
   }
 
   // ---------- 多裝置同桌：先動作的裝置鎖住這桌，其他裝置唯讀 ----------
-  // 每個分頁（tab）第一次打開就產生一個固定的識別代號，存在
-  // sessionStorage（純本機識別用，不會跟著state同步），用來判斷「這把
-  // 鎖是不是我自己持有的」。用 sessionStorage 不是 localStorage，是故意
-  // 的：同一支手機如果真的同時開了兩個分頁對著同一桌動作，也該被當成
-  // 兩個獨立的操作來源互相鎖，不是當成「同一台裝置」而互不設防；代價
-  // 是重新整理分頁會換一個新代號，等於暫時變成「別的裝置」，但鎖最多
-  // 60秒就會自動逾時釋放，不會真的卡住，可接受。
+  // 每台裝置第一次打開就產生一個固定的識別代號，存在 localStorage
+  // （純本機識別用，不會跟著state同步），用來判斷「這把鎖是不是我自己
+  // 持有的」。這裡一定要用 localStorage、不能用 sessionStorage：手機上
+  // 瀏覽器背景閒置、切出去用別的App一下、或是這個App自己偵測到新版本
+  // 要求重新整理，都很容易把分頁整個重載一次——sessionStorage會被清空，
+  // 變成「換了一個新裝置代號」。如果這時候自己剛留下的鎖還沒過期，
+  // 重新整理後的自己會把「舊的自己」誤判成別的裝置，被自己鎖在外面，
+  // 怎麼點都被擋下來（這正是使用者回報的「記錄胡的牌一直被取消」的
+  // 根因）。用 localStorage 讓同一台裝置重新整理後代號不變，就不會自
+  // 己卡死自己；代價是同一支手機如果真的同時開兩個分頁，會被當成同一
+  // 個操作來源、互不設防，但這比「自己重新整理就把自己鎖住」好得多。
   var DEVICE_ID_KEY = "twmj_device_id_v1";
   function getDeviceId(){
     try{
-      var id = sessionStorage.getItem(DEVICE_ID_KEY);
-      if(!id){ id = genId("dev"); sessionStorage.setItem(DEVICE_ID_KEY, id); }
+      var id = localStorage.getItem(DEVICE_ID_KEY);
+      if(!id){ id = genId("dev"); localStorage.setItem(DEVICE_ID_KEY, id); }
       return id;
     }catch(e){ return genId("dev"); }
   }
