@@ -447,6 +447,10 @@
     background: var(--accent-dark); color:#fff; padding:10px 18px; border-radius:999px;
     font-size:.8rem; z-index:210; max-width:85vw; text-align:center; line-height:1.4;
   }
+  /* 多裝置同桌時，先動作的裝置鎖住這桌，其他裝置唯讀——避免兩台裝置
+     同時操作同一桌互相干擾（例如A剛確認的那手，B還留著舊畫面繼續動
+     作，導致重複記一次）。唯讀只擋互動，畫面內容照常顯示、照常同步。 */
+  #activeGamePanelContent.locked-readonly{ pointer-events:none; opacity:.55; }
 </style>
 </head>
 <body>
@@ -573,6 +577,11 @@
     </div>
 
     <div id="activeGamePanel" style="display:none;">
+      <div id="tableLockBanner" class="card" style="display:none; background:#fff3cd; border:1px solid #e0c36a;">
+        <p class="hint-text" id="tableLockBannerText" style="margin:0; color:#6b5a1e;"></p>
+        <button type="button" class="link-btn" id="tableLockForceBtn" style="margin-top:6px;">⚠️ 強制取得控制權</button>
+      </div>
+      <div id="activeGamePanelContent">
       <div class="card">
         <h2>🀄 本局 <span class="badge" id="setBadge">第1將</span><button type="button" class="link-btn danger" id="cancelGameBtn">🗑️ 取消牌局</button></h2>
         <div class="game-meta" id="gameMetaLine1"></div>
@@ -753,6 +762,7 @@
         <h2>📜 本局已結束的將</h2>
         <p class="hint-text">記錯的整將可以在這裡整將刪除；目前正在記錄的這將請用上面的「刪除上一筆」。</p>
         <div id="pastSetsList"></div>
+      </div>
       </div>
     </div>
   </section>
@@ -1295,6 +1305,92 @@
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   }
 
+  // ---------- 多裝置同桌：先動作的裝置鎖住這桌，其他裝置唯讀 ----------
+  // 每個分頁（tab）第一次打開就產生一個固定的識別代號，存在
+  // sessionStorage（純本機識別用，不會跟著state同步），用來判斷「這把
+  // 鎖是不是我自己持有的」。用 sessionStorage 不是 localStorage，是故意
+  // 的：同一支手機如果真的同時開了兩個分頁對著同一桌動作，也該被當成
+  // 兩個獨立的操作來源互相鎖，不是當成「同一台裝置」而互不設防；代價
+  // 是重新整理分頁會換一個新代號，等於暫時變成「別的裝置」，但鎖最多
+  // 60秒就會自動逾時釋放，不會真的卡住，可接受。
+  var DEVICE_ID_KEY = "twmj_device_id_v1";
+  function getDeviceId(){
+    try{
+      var id = sessionStorage.getItem(DEVICE_ID_KEY);
+      if(!id){ id = genId("dev"); sessionStorage.setItem(DEVICE_ID_KEY, id); }
+      return id;
+    }catch(e){ return genId("dev"); }
+  }
+  var DEVICE_ID = getDeviceId();
+  // 鎖超過這個時間沒有任何裝置續約，就視為失效、自動解鎖——不然持有鎖
+  // 的那台裝置如果中途關掉App、斷線、沒電，其他裝置會永遠卡在唯讀。
+  var TABLE_LOCK_TTL_MS = 60000;
+  function isLockedByOther(game){
+    return !!(game && game.activeLock && game.activeLock.deviceId !== DEVICE_ID &&
+      (Date.now() - game.activeLock.at) < TABLE_LOCK_TTL_MS);
+  }
+  // 這台裝置要對這桌做動作之前先呼叫一次：如果鎖目前握在別的裝置手上
+  // （還沒過期），擋下來、跳toast提示，不實際執行動作；否則幫這台裝置
+  // 續約／搶下這把鎖（鎖本來就是自己的就只是續約時間，不是自己的但已
+  // 過期就直接接手）。回傳true代表「被擋下來了，呼叫者應該return」。
+  function blockIfLockedByOther(game){
+    if(!game) return false;
+    if(isLockedByOther(game)){
+      showToast("🔒 另一台裝置正在操作這桌，目前唯讀。可以切換到別桌，或等對方動作完成、鎖定逾時後自動恢復。");
+      return true;
+    }
+    claimTableLock(game);
+    return false;
+  }
+  // claimTableLock 常常緊接著在同一個動作裡又馬上呼叫 commitState／
+  // commitHandRecordTransaction（例如確認記錄：先續約鎖，緊接著就把這
+  // 手寫進雲端）。如果這裡馬上把鎖的寫入送上雲端，會變成同一個動作裡
+  // 緊接著兩次雲端寫入——不管是真的 Firebase 還是測試用的假後端，都有
+  // 機會因為極短時間內連續兩次寫入／廣播而互相干擾（實測過假後端會
+  // 漏接第二次廣播，實務上也沒必要多送一次）。改成本機先樂觀套用（讓
+  // 緊接著發生的 deepClone(state) 自然就帶著這次續約的結果），雲端那次
+  // 寫入延遲一點點再送；如果緊接著真的發生了 commitState／transaction，
+  // 那次寫入本身就已經帶著這次續約的結果了，就直接取消這個多餘的延遲
+  // 寫入，不用真的多送一次。
+  var lockPushTimer = null;
+  function cancelLockPushTimer(){
+    if(lockPushTimer){ clearTimeout(lockPushTimer); lockPushTimer = null; }
+  }
+  function claimTableLock(game){
+    if(!game) return;
+    if(game.activeLock && game.activeLock.deviceId === DEVICE_ID && (Date.now() - game.activeLock.at) < 5000){
+      return; // 剛續約過沒多久，不用每個小動作都重新發一次雲端寫入
+    }
+    var lock = { deviceId: DEVICE_ID, at: Date.now() };
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    if(!ng) return;
+    ng.activeLock = lock;
+    applyLocally(newState);
+    var gi = newState.games.indexOf(ng);
+    if(gi === -1) return;
+    cancelLockPushTimer();
+    lockPushTimer = setTimeout(function(){
+      lockPushTimer = null;
+      pushScopedCloudField("games/"+gi+"/activeLock", lock);
+    }, 80);
+  }
+  // 逾時之前，使用者自己判斷對方裝置真的已經離開時，可以強制搶下控制
+  // 權——不等 isLockedByOther 的判斷，直接覆蓋。
+  function claimTableLockForced(game){
+    if(!game) return;
+    var lock = { deviceId: DEVICE_ID, at: Date.now() };
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    if(!ng) return;
+    ng.activeLock = lock;
+    applyLocally(newState);
+    var gi = newState.games.indexOf(ng);
+    if(gi === -1) return;
+    pushScopedCloudField("games/"+gi+"/activeLock", lock);
+    renderGameTab();
+  }
+
   function defaultState(){
     return {
       roster: DEFAULT_NAMES.map(function(n, i){
@@ -1573,7 +1669,12 @@
       createdAt: typeof g.createdAt === "number" ? g.createdAt : Date.now(),
       endedAt: typeof g.endedAt === "number" ? g.endedAt : null,
       carryIn: carryIn,
-      carryInOptOut: g.carryInOptOut === true
+      carryInOptOut: g.carryInOptOut === true,
+      // 多裝置同桌時，先動作的裝置鎖住這桌、其他裝置唯讀用的鎖——純粹是
+      // 裝置之間協調用的暫存資訊，格式不對（或根本沒有）就當沒鎖，不嘗試修補。
+      activeLock: (g.activeLock && typeof g.activeLock === "object" &&
+        typeof g.activeLock.deviceId === "string" && typeof g.activeLock.at === "number")
+        ? { deviceId: g.activeLock.deviceId, at: g.activeLock.at } : null
     };
   }
 
@@ -1718,6 +1819,11 @@
   }
 
   function commitState(newState){
+    // 如果剛好緊接在 claimTableLock 續約鎖之後呼叫（常見：確認記錄/
+    // 各種動作前都先續約一次鎖），newState 已經是從套用過續約之後的
+    // state deepClone 出來的，這次整份寫入本身就帶著最新的鎖了，那個
+    // 還沒送出的延遲鎖寫入就不用再送一次。
+    cancelLockPushTimer();
     // 按下去要馬上有反應，不等雲端同步的網路來回——先在本機套用、立刻
     // 重繪，雲端同步只影響右上角的同步狀態圓標；網路失敗則保留在本機，
     // 下一步操作會再一起帶著重試。
@@ -1775,6 +1881,13 @@
   // 比本機更新的資料；衝突時 Firebase 會自動重跑這個函式，不用自己處理
   // 重試。mutateFn 拿到的 ns/ng 是「伺服器當下這桌/這將」，不是本機的。
   function commitHandRecordTransaction(gameId, setId, mutateFn){
+    // 呼叫這裡之前一定已經先用 blockIfLockedByOther 確認過這桌不是鎖在
+    // 別的裝置手上，這裡順便把鎖續約一次。transaction 讀到的 current 是
+    // 伺服器當下真正的值，不是本機 state，claimTableLock 本機樂觀套用
+    // 的續約結果不會automatically跟著這次transaction送出去，要在這裡
+    // 直接改才會真的送上雲端；同時取消那個現在已經多餘的延遲鎖寫入。
+    cancelLockPushTimer();
+    var lock = { deviceId: DEVICE_ID, at: Date.now() };
     if(!db || !cloudReady) return;
     syncing = true; setCloudBadge();
     db.ref(STATE_PATH).transaction(function(current){
@@ -1785,6 +1898,7 @@
       var ns = ng && ng.sets.filter(function(s){ return s.id === setId; })[0];
       if(!ng || !ns) return current; // 極端情況（桌子不在了），放棄這次寫入，保留伺服器原值
       mutateFn(ns, ng);
+      ng.activeLock = lock;
       return normalized;
     }, function(error, committed, snapshot){
       syncing = false;
@@ -3463,6 +3577,7 @@
   function commitHand(winnerName, method, loserName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     var record = buildHandRecord(game, set, winnerName, method, loserName, computeTotalTai(), taiTagLabels(winnerName), ui.leopard);
     record.tiles = flattenTileMap(ui.winningTiles);
     function applyRecord(ns, ng){
@@ -3499,6 +3614,7 @@
   function commitMultiWinnerHand(loserName, winners, intercepted){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     var dealerName = set.seatOrder[set.dealerIndex];
     var ordered = winners.slice().sort(function(a,b){
       return (a.name === dealerName ? 1 : 0) - (b.name === dealerName ? 1 : 0);
@@ -3546,6 +3662,7 @@
   function commitDraw(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     if(blockIfSuitsMissing(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
@@ -3637,6 +3754,7 @@
   function commitBaxian(achieverName, style, payerName){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     if(blockIfSuitsMissing(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
@@ -3735,6 +3853,7 @@
     });
   }
   function recordSelfDrawGesture(name){
+    if(blockIfLockedByOther(activeGame())) return;
     pushTaiTagExclusive("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點（跟門清自摸互斥）
     applyDealerAutoTags(name);
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
@@ -3752,6 +3871,7 @@
     return { name: name, tai: 0, tags: [], huaCount: 0, leopard: { enabled: false, multiplier: 2 }, tiles: {} };
   }
   function recordDiscardGesture(winnerName, loserName){
+    if(blockIfLockedByOther(activeGame())) return;
     // 不能在這裡把 ui.tai 等等重設成 0——手勢觸發之前使用者可能已經先
     // 調過台數了（既有的操作習慣：先點台型/台數再拖曳，或先拖曳再調），
     // 這裡重設會把先調好的台數洗掉。第一位胡牌者的 winners[0] 會在接下來
@@ -3835,6 +3955,7 @@
     var p = ui.pendingHand;
     if(!p) return;
     var game = activeGame();
+    if(blockIfLockedByOther(game)) return;
     if(blockIfSuitsMissing(game)) return;
     // 自風要靠這手骰出來的開門算，沒骰過（doorSeat是null）就擋下來不能
     // 確認記錄，不然自風只能先用固定座位頂著、容易記錯。順便捲動到骰
@@ -3863,6 +3984,7 @@
     }
   }
   function cancelPendingHand(){
+    if(blockIfLockedByOther(activeGame())) return;
     // 取消這手跟流局一樣，不會真的記上去，所以已經點好的台型、記錄胡的
     // 牌、花牌、豹子、骰出來的開門都要一併清掉，不然下一手一開始就莫名
     // 其妙帶著上一次沒用到的狀態。
@@ -3888,6 +4010,7 @@
   function setDealerGesture(name){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var idx = set.seatOrder.indexOf(name);
     if(idx === -1 || idx === set.dealerIndex) return;
@@ -4261,6 +4384,7 @@
   document.getElementById("swapModeBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     if(!ui.swapMode){
       if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
       ui.swapMode = true;
@@ -4309,6 +4433,7 @@
   document.getElementById("editLastHandBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(blockIfLockedByOther(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     var lastHand = set.hands[set.hands.length - 1];
@@ -4354,6 +4479,7 @@
   document.getElementById("undoBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set || !set.hands.length) return;
+    if(blockIfLockedByOther(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     showConfirm("確定要刪除最後一筆紀錄嗎？", function(){
@@ -4376,6 +4502,7 @@
   document.getElementById("newSetBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
     var newState = deepClone(state);
     var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
     var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
@@ -4401,6 +4528,7 @@
 
   document.getElementById("finishGameBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
+    if(blockIfLockedByOther(game)) return;
     showConfirm("確定要結束整場並結算嗎？結束後會列入戰績與歷史牌局，且無法再新增紀錄。", function(){
       var set = activeSet(game);
       var newState = deepClone(state);
@@ -4433,6 +4561,7 @@
   // 這場整個取消，輪值也要跟著退回去，不然下次開局會多跳一位、輪值就亂了。
   document.getElementById("cancelGameBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
+    if(blockIfLockedByOther(game)) return;
     if(ui.pendingHand){ showToast("有一手還沒確認，請先確認或取消。"); return; }
     if(ui.swapMode){ showToast("換位還沒完成，請先再點一次「換位」結束。"); return; }
     showConfirm("確定要取消這整場牌局嗎？不會列入戰績，牌局資料會直接刪除，且無法復原。", function(){
@@ -4473,6 +4602,7 @@
   });
   document.getElementById("editVenueSaveBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
+    if(blockIfLockedByOther(game)) return;
     var v = document.getElementById("editVenueInput").value.trim();
     if(!v){ showToast("請填地點"); return; }
     var newState = deepClone(state);
@@ -4498,6 +4628,7 @@
   });
   document.getElementById("editDateTimeSaveBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
+    if(blockIfLockedByOther(game)) return;
     var d = document.getElementById("editDateTimeDateInput").value;
     var t = document.getElementById("editDateTimeTimeInput").value;
     if(!d){ showToast("請選日期"); return; }
@@ -4650,6 +4781,7 @@
   }
   document.getElementById("drinkToggleBtn").addEventListener("click", function(){
     var game = activeGame(); if(!game) return;
+    if(blockIfLockedByOther(game)) return;
     toggleGameDrinkEnabled(game.id);
   });
 
@@ -4869,7 +5001,10 @@
         if(locked){
           b.disabled = true;
         }else{
-          b.addEventListener("click", function(){ assignDuty(game.id, key, name); });
+          b.addEventListener("click", function(){
+            if(blockIfLockedByOther(game)) return;
+            assignDuty(game.id, key, name);
+          });
         }
         el.appendChild(b);
       });
@@ -4933,7 +5068,10 @@
         var isRed = (suitKey === "heart" || suitKey === "diamond");
         b.className = "chip suit-chip" + (isRed ? " suit-red" : "") + (selected ? " chip-selected" : "");
         b.textContent = SUIT_LABELS[suitKey] + ' ' + SUIT_NAMES[suitKey];
-        b.addEventListener("click", function(){ assignSuit(game.id, name, suitKey); });
+        b.addEventListener("click", function(){
+          if(blockIfLockedByOther(game)) return;
+          assignSuit(game.id, name, suitKey);
+        });
         chipRow.appendChild(b);
       });
       container.appendChild(chipRow);
@@ -5102,7 +5240,24 @@
     // 把「確認記錄」擋住，使用者自己手動捲一下就看得到了。
   }
 
+  function renderTableLockBanner(game){
+    var banner = document.getElementById("tableLockBanner");
+    var content = document.getElementById("activeGamePanelContent");
+    var locked = isLockedByOther(game);
+    content.classList.toggle("locked-readonly", locked);
+    banner.style.display = locked ? "block" : "none";
+    if(!locked) return;
+    var secondsAgo = Math.max(0, Math.round((Date.now() - game.activeLock.at) / 1000));
+    document.getElementById("tableLockBannerText").textContent =
+      "🔒 另一台裝置正在操作這桌（上次動作：" + secondsAgo + " 秒前），目前唯讀，不能記錄或修改。可以切換到別桌，或等對方動作完成、鎖定逾時後自動恢復。";
+    document.getElementById("tableLockForceBtn").onclick = function(){
+      showConfirm("確定要強制取得這桌的控制權嗎？如果對方裝置其實還在操作，可能會跟對方衝突。只有在確定對方裝置已經離開（斷線、關掉App、沒電）時才這麼做。", function(){
+        claimTableLockForced(game);
+      });
+    };
+  }
   function renderActiveSet(game, set){
+    renderTableLockBanner(game);
     var setIdx = game.sets.indexOf(set);
     document.getElementById("setBadge").textContent = "第"+(setIdx+1)+"將";
     var modeText = game.selfDrawMode === "split" ? "三家均攤" : "各付全額";
@@ -5118,6 +5273,7 @@
     document.getElementById("editRoundWindPanel").style.display = ui.editRoundWindOpen ? "block" : "none";
     if(ui.editRoundWindOpen){
       renderChipRow("editRoundWindChips", ROUND_WIND_CYCLE, function(w){
+        if(blockIfLockedByOther(game)) return;
         var newState = deepClone(state);
         var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
         if(!ng) return;
