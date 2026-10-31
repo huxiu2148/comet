@@ -1986,6 +1986,14 @@
   // 立刻跟上。
   function reconcilePendingWithCloud(game, set){
     if(!game || !set) return;
+    // 記一手往往要骰骰子、選台型、挑牌，花超過一次動作的時間——鎖只在
+    // 一開始的手勢跟最後確認/取消時續約的話，中間這段時間如果剛好超過
+    // 鎖的逾時時間（60秒），鎖會被當成過期、被別的裝置搶走，等這手終於
+    // 要確認或取消時反而被自己剛搶走鎖的那台裝置擋下來——「按取消紀錄
+    // 會一直跳掉」就是這個原因。這裡只要這手還在畫面上就一直續約，不用
+    // 等到確認/取消那一刻才補。只有「目前這手的擁有者」才續約：如果這手
+    // 是鏡射別人在記（唯讀中看到的），不能因為畫面上顯示著就搶鎖。
+    if(ui.pendingHand && !isLockedByOther(game)) claimTableLock(game);
     var localSnap = buildPendingSnapshotFromUi();
     var localJSON = JSON.stringify(localSnap);
     if(localJSON === lastPendingSyncJSON){
@@ -2077,6 +2085,10 @@
   }
   function reconcileSwapWithCloud(game, set){
     if(!game || !set) return;
+    // 跟 reconcilePendingWithCloud 同樣的理由：換位可能也要調整一下子，
+    // 這段時間要讓鎖持續續約，不然換位換到一半鎖逾時被搶走，按「換位」
+    // 結束時反而被自己擋下來。
+    if(ui.swapMode && !isLockedByOther(game)) claimTableLock(game);
     var localSnap = buildSwapSnapshotFromUi();
     var localJSON = JSON.stringify(localSnap);
     if(localJSON === lastSwapSyncJSON){
