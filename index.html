@@ -790,6 +790,7 @@
         <label class="field" for="statsGameFilterSelect">場次範圍</label>
         <select class="select-input" id="statsGameFilterSelect"></select>
       </div>
+      <button type="button" class="btn btn-outline btn-block" id="statsQuadFilterBtn" style="display:none; margin-top:8px;">👥 只看彗／綺／儒／榕的場次</button>
       <div id="statsMultiSummaryRow" style="display:none; margin-top:8px;">
         <p class="hint-text" id="statsMultiSummaryText"></p>
         <div style="display:flex; gap:8px; margin-top:6px;">
@@ -7537,6 +7538,33 @@
       renderStatsTab();
     };
   }
+  // 快速篩選：只看彗/綺/儒/榕這固定四人原班的場次（跟拍照/播音樂輪值
+  // 認的是同一組人、同一個isDutyRotationCore判斷——人數剛好4人、剛好
+  // 就是這四人，不管座位/順序），底層一樣是借用「自選多場」的機制，
+  // 按一次就自動把符合的場次全部勾起來，再按一次（或清除自選）就取消。
+  function statsQuadGameIds(endedGames){
+    return endedGames.filter(function(g){ return isDutyRotationCore(g.players); }).map(function(g){ return g.id; });
+  }
+  function renderStatsQuadFilterBtn(endedGames){
+    var btn = document.getElementById("statsQuadFilterBtn");
+    var quadIds = statsQuadGameIds(endedGames);
+    if(!quadIds.length || ui.statsMultiPickerOpen){ btn.style.display = "none"; return; }
+    btn.style.display = "block";
+    var isActive = ui.statsMultiGameIds.length === quadIds.length &&
+      quadIds.every(function(id){ return ui.statsMultiGameIds.indexOf(id) !== -1; });
+    btn.classList.toggle("btn-primary", isActive);
+    btn.classList.toggle("btn-outline", !isActive);
+    btn.textContent = isActive ? "↩️ 取消只看彗／綺／儒／榕" : "👥 只看彗／綺／儒／榕的場次";
+    btn.onclick = function(){
+      if(isActive){
+        ui.statsMultiGameIds = [];
+      }else{
+        ui.statsMultiGameIds = quadIds.slice();
+        ui.statsGameFilter = null;
+      }
+      renderStatsTab();
+    };
+  }
   // 自選多場：跳著勾選幾場不相連、不屬於同一個月/年的特定場次一起看，
   // 跟上面那個只能選單一範圍（總計/單年/單月/單場）的下拉選單是互斥的
   // 兩種篩選方式——選了這個，上面那個就先讓路；清掉這個，上面那個再
@@ -7627,6 +7655,7 @@
       if(!endedGames.some(function(g){ return g.id === filterGameId; })) ui.statsGameFilter = null;
     }
     renderStatsGameFilterSelect(endedGames);
+    renderStatsQuadFilterBtn(endedGames);
     renderStatsMultiFilter(endedGames);
     var filteredGames = endedGames;
     var hasAnyFilter = !!(ui.statsGameFilter || ui.statsMultiGameIds.length);
