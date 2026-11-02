@@ -5117,8 +5117,11 @@
       manualDiceValues = [];
       renderManualDiceInputUi();
       renderDiceResult(values);
-      // 跟真的骰完一樣，點滿三顆、套用結果之後就收起來，避免誤觸。
-      document.getElementById("diceInputPanel").style.display = "none";
+      // 跟真的骰骰子不一樣：手動輸入面板不自動收起來。「避免誤觸」是針對
+      // 「按了真的骰骰子，結果卻被下面殘留的手動輸入數字按鈕蓋掉」這個
+      // 情境；手動輸入完直接收起來反而不方便——可能想繼續用手動輸入記
+      // 下一手、或是想確認一下剛剛點的三顆點數對不對，收起來還要重新點
+      // 「自己輸入」才能再打開。
       return;
     }
     renderManualDiceInputUi();
