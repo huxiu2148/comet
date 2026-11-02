@@ -1957,6 +1957,7 @@
       diceResultHtml: ui.diceResultHtml,
       diceLeopardHit: !!ui.diceLeopardHit,
       diceSum: ui.diceSum,
+      diceSequential: !!ui.diceSequential,
       editingHandIdx: ui.editingHandIdx
     };
   }
@@ -1964,7 +1965,7 @@
     if(!snap){
       ui.pendingHand = null; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
       ui.leopard = { enabled: false, multiplier: 2 }; ui.winningTiles = {};
-      ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null;
+      ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null; ui.diceSequential = false;
       ui.editingHandIdx = null;
       return;
     }
@@ -1977,6 +1978,7 @@
     ui.doorSeat = snap.doorSeat || null;
     ui.diceResultHtml = snap.diceResultHtml || null;
     ui.diceSum = (typeof snap.diceSum === "number") ? snap.diceSum : null;
+    ui.diceSequential = !!snap.diceSequential;
     ui.diceLeopardHit = !!snap.diceLeopardHit;
     ui.editingHandIdx = (typeof snap.editingHandIdx === "number") ? snap.editingHandIdx : null;
     // 別人那邊可能已經展開「記錄胡的牌」在選牌，這邊也跟著展開，不然
@@ -2056,7 +2058,7 @@
   function resetPendingSyncForTableSwitch(){
     ui.pendingHand = null; ui.tai = 0; ui.taiTags = []; ui.huaCount = 0;
     ui.leopard = { enabled: false, multiplier: 2 }; ui.winningTiles = {};
-    ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null;
+    ui.doorSeat = null; ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null; ui.diceSequential = false;
     ui.editingHandIdx = null;
     ui.tilesPickerOpen = false;
     cancelPendingSyncTimer();
@@ -2660,6 +2662,9 @@
     diceResultHtml: null,
     diceLeopardHit: false,
     diceSum: null,
+    // 骰出來（或手動輸入）的三顆是不是連續的順子——「骰規」要不要能選
+    // 看這個，不是看有沒有選過；沒骰過或骰的不是順子都是false。
+    diceSequential: false,
     showSuits: false,
     taiSortMode: loadTaiSortMode(),
     titleView: loadTitleView(),
@@ -3172,7 +3177,7 @@
       ui.editingHandIdx = null;
       ui.wantNewGame = false;
       ui.doorSeat = null; // 新開一桌，舊的開門（如果還留著）不再適用
-      ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null;
+      ui.diceResultHtml = null; ui.diceLeopardHit = false; ui.diceSum = null; ui.diceSequential = false;
       ui.showSuits = true; // 一開局就先展開撲克牌花色，不用自己點「展開」找
       // 要切去的是全新開的桌子，不會有殘留的「正在記錄中」暫存，但同步
       // 用的 bookkeeping 還是要重置，不然可能帶著舊桌（切桌前正在看的
@@ -3492,6 +3497,7 @@
       doorSeat: ui.doorSeat || null,
       diceSum: (typeof ui.diceSum === "number") ? ui.diceSum : null,
       diceLeopardHit: !!ui.diceLeopardHit,
+      diceSequential: !!ui.diceSequential,
       ts: Date.now()
     };
   }
@@ -3530,6 +3536,7 @@
     ui.diceResultHtml = null;
     ui.diceLeopardHit = false;
     ui.diceSum = null;
+    ui.diceSequential = false;
     var resultEl = document.getElementById("diceResult");
     if(resultEl) resultEl.style.display = "none";
     // 手動輸入點到一半（還沒滿三顆）的殘留也要一併清掉，不然換到下一手
@@ -3690,6 +3697,10 @@
     resetDoorSeat();
     applyLocally(newState); // 先在本機樂觀套用一次，立刻有反應（ui已經重設過，畫面才會對）
     commitHandRecordTransaction(game.id, set.id, applyRecord);
+    // 這手記完了，直接把畫面捲回骰骰子的地方——下一手本來就一定要先
+    // 骰骰子才能開始記（見blockIfDiceNotReady），順便把記錄節奏接起來，
+    // 不用自己往上滑找骰骰子按鈕在哪。
+    scrollToDiceRow();
   }
 
   // 這手如果照原樣（method===draw，或winnerName===dealerName）算，莊家
@@ -3807,6 +3818,7 @@
     resetDoorSeat();
     applyLocally(newState); // 先在本機樂觀套用一次，立刻有反應（ui已經重設過，畫面才會對）
     commitHandRecordTransaction(game.id, set.id, applyRecords);
+    scrollToDiceRow();
   }
 
   function buildDrawRecord(set, game){
@@ -3852,6 +3864,7 @@
     applyLocally(newState); // 先在本機樂觀套用一次，立刻有反應（ui已經重設過，畫面才會對）
     commitHandRecordTransaction(game.id, set.id, applyRecord);
     showToast("已記錄流局，莊家連莊。");
+    scrollToDiceRow();
   }
   document.getElementById("drawBtn").addEventListener("click", function(){ commitDraw(); });
 
@@ -4017,8 +4030,26 @@
       if(ui.taiTags.indexOf(k) === -1) ui.taiTags.push(k);
     });
   }
+  // 骰骰子（或手動輸入）要先做，才能開始記這一手——開門/自風是靠這手
+  // 骰出來的點數算的，先選贏家再骰的話，等於選贏家當下的畫面完全不知道
+  // 這手自風是什麼；而且骰骰子本身也會決定這手是不是豹子/骰規，提早到
+  // 選贏家之前，台型清單一開始就能正確反映骰出來的結果，不用等骰完才
+  // 重新整理一次已經點好的台型。ui.doorSeat 在每一手開始／確認／取消
+  // 時都會被清掉（見resetDoorSeat），所以「這手還沒骰過」就是看它是
+  // 不是null。
+  function scrollToDiceRow(){
+    var diceRow = document.querySelector(".dice-row");
+    if(diceRow) diceRow.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function blockIfDiceNotReady(){
+    if(ui.doorSeat) return false;
+    showToast("請先骰骰子（或輸入點數），才能開始記這一手。");
+    scrollToDiceRow();
+    return true;
+  }
   function recordSelfDrawGesture(name){
     if(blockIfLockedByOther(activeGame())) return;
+    if(blockIfDiceNotReady()) return;
     pushTaiTagExclusive("zimo"); // 自摸一定+1台，點三下時自動算，不用再手動點（跟門清自摸互斥）
     applyDealerAutoTags(name);
     ui.pendingHand = { method: "self", winnerName: name, loserName: null };
@@ -4037,6 +4068,7 @@
   }
   function recordDiscardGesture(winnerName, loserName){
     if(blockIfLockedByOther(activeGame())) return;
+    if(blockIfDiceNotReady()) return;
     // 不能在這裡把 ui.tai 等等重設成 0——手勢觸發之前使用者可能已經先
     // 調過台數了（既有的操作習慣：先點台型/台數再拖曳，或先拖曳再調），
     // 這裡重設會把先調好的台數洗掉。第一位胡牌者的 winners[0] 會在接下來
@@ -4527,6 +4559,14 @@
     if(method === "discard" && (tag.key === "zimo" || tag.key === "menqingzimo")){
       return "這手是放槍胡牌，不是自摸，不能選這個台型。";
     }
+    // 全求人是完全靠碰/吃/胡別人的牌湊成、贏的那張也要是別人放槍的，
+    // 自摸（贏的那張是自己摸到的）本質上就不可能是全求人。
+    if(method === "self" && tag.key === "quanqiu"){
+      return "自摸不是全求人（全求人贏的那張要是放槍來的，自摸不算），不能選這個台型。";
+    }
+    if(tag.key === "shaigui" && !ui.diceSequential){
+      return "骰子沒有骰到順子（連續三個點數），不能選這個台型。";
+    }
     var pinghuOn = pinghuSelected();
     if(pinghuOn && tag.key !== "pinghu" && !isDealerTagKey(tag.key)){
       return "平胡本身是沒有任何台型加成的胡法（莊家/連莊台不算），不能跟其他台型一起選；要選別的台型，請先取消「平胡」。";
@@ -4714,6 +4754,7 @@
         ui.doorSeat = h.doorSeat;
         ui.diceSum = h.diceSum;
         ui.diceLeopardHit = !!h.diceLeopardHit;
+        ui.diceSequential = !!h.diceSequential;
         ui.diceResultHtml = "共 "+h.diceSum+" 點"+(h.diceLeopardHit ? "・🐆 豹子！" : "") +
           '<small class="dice-sum">開門：'+escapeHtml(h.doorSeat)+'（這手自風照這家算）</small>';
       }else{
@@ -4964,11 +5005,20 @@
   // 自己點掉取消。自己輸入點數現在也改成一樣要點三顆各自的點數（見
   // diceInputPanel），不再只填總點數，所以這裡的判斷兩種入口都適用。
   // 平胡已經選的話不自動加——平胡不能跟其他台型一起選，見tagDisableReason。
+  // ui.diceSequential 記這次骰的是不是順子，不是順子的話「骰規」要反灰
+  // 選不起來（見tagDisableReason），不是只有不自動加而已。
   function autoApplyShaiguiIfSequential(values){
     var sorted = values.slice().sort(function(a,b){ return a-b; });
     var isSequential = (sorted[1] === sorted[0]+1) && (sorted[2] === sorted[1]+1);
+    ui.diceSequential = isSequential;
     if(isSequential && !pinghuSelected() && ui.taiTags.indexOf("shaigui") === -1){
       ui.taiTags.push("shaigui");
+    }
+    if(!isSequential){
+      // 不是順子了（例如重骰之後點數變了），之前可能自動勾上的骰規要
+      // 跟著拿掉，不然會殘留一個現在已經選不起來、卻還勾著的台型。
+      var stray = ui.taiTags.indexOf("shaigui");
+      if(stray !== -1) ui.taiTags.splice(stray, 1);
     }
   }
   function renderDiceResult(values){
@@ -4988,12 +5038,17 @@
     ui.diceSum = sum;
     ui.diceResultHtml = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
     autoApplyShaiguiIfSequential(values);
-    // 三顆點數一樣（骰骨骰／手動輸入都算）就是豹子，直接幫忙打開豹子
-    // 開關、預設2倍，記錄者可以自己調倍數或關掉，不用自己先注意到三顆
-    // 一樣、再手動點開豹子。
+    // 三顆點數一樣（真的骰骰子／手動輸入都算）就是豹子，直接幫忙打開
+    // 豹子開關、預設2倍，記錄者可以自己調倍數或關掉，不用自己先注意到
+    // 三顆一樣、再手動點開豹子。不是豹子的話要把豹子關掉——這是為了
+    // 「上一次骰到豹子、重骰之後這次沒骰到」的情況：豹子是跟著「這次
+    // 骰出來的結果」算的，不該沿用上一次骰的殘留狀態；已經開著的時候
+    // 再骰到豹子，倍數維持記錄者剛調好的，不會被重設回預設2倍。
     if(isLeopard){
+      if(!ui.leopard.enabled) ui.leopard.multiplier = 2;
       ui.leopard.enabled = true;
-      ui.leopard.multiplier = 2;
+    }else{
+      ui.leopard.enabled = false;
     }
     renderDiceResultDisplay();
     renderTaiTags();
