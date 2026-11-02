@@ -1366,12 +1366,19 @@
       return; // 剛續約過沒多久，不用每個小動作都重新發一次雲端寫入
     }
     var lock = { deviceId: DEVICE_ID, at: Date.now() };
-    var newState = deepClone(state);
-    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
-    if(!ng) return;
-    ng.activeLock = lock;
-    applyLocally(newState);
-    var gi = newState.games.indexOf(ng);
+    // 這裡只是幫鎖續約時間，不是使用者會看到變化的那種操作（唯讀橫幅
+    // 只看「別人的鎖」，不看自己剛續約的時間戳），所以不要走
+    // deepClone(state)+applyLocally()那套「整份換掉、觸發renderAll()
+    // 重畫全部分頁」的重量級流程——這個函式常常從記一手中途（選台型、
+    // 挑牌）的reconcile裡被呼叫，等於每隔5秒就平白多畫一次整個畫面，
+    // 手機上會有感的延遲，使用者感覺「按下去卡一下」而誤以為沒點到、
+    // 多點一次，對tai-tag這種「點同一個會取消」的按鈕來說，就會變成
+    // 「按台型會一直被取消」。直接改這筆記錄本身（game就是
+    // state.games裡的同一個物件參照，不是複本），呼叫端自己接下來的
+    // renderXxx()會自然畫出最新內容，不用這裡多畫一次。
+    game.activeLock = lock;
+    saveLocal(state);
+    var gi = state.games.indexOf(game);
     if(gi === -1) return;
     cancelLockPushTimer();
     lockPushTimer = setTimeout(function(){
