@@ -7185,7 +7185,12 @@
       var totals = computeGameTotals(g);
       var item = document.createElement("div");
       item.className = "log-item";
-      var headline = g.players.map(function(n){
+      // 顯示順序照「開局當莊的那位開始」排，不是照開局選人時隨便點的
+      // 順序（g.players是選取順序，跟座位/莊家順序是兩回事，開局時可能
+      // 又透過排座位調整過）——用第一將的seatOrder（index 0就是起始莊家）
+      // 比較符合「這桌坐誰」的直覺，不會每場的人名排序看起來都不一樣。
+      var displayOrder = (g.sets[0] && g.sets[0].seatOrder) || g.players;
+      var headline = displayOrder.map(function(n){
         var t = totals[n]||0, tcls = t>0?"plus":(t<0?"minus":"");
         return '<span class="player-chip '+tcls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
       }).join('');
@@ -7701,7 +7706,7 @@
             (timeLabel ? '<span class="log-hand-badge">🕐 '+escapeHtml(timeLabel)+'</span>' : '') +
             '<span class="log-dealer-chip">📍 '+(g.venue?escapeHtml(g.venue):"未填場地")+'</span>' +
             '<span class="log-tai-chip">'+statusText+'</span>' +
-          '</div><div class="player-chip-row">' + g.players.map(function(n){
+          '</div><div class="player-chip-row">' + ((g.sets[0] && g.sets[0].seatOrder) || g.players).map(function(n){
             var t = totals[n]||0; var cls = t>0?"plus":(t<0?"minus":"");
             return '<span class="player-chip '+cls+'">'+escapeHtml(n)+' '+(t>0?'+':'')+t+'</span>';
           }).join('') + '</div>';
