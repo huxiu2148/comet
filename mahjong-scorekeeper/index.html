@@ -2685,6 +2685,7 @@
     tabButtons[tbi].addEventListener("click", function(e){
       ui.tab = e.currentTarget.getAttribute("data-tab");
       updateTabVisibility();
+      renderCurrentTabContent();
     });
   }
 
@@ -7485,13 +7486,28 @@
     try{ fn(); }
     catch(e){ console.error("[renderAll] " + label + " 渲染失敗：", e); }
   }
+  // 戰績/月曆分頁要整理「全部歷史牌局」才能算出來，資料累積久了這兩個
+  // 分頁的計算本身就不便宜。以前 renderAll() 不管使用者在看哪個分頁、
+  // 每次都五個分頁全部重算一次；但 renderAll() 不是只有切分頁時才呼叫
+  // ——雲端監聽（db.ref(STATE_PATH).on("value",...)）是整個 state 樹掛一個
+  // 監聽，任何一桌、任何一台裝置的任何小動作（骰骰子、點台型、續約鎖）
+  // 都會觸發它，而且同時開兩桌時這類背景同步的頻率是雙倍。使用者明明在
+  // 看桌1選台型，卻因為桌2那邊也在記錄而頻繁觸發「五個分頁全部重算」，
+  // 造成有感延遲、連點兩下，點了會自己取消的台型標籤就被第二次點擊取消
+  // 掉——這是「同時開兩桌，桌1選台型/記錄胡的牌會一直被取消」的根因。
+  // 改成只重算「目前使用者正在看的那個分頁」，其餘分頁留著舊內容，等
+  // 使用者真的切過去那個分頁時（見 renderCurrentTabContent 的呼叫點）
+  // 再重算一次就好，沒人在看就不用算。
+  function renderCurrentTabContent(){
+    if(ui.tab === "stats") safeRender(renderStatsTab, "renderStatsTab");
+    else if(ui.tab === "calendar") safeRender(renderCalendarTab, "renderCalendarTab");
+    else if(ui.tab === "roster") safeRender(renderRosterTab, "renderRosterTab");
+    else if(ui.tab === "settings") safeRender(renderSettingsTab, "renderSettingsTab");
+  }
   function renderAll(){
     safeRender(updateTabVisibility, "updateTabVisibility");
     safeRender(renderGameTab, "renderGameTab");
-    safeRender(renderStatsTab, "renderStatsTab");
-    safeRender(renderCalendarTab, "renderCalendarTab");
-    safeRender(renderRosterTab, "renderRosterTab");
-    safeRender(renderSettingsTab, "renderSettingsTab");
+    renderCurrentTabContent();
     safeRender(setCloudBadge, "setCloudBadge");
   }
 
