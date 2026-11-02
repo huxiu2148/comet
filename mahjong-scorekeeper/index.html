@@ -623,9 +623,9 @@
           <div id="diceResult" class="dice-result" style="display:none;"></div>
         </div>
         <div id="diceInputPanel" style="display:block; margin-top:8px;">
-          <p class="hint-text" style="margin:0 0 6px; text-align:center;">點一個數字，直接套用共幾點</p>
-          <div class="chip-row" id="diceInputChipsRow1" style="justify-content:center;"></div>
-          <div class="chip-row" id="diceInputChipsRow2" style="justify-content:center;"></div>
+          <p class="hint-text" style="margin:0 0 6px; text-align:center;" id="diceInputHint">依序點選骰出的三顆點數</p>
+          <div class="chip-row" id="diceInputChipsRow" style="justify-content:center;"></div>
+          <div style="text-align:center; margin-top:4px;"><button type="button" class="link-btn" id="diceInputClearBtn">清除重選</button></div>
         </div>
         <button type="button" class="btn btn-outline btn-block" id="drinkToggleBtn" style="margin-top:10px;">🍹 最輸請飲料</button>
       </div>
@@ -3532,6 +3532,14 @@
     ui.diceSum = null;
     var resultEl = document.getElementById("diceResult");
     if(resultEl) resultEl.style.display = "none";
+    // 手動輸入點到一半（還沒滿三顆）的殘留也要一併清掉，不然換到下一手
+    // 會莫名其妙接著算上一手點到一半的點數。manualDiceValues 宣告在檔案
+    // 後面，但這個函式只會在使用者操作之後才被呼叫，那時候整份程式已經
+    // 執行過一次、manualDiceValues 早就初始化好了，不會是undefined。
+    if(typeof manualDiceValues !== "undefined"){
+      manualDiceValues = [];
+      if(typeof renderManualDiceInputUi === "function") renderManualDiceInputUi();
+    }
   }
   function roundWindFor(game){
     return (game && game.roundWind) || "東";
@@ -4953,9 +4961,8 @@
   }
   // 三顆骰子排序後剛好是連續三個數字（例如1,2,3或2,3,4），就是骰規，
   // 自動幫忙勾上「骰規」台型——跟莊家/連莊自動加一樣，使用者還是可以
-  // 自己點掉取消；只有自己輸入總點數（renderDiceResultFromSum）不會有
-  // 這個判斷，因為光知道總點數沒辦法判斷骰出來的三顆各自是不是連續
-  // （例如共6點可能是1+2+3，也可能是1+1+4，不骰到各自的點數就不知道）。
+  // 自己點掉取消。自己輸入點數現在也改成一樣要點三顆各自的點數（見
+  // diceInputPanel），不再只填總點數，所以這裡的判斷兩種入口都適用。
   // 平胡已經選的話不自動加——平胡不能跟其他台型一起選，見tagDisableReason。
   function autoApplyShaiguiIfSequential(values){
     var sorted = values.slice().sort(function(a,b){ return a-b; });
@@ -4981,30 +4988,26 @@
     ui.diceSum = sum;
     ui.diceResultHtml = facesText + '<small class="dice-sum">共 '+sum+' 點'+(isLeopard ? "・🐆 豹子！" : "")+'</small>' + doorPhrase;
     autoApplyShaiguiIfSequential(values);
-    renderDiceResultDisplay();
-    renderTaiTags();
-    renderHuaVal();
-  }
-  // 自己輸入的話只填「共幾點」，不是分開填三顆各自的點數——沒有三顆各自
-  // 的數字就沒辦法判斷是不是豹子（同一個總點數可能是不同組合湊出來的），
-  // 所以這裡只顯示總點數跟開門，不顯示骰子面、也不判斷豹子。
-  function renderDiceResultFromSum(sum){
-    var doorPhrase = "";
-    var game = activeGame(), set = game && activeSet(game);
-    if(set){
-      ui.doorSeat = set.seatOrder[doorIndexFromDice(set, sum)];
-      doorPhrase = '<small class="dice-sum">開門：'+escapeHtml(ui.doorSeat)+'（這手自風照這家算）</small>';
+    // 三顆點數一樣（骰骨骰／手動輸入都算）就是豹子，直接幫忙打開豹子
+    // 開關、預設2倍，記錄者可以自己調倍數或關掉，不用自己先注意到三顆
+    // 一樣、再手動點開豹子。
+    if(isLeopard){
+      ui.leopard.enabled = true;
+      ui.leopard.multiplier = 2;
     }
-    ui.diceLeopardHit = false;
-    ui.diceSum = sum;
-    ui.diceResultHtml = "共 "+sum+" 點" + doorPhrase;
     renderDiceResultDisplay();
     renderTaiTags();
     renderHuaVal();
+    renderLeopardUi(game);
   }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
     if(diceRolling) return;
     diceRolling = true;
+    // 按了「骰骰子」代表改用真的骰，手動輸入如果點到一半（還沒點滿三顆）
+    // 的殘留狀態要清掉，不然等一下回來點手動輸入時，會莫名其妙從之前
+    // 點一半的地方接著算。
+    manualDiceValues = [];
+    renderManualDiceInputUi();
     var btn = document.getElementById("diceRollBtn");
     var resultEl = document.getElementById("diceResult");
     btn.disabled = true;
@@ -5020,6 +5023,10 @@
         renderDiceResult(finalValues);
         btn.disabled = false;
         diceRolling = false;
+        // 骰完就把「自己輸入」的點數按鈕收起來，避免真的骰完之後手滑
+        // 點到下面殘留顯示的數字按鈕，把剛骰好的結果悄悄蓋掉。要手動
+        // 輸入的話再點一次「✏️ 自己輸入」展開就好。
+        document.getElementById("diceInputPanel").style.display = "none";
         return;
       }
       var flashValues = [1,2,3].map(function(){ return 1 + Math.floor(Math.random()*6); });
@@ -5030,23 +5037,51 @@
     var panel = document.getElementById("diceInputPanel");
     panel.style.display = (panel.style.display === "none") ? "block" : "none";
   });
-  // 骰骰子自己輸入改成直接點數字按鈕套用（3~18），不用再打開鍵盤輸入，
-  // 點哪個數字就直接套用那個點數，比打字直覺。這排按鈕內容固定不變，
-  // 開局前就先建好一次，不用每次重繪整個畫面都重新產生。分兩排固定排版
-  // （3~10、11~18），不要讓瀏覽器自動換行決定每排幾個。預設就展開顯示，
-  // 不用先點「自己輸入」才看得到。
+  // 自己輸入改成跟真的骰骰子一樣，依序點三顆各自的點數（1~6，可以重複），
+  // 不是只填一個總點數——這樣才知道骰出來的三顆各自是多少，順子自動選
+  // 骰規、三顆一樣自動開豹子這些判斷，手動輸入才能跟真的骰骰子共用同一套
+  // （renderDiceResult）。manualDiceValues 記目前已經點了幾顆、各是多少，
+  // 點滿三顆就直接送進 renderDiceResult，跟真的骰完一樣；點錯的話旁邊
+  // 「清除重選」可以重新點。
+  var manualDiceValues = [];
+  function renderManualDiceInputUi(){
+    var hintEl = document.getElementById("diceInputHint");
+    if(manualDiceValues.length === 0){
+      hintEl.textContent = "依序點選骰出的三顆點數";
+    }else{
+      var picked = manualDiceValues.map(function(v){ return DICE_FACES[v]+v; }).join("　");
+      hintEl.textContent = "已選："+picked+"（還要選"+(3-manualDiceValues.length)+"顆，點錯可以按下面「清除重選」）";
+    }
+  }
+  function addManualDiceValue(v){
+    if(diceRolling) return;
+    if(manualDiceValues.length >= 3) return;
+    manualDiceValues.push(v);
+    if(manualDiceValues.length === 3){
+      var values = manualDiceValues.slice();
+      manualDiceValues = [];
+      renderManualDiceInputUi();
+      renderDiceResult(values);
+      // 跟真的骰完一樣，點滿三顆、套用結果之後就收起來，避免誤觸。
+      document.getElementById("diceInputPanel").style.display = "none";
+      return;
+    }
+    renderManualDiceInputUi();
+  }
+  document.getElementById("diceInputClearBtn").addEventListener("click", function(){
+    manualDiceValues = [];
+    renderManualDiceInputUi();
+  });
+  // 這排按鈕內容固定不變（1~6），開局前就先建好一次，不用每次重繪整個
+  // 畫面都重新產生。預設就展開顯示，不用先點「自己輸入」才看得到。
   (function(){
-    var row1 = document.getElementById("diceInputChipsRow1");
-    var row2 = document.getElementById("diceInputChipsRow2");
-    for(var n=3;n<=18;n++){
+    var row = document.getElementById("diceInputChipsRow");
+    for(var n=1;n<=6;n++){
       (function(n){
         var b = document.createElement("button");
-        b.type = "button"; b.className = "chip"; b.textContent = String(n);
-        b.addEventListener("click", function(){
-          if(diceRolling) return;
-          renderDiceResultFromSum(n);
-        });
-        (n<=10 ? row1 : row2).appendChild(b);
+        b.type = "button"; b.className = "chip"; b.textContent = DICE_FACES[n]+n;
+        b.addEventListener("click", function(){ addManualDiceValue(n); });
+        row.appendChild(b);
       })(n);
     }
   })();
