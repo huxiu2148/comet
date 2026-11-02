@@ -4475,16 +4475,45 @@
   }
   function isDealerTagKey(key){ return key === "zhuangjia" || key === "lianzhuang"; }
   function pinghuSelected(){ return ui.taiTags.indexOf("pinghu") !== -1; }
-  // 每個台型 chip 要不要鎖住、鎖住的原因（當tooltip用），三種情況：
+  // 莊家是不是真的跟這手有關：自摸要贏家本人就是莊家；放槍的話，莊家
+  // 是贏家（莊家自己胡牌）或是放槍的人（莊家放槍，連莊被打斷要多付）
+  // 都算——跟 dealerAutoTags 判斷要不要自動幫忙勾選是同一套邏輯，這裡
+  // 用來決定手動點的時候能不能選。編輯中間某一手時用那手記錄當下的
+  // 莊家（effectiveDealerNameFor），不是這將目前最新的莊家。
+  function dealerInvolvedInCurrentHand(set){
+    var p = ui.pendingHand;
+    if(!p || !set) return false;
+    var dealerName = effectiveDealerNameFor(set);
+    if(p.method === "self") return p.winnerName === dealerName;
+    if(p.method === "discard"){
+      if(p.loserName === dealerName) return true;
+      var activeWinner = p.winners[p.activeWinnerIdx];
+      return !!(activeWinner && activeWinner.name === dealerName);
+    }
+    return false;
+  }
+  // 每個台型 chip 要不要鎖住、鎖住的原因（當tooltip用），幾種情況：
   // 1) 自摸且「自摸莊家台」開著時，莊家/連莊已經自動算過，鎖住避免重複點。
-  // 2) 放槍不是自摸，「自摸」「門清自摸」這兩個台型本來就不該出現在放槍
+  // 2) 莊家根本不是這手的贏家也不是放槍的人（兩家閒家之間的勝負），
+  //    莊家/連莊這兩個台型跟這手無關，選了沒道理，鎖住；「連莊」另外
+  //    還要這將目前真的連莊中（streak>0）才有東西可以加，沒連莊也鎖住。
+  // 3) 放槍不是自摸，「自摸」「門清自摸」這兩個台型本來就不該出現在放槍
   //    的手上。
-  // 3) 平胡本身定義就是「沒有任何台型加成的胡法」（莊家/連莊這種跟胡牌
+  // 4) 平胡本身定義就是「沒有任何台型加成的胡法」（莊家/連莊這種跟胡牌
   //    內容無關的台除外），選了平胡之後其他台型要鎖住；反過來，已經選了
   //    其他台型（或花牌）的話，平胡本身也要鎖住，不能再選。
   function tagDisableReason(tag){
-    if(isDealerTagKey(tag.key) && dealerTagsLocked()){
-      return "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
+    if(isDealerTagKey(tag.key)){
+      if(dealerTagsLocked()){
+        return "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
+      }
+      var game = activeGame(), set = game && activeSet(game);
+      if(set && !dealerInvolvedInCurrentHand(set)){
+        return "莊家不是這手的贏家，也不是放槍的人，跟這手無關，不能選這個台型。";
+      }
+      if(tag.key === "lianzhuang" && set && effectiveStreakFor(set) <= 0){
+        return "這將現在還沒連莊，沒有連莊台可以加。";
+      }
     }
     var method = ui.pendingHand && ui.pendingHand.method;
     if(method === "discard" && (tag.key === "zimo" || tag.key === "menqingzimo")){
