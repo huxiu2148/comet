@@ -4669,15 +4669,18 @@
     if(h.method === "discard") return h.loserName === h.dealerName || h.winnerName === h.dealerName;
     return false;
   }
-  // 邏輯跟上面tagDisableReason一樣（同一套規則：莊家/連莊要真的跟這手
-  // 有關、自摸不能選全求、放槍不能選自摸系列、骰規要真骰到順子、平胡
-  // 互斥），只是全部改讀h自己的資料跟目前這次编輯暫存的selectedKeys/
-  // huaCount（target.keys/target.huaCount），不是ui.taiTags/ui.huaCount。
+  // 邏輯大致跟上面tagDisableReason一樣（莊家/連莊要真的跟這手有關、
+  // 自摸不能選全求、放槍不能選自摸系列、骰規要真骰到順子、平胡互斥），
+  // 全部改讀h自己的資料跟目前這次编輯暫存的selectedKeys/huaCount
+  // （target.keys/target.huaCount），不是ui.taiTags/ui.huaCount。
+  // 有一條不一樣：記錄當下「自摸莊家台」已經自動把拉莊台算進金額、
+  // 用「含拉莊台 +N台」那個chip另外顯示的手，tagDisableReason會鎖住
+  // 莊家/連莊，是因為那邊手動點了會讓computeTotalTai()重複加一次、
+  // 影響到真的要付的錢；這個改台型面板完全不會動金額（確認時只是
+  // 重算顯示用的h.tai/h.effectiveTai，h.deltas原封不動），所以這裡
+  // 不鎖，讓使用者可以把「含拉莊台」改標成明確的「莊家／連莊」標籤。
   function tagEditDisableReason(h, tag, selectedKeys, huaCount){
     if(isDealerTagKey(tag.key)){
-      if(h.method === "self" && (h.dealerBonusTai || 0) > 0){
-        return "自摸時「自摸莊家台」已經自動算過這台了，不用再手動點。";
-      }
       if(!dealerInvolvedInHand(h)){
         return "莊家不是這手的贏家，也不是放槍的人，跟這手無關，不能選這個台型。";
       }
