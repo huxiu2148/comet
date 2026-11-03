@@ -977,6 +977,9 @@
     <div id="editTagsGroups"></div>
     <div class="stepper-row">
       <div class="stepper">
+        <div class="val" id="editTagsOtherVal" style="opacity:.6;">0<small>其他台（算出來的，不能在這裡改）</small></div>
+      </div>
+      <div class="stepper">
         <button type="button" id="editTagsHuaMinus">－</button>
         <div class="val" id="editTagsHuaVal">0<small>花牌</small></div>
         <button type="button" id="editTagsHuaPlus">＋</button>
@@ -4802,9 +4805,10 @@
     }, 0);
     tagSum += target.huaCount * huapaiTag().value;
     var other = h.tai - tagSum;
+    document.getElementById("editTagsOtherVal").innerHTML =
+      (other>=0?"+":"")+other+"<small>其他台（算出來的，不能在這裡改）</small>";
     document.getElementById("editTagsHint").textContent =
-      "目前這手共 "+h.tai+" 台（下面已選的台型/花牌共 "+tagSum+" 台，其他台 "+(other>=0?"+":"")+other+"）。" +
-      "確認後台數跟金額都不會變，只是調整這些台型標籤、花牌跟豹子標記要不要顯示。";
+      "目前這手共 "+h.tai+" 台（下面已選的台型/花牌共 "+tagSum+" 台）。確認後台數跟金額都不會變，只是調整這些台型標籤、花牌跟豹子標記要不要顯示——「其他台」是用這手台數扣掉下面已選的算出來的，不是另外可以調整的欄位。";
   }
   document.getElementById("editTagsLeopardBtn").addEventListener("click", function(){
     if(!ui.tagEditTarget) return;
