@@ -4727,8 +4727,6 @@
       return;
     }
     overlay.style.display = "flex";
-    document.getElementById("editTagsHint").textContent =
-      "目前這手共 "+h.tai+" 台，確認後台數跟金額都不會變，只是調整下面這些台型標籤（跟豹子標記）要不要顯示。";
     var container = document.getElementById("editTagsGroups");
     container.innerHTML = "";
     var tags = TAI_TAGS.filter(function(t){ return t.key !== "huapai"; });
@@ -4792,6 +4790,21 @@
     document.getElementById("editTagsLeopardInputs").style.display = leopard.enabled ? "flex" : "none";
     document.getElementById("editTagsLeopardHint").style.display = leopard.enabled ? "block" : "none";
     document.getElementById("editTagsLeopardMultVal").innerHTML = leopard.multiplier + "<small>倍數</small>";
+
+    // 「其他台」是算出來的，不是另外存一個獨立欄位：這手台數（h.tai）
+    // 本來就固定不變，勾選的台型/花牌加起來多少，剩下沒被選到台型蓋到
+    // 的部分就是「其他台」——跟handTaiBreakdownText顯示在歷史紀錄上的
+    // 邏輯一樣，這裡即時算一次讓使用者邊勾邊看得到，不然單看台型chip
+    // 不知道跟原本的台數對不對得起來。
+    var tagSum = target.keys.reduce(function(sum, key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      return sum + (tag ? tagValueForHand(h, tag) : 0);
+    }, 0);
+    tagSum += target.huaCount * huapaiTag().value;
+    var other = h.tai - tagSum;
+    document.getElementById("editTagsHint").textContent =
+      "目前這手共 "+h.tai+" 台（下面已選的台型/花牌共 "+tagSum+" 台，其他台 "+(other>=0?"+":"")+other+"）。" +
+      "確認後台數跟金額都不會變，只是調整這些台型標籤、花牌跟豹子標記要不要顯示。";
   }
   document.getElementById("editTagsLeopardBtn").addEventListener("click", function(){
     if(!ui.tagEditTarget) return;
