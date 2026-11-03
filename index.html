@@ -968,8 +968,10 @@
   </div>
 </div>
 <!-- 歷史牌局／過去的將只能改台型標籤，不像「編輯這一手」那樣整手重算
-     （那套只認目前這將），所以另外做一個獨立的小面板：只列台型chip跟
-     花牌加減，不碰台數/贈家/放槍者，確認之後台數跟金額都不會變。 -->
+     （那套只認目前這將），所以另外做一個獨立的小面板：列台型chip、花牌
+     跟「其他台」（以防萬一沒對應台型的手動加法）加減，不碰贏家/放槍者/
+     金額——確認之後這手的台數顯示會跟著重新算出來的總和更新，但金額
+     （h.deltas）完全不動，還是原本記錄時算好的那筆。 -->
 <div id="editTagsModalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🏷️ 改這一手的台型／豹子</div>
@@ -977,7 +979,9 @@
     <div id="editTagsGroups"></div>
     <div class="stepper-row">
       <div class="stepper">
-        <div class="val" id="editTagsOtherVal" style="opacity:.6;">0<small>其他台（算出來的，不能在這裡改）</small></div>
+        <button type="button" id="editTagsOtherMinus">－</button>
+        <div class="val" id="editTagsOtherVal">0<small>其他台</small></div>
+        <button type="button" id="editTagsOtherPlus">＋</button>
       </div>
       <div class="stepper">
         <button type="button" id="editTagsHuaMinus">－</button>
@@ -2725,9 +2729,10 @@
     pastSetLogOpenId: null,
     historyHandLogKey: null,
     expandedHistoryGameId: null,
-    // 歷史牌局／過去的將只能改「這一手的台型標籤」，不影響台數跟金額
-    // （openHandEditor那套完整編輯只認目前這將，見handLogItemHtml/
-    // openTagOnlyEditor）。{ gameId, setId, handIdx, keys, huaCount }，
+    // 歷史牌局／過去的將只能改「這一手的台型標籤／其他台／豹子」，台數
+    // 顯示（h.tai）會跟著重新算，但金額（h.deltas）完全不動（openHandEditor
+    // 那套完整編輯只認目前這將，見handLogItemHtml/openTagOnlyEditor）。
+    // { gameId, setId, handIdx, keys, huaCount, other, leopard }，
     // null代表沒有在改。
     tagEditTarget: null
   };
@@ -4699,6 +4704,15 @@
     }
     return null;
   }
+  // 選取的台型/花牌加起來多少台。
+  function tagSelectionSumForHand(h, keys, huaCount){
+    var sum = keys.reduce(function(acc, key){
+      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
+      return acc + (tag ? tagValueForHand(h, tag) : 0);
+    }, 0);
+    sum += huaCount * huapaiTag().value;
+    return sum;
+  }
   function openTagOnlyEditor(gameId, setId, handIdx){
     var g = state.games.filter(function(x){ return x.id === gameId; })[0];
     var s = g && g.sets.filter(function(x){ return x.id === setId; })[0];
@@ -4707,8 +4721,14 @@
     if(h.method !== "self" && h.method !== "discard"){ showToast("這一手沒有台型可以改。"); return; }
     if(h.multiWinMates && h.multiWinMates.length > 1){ showToast("一炮多響這組目前不能改台型。"); return; }
     var reversed = reverseHandTagsToKeys(h.tags);
+    // 「其他台」是沒有特定台型可以對應、記錄者自己手動加的台數（跟花牌
+    // 一樣是獨立的加法，不是台型加總後扣出來的餘數），所以用這手記錄
+    // 當下「總台數 - 已選台型/花牌」反推出原本手動加了多少，當作這裡
+    // 的起始值，之後可以用＋／－獨立調整，不會跟著勾選/取消台型自動變。
+    var initialOther = h.tai - tagSelectionSumForHand(h, reversed.taiTags, reversed.huaCount);
     ui.tagEditTarget = {
       gameId: gameId, setId: setId, handIdx: handIdx, keys: reversed.taiTags, huaCount: reversed.huaCount,
+      other: initialOther,
       // 補記「這手其實是豹子」用：以前還沒有豹子功能的時候，有些人是用
       // 「其他台」手動湊出等效金額來模擬豹子加倍，h.leopard單純是顯示／
       // 統計用的標記（豹子愛用王之類），不影響h.deltas怎麼算出來，所以
@@ -4794,25 +4814,30 @@
     document.getElementById("editTagsLeopardHint").style.display = leopard.enabled ? "block" : "none";
     document.getElementById("editTagsLeopardMultVal").innerHTML = leopard.multiplier + "<small>倍數</small>";
 
-    // 「其他台」是算出來的，不是另外存一個獨立欄位：這手台數（h.tai）
-    // 本來就固定不變，勾選的台型/花牌加起來多少，剩下沒被選到台型蓋到
-    // 的部分就是「其他台」——跟handTaiBreakdownText顯示在歷史紀錄上的
-    // 邏輯一樣，這裡即時算一次讓使用者邊勾邊看得到，不然單看台型chip
-    // 不知道跟原本的台數對不對得起來。
-    var tagSum = target.keys.reduce(function(sum, key){
-      var tag = TAI_TAGS.filter(function(t){ return t.key === key; })[0];
-      return sum + (tag ? tagValueForHand(h, tag) : 0);
-    }, 0);
-    tagSum += target.huaCount * huapaiTag().value;
-    var other = h.tai - tagSum;
+    // 「其他台」是沒有特定台型可以對應、以防萬一手動加的台數，跟花牌一樣
+    // 是獨立的加法（target.other），不是台型加總後扣出來的餘數，所以勾選
+    // /取消台型不會讓它跟著自動變，只能用下面的＋／－自己調。
     document.getElementById("editTagsOtherVal").innerHTML =
-      (other>=0?"+":"")+other+"<small>其他台（算出來的，不能在這裡改）</small>";
+      target.other + "<small>其他台</small>";
+    var tagSum = tagSelectionSumForHand(h, target.keys, target.huaCount);
+    var newTotal = tagSum + target.other;
     document.getElementById("editTagsHint").textContent =
-      "目前這手共 "+h.tai+" 台（下面已選的台型/花牌共 "+tagSum+" 台）。確認後台數跟金額都不會變，只是調整這些台型標籤、花牌跟豹子標記要不要顯示——「其他台」是用這手台數扣掉下面已選的算出來的，不是另外可以調整的欄位。";
+      "這手原本共 "+h.tai+" 台，目前算出來共 "+newTotal+" 台（已選台型/花牌 "+tagSum+" 台＋其他台 "+target.other+" 台）。" +
+      "確認後會把這手的台數改成 "+newTotal+" 台，但金額（每個人輸贏多少錢）還是維持原本記錄時算好的，不會重算。";
   }
   document.getElementById("editTagsLeopardBtn").addEventListener("click", function(){
     if(!ui.tagEditTarget) return;
     ui.tagEditTarget.leopard.enabled = !ui.tagEditTarget.leopard.enabled;
+    renderTagEditModal();
+  });
+  document.getElementById("editTagsOtherMinus").addEventListener("click", function(){
+    if(!ui.tagEditTarget) return;
+    ui.tagEditTarget.other = Math.max(0, ui.tagEditTarget.other - 1);
+    renderTagEditModal();
+  });
+  document.getElementById("editTagsOtherPlus").addEventListener("click", function(){
+    if(!ui.tagEditTarget) return;
+    ui.tagEditTarget.other = Math.min(30, ui.tagEditTarget.other + 1);
     renderTagEditModal();
   });
   document.getElementById("editTagsLeopardMultMinus").addEventListener("click", function(){
@@ -4859,15 +4884,25 @@
     var huaLabel = huaTagLabelForHand(h);
     for(var i=0;i<target.huaCount;i++) labels.push(huaLabel);
     h.tags = labels;
-    // 底換算成台數的公式跟renderLeopardUi/buildHandRecord一樣（底÷每台），
-    // 只是補標記用，不會拿這個重新算h.deltas。
-    h.leopard = target.leopard.enabled
-      ? { multiplier: target.leopard.multiplier, baseTai: Math.round((g.base / g.tai) * 100) / 100 }
-      : null;
+    // 台數（h.tai）改成已選台型/花牌＋「其他台」（以防萬一沒有對應台型
+    // 的手動加法，跟花牌一樣是獨立輸入，不是台型加總後扣出來的餘數）
+    // 重新算出來的總和。單場紀錄每一手旁邊顯示的「X台」徽章讀的其實是
+    // h.effectiveTai（含自摸時自動加的莊家/拉莊台、豹子倍數跟底），不是
+    // h.tai，所以這裡也要照buildHandRecord同一套公式一起重算，徽章才會
+    // 真的跟著更新；h.dealerBonusTai本身（自摸莊家台的加成）維持原本
+    // 記錄當下算好的，不會因為這裡改標籤而變動。完全不動h.deltas/
+    // h.amount，金額保證還是原本記錄時算好的那筆。
+    var newTaiInput = tagSelectionSumForHand(h, target.keys, target.huaCount) + target.other;
+    h.tai = newTaiInput;
+    var leopardObj = target.leopard.enabled ? { enabled: true, multiplier: target.leopard.multiplier } : { enabled: false, multiplier: 2 };
+    var multipliedTai = applyLeopard(newTaiInput + (h.dealerBonusTai || 0), leopardObj);
+    var baseTaiForHand = leopardBaseTai(leopardObj, g);
+    h.effectiveTai = multipliedTai + baseTaiForHand;
+    h.leopard = leopardObj.enabled ? { multiplier: leopardObj.multiplier, baseTai: baseTaiForHand } : null;
     ui.tagEditTarget = null;
     commitState(newState);
     renderTagEditModal();
-    showToast("已經更新這一手的台型標籤/豹子標記，台數跟金額都沒有變。");
+    showToast("已經更新這一手的台型/其他台/豹子標記，台數顯示會跟著變，但金額都沒有變。");
   });
 
   // 32種台型攤平成一排很難找，所以依 TAI_TAGS 上的 category 分組顯示，
