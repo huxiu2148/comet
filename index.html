@@ -3746,6 +3746,9 @@
     resetDoorSeat();
     applyLocally(newState); // 先在本機樂觀套用一次，立刻有反應（ui已經重設過，畫面才會對）
     commitHandRecordTransaction(game.id, set.id, applyRecord);
+    // 按下確認記錄之後，光是畫面捲回骰骰子不夠明顯——手滑/網路卡頓時
+    // 使用者會懷疑到底有沒有真的記到，跳個toast明確回饋「記到了」。
+    showToast("✅ 已記錄這一手！");
     // 這手記完了，直接把畫面捲回骰骰子的地方——下一手本來就一定要先
     // 骰骰子才能開始記（見blockIfDiceNotReady），順便把記錄節奏接起來，
     // 不用自己往上滑找骰骰子按鈕在哪。
@@ -3867,6 +3870,7 @@
     resetDoorSeat();
     applyLocally(newState); // 先在本機樂觀套用一次，立刻有反應（ui已經重設過，畫面才會對）
     commitHandRecordTransaction(game.id, set.id, applyRecords);
+    showToast(records.length > 1 ? "✅ 已記錄這手（一炮多響）！" : "✅ 已記錄這一手！");
     scrollToDiceRow();
   }
 
@@ -4089,6 +4093,18 @@
   function scrollToDiceRow(){
     var diceRow = document.querySelector(".dice-row");
     if(diceRow) diceRow.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  // 骰完（真的骰／手動輸入都算，見renderDiceResult）之後，直接把畫面
+  // 捲到選贏家的手勢區，接著記這一手不用自己往下滑找。
+  function scrollToGestureGrid(){
+    var grid = document.getElementById("gestureGrid");
+    if(grid) grid.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  // 點了「記錄胡的牌」裡的某張牌之後，直接把畫面捲到點台型的地方，
+  // 接著選台型不用自己往下滑找。
+  function scrollToTaiTagSection(){
+    var el = document.getElementById("taiFilterInput");
+    if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function blockIfDiceNotReady(){
     if(ui.doorSeat) return false;
@@ -4394,6 +4410,11 @@
     });
     cardEl.addEventListener("pointermove", function(e){
       if(!drag || drag.pointerId !== e.pointerId) return;
+      // 點選模式完全不認拖曳手勢（也不認連點三下，那個在pointerup裡
+      // handleTapSelect那支已經先攔下來了）：一定要先按上面的「自摸」
+      // ／「放槍」武裝好才會有反應，避免手滑/手指自然位移被誤判成拖曳
+      // 放槍。手勢模式不受影響，維持原本拖曳/連點三下都能用。
+      if(ui.inputMode === "tap") return;
       var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
       if(!drag.moved && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD){
         drag.moved = true;
@@ -4424,8 +4445,10 @@
       }
       if(ui.swapMode){ handleSwapTap(playerName); return; }
       // 點選模式下，單純點一下卡片不觸發任何東西（不想誤連點成自摸），
-      // 一定要先按「自摸」或「放槍」武裝好才會有反應；手勢（長按拖曳）
-      // 還是照常可以用，兩種輸入方式並存。
+      // 一定要先按「自摸」或「放槍」武裝好才會有反應；拖曳放槍手勢在
+      // pointermove那邊已經整個關掉了（moved永遠是false，不會走進上面
+      // 那個if(moved)分支），下面連點三下自摸的判斷也不會跑到，兩種
+      // 手勢在點選模式下完全不會誤觸。
       if(ui.inputMode === "tap"){ handleTapSelect(playerName); return; }
       var now = Date.now();
       var arr = tapState[playerName] || [];
@@ -4548,6 +4571,7 @@
           ui.winningTiles = {};
           ui.winningTiles[t.code] = 1;
           renderGameTab();
+          scrollToTaiTagSection();
         });
         row.appendChild(b);
       });
@@ -5385,6 +5409,7 @@
     renderTaiTags();
     renderHuaVal();
     renderLeopardUi(game);
+    scrollToGestureGrid();
   }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
     if(diceRolling) return;
