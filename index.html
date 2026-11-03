@@ -5176,7 +5176,7 @@
   // 單獨拆成一個純函式，這樣「目前這將」的即時清單（下面的 renderSetLog）
   // 跟「已結束的將／歷史牌局」要回頭看逐手紀錄（含記錄的胡牌牌型）時，
   // 可以共用同一份組法，不用兩邊各寫一次、容易漏改到其中一邊。
-  function handLogItemHtml(h, idx){
+  function handLogItemHtml(h, idx, editable){
     var headLine, detail;
     if(h.method === "manual"){
       headLine = '補記總結（無逐手紀錄）';
@@ -5191,7 +5191,10 @@
     // 多響那組也還不支援（見openHandEditor的限制），這幾種就不顯示
     // 編輯按鈕，維持只能用「刪除上一筆」。放最左邊、只留圖示（不放文字
     // 「編輯這一手」），跟手數/莊家擠在同一排，不用額外佔一整行。
-    var canEdit = (h.method === "self" || h.method === "discard") && !(h.multiWinMates && h.multiWinMates.length > 1);
+    // openHandEditor本身是把內容逆推回「本局」正在進行中的記錄表單，只
+    // 對activeGame()有意義——歷史牌局（已結束）的場次呼叫renderHandListInto
+    // 時會把editable傳false，不顯示這顆按鈕，不然點了會沒有任何反應。
+    var canEdit = editable !== false && (h.method === "self" || h.method === "discard") && !(h.multiWinMates && h.multiWinMates.length > 1);
     var editIconBtn = canEdit ?
       ('<button type="button" class="link-btn hand-edit-btn" data-hand-idx="'+idx+'" title="編輯這一手">✏️</button>') : '';
     // 骰骰子的點數/開門跟莊家擠在同一排顯示，不用額外佔一整行。
@@ -5255,14 +5258,14 @@
     var hint = '<div class="log-detail" style="opacity:.7;">花胡額外結算，這手繼續摸，不影響莊家／連莊，也不算一手。</div>';
     return '<div class="log-head">'+metaRow+'</div><div class="log-detail">'+detail+'</div>' + hint;
   }
-  function renderHandListInto(container, set){
+  function renderHandListInto(container, set, editable){
     container.innerHTML = "";
     var sideEvents = set.sideEvents || [];
     if(!set.hands.length && !sideEvents.length){
       container.innerHTML = '<div class="empty-hint">這將沒有逐手紀錄。</div>';
       return;
     }
-    var items = set.hands.map(function(h, i){ return { ts: h.ts, html: handLogItemHtml(h, i) }; })
+    var items = set.hands.map(function(h, i){ return { ts: h.ts, html: handLogItemHtml(h, i, editable) }; })
       .concat(sideEvents.map(function(ev){ return { ts: ev.ts, html: baxianLogItemHtml(ev) }; }));
     items.sort(function(a,b){ return b.ts - a.ts; });
     items.forEach(function(it){
@@ -5889,7 +5892,10 @@
         var handsContainer = document.createElement("div");
         handsContainer.style.marginTop = "6px";
         handsContainer.addEventListener("click", function(e){ e.stopPropagation(); });
-        renderHandListInto(handsContainer, s);
+        // openHandEditor只會編輯activeSet(game)（目前這將），這裡列的是
+        // 「過去的將」（已經結束、不是目前這將），不是同一個set，點編輯
+        // 會改錯對象，所以跟歷史牌局一樣不顯示編輯按鈕。
+        renderHandListInto(handsContainer, s, false);
         item.appendChild(handsContainer);
       }
       if(editingThis){
@@ -7295,7 +7301,7 @@
             var setHandsContainer = document.createElement("div");
             setHandsContainer.style.marginTop = "6px";
             setHandsContainer.addEventListener("click", function(e){ e.stopPropagation(); });
-            renderHandListInto(setHandsContainer, s);
+            renderHandListInto(setHandsContainer, s, false);
             setRow.appendChild(setHandsContainer);
           }
           setsList.appendChild(setRow);
@@ -7321,7 +7327,7 @@
           if(onlyHandsOpen){
             var onlyHandsContainer = document.createElement("div");
             onlyHandsContainer.style.marginTop = "6px";
-            renderHandListInto(onlyHandsContainer, onlySet);
+            renderHandListInto(onlyHandsContainer, onlySet, false);
             detail.appendChild(onlyHandsContainer);
           }
         }
