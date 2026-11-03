@@ -317,6 +317,9 @@
   button.stat-row{ width:100%; background:none; border:none; border-bottom:1px solid var(--border); cursor:pointer; text-align:left; font:inherit; color:inherit; }
   button.stat-row:last-child{ border-bottom:none; }
   button.stat-row:active{ background: var(--accent-soft); }
+  .jump-row{ cursor:pointer; }
+  .jump-row:active{ background: var(--accent-soft); }
+  .jump-hint{ color: var(--ink-faint); }
 
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .cal-nav{ padding:8px 16px; min-height:auto; }
@@ -6578,14 +6581,14 @@
           if(!maxWin || myDelta > maxWin.amt){
             var winWhat = h.method === "self" ? '自摸' : '放槍（'+escapeHtml(h.loserName)+'）';
             var winBreakdown = handTaiBreakdownText(h);
-            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat + (winBreakdown ? '<br>'+winBreakdown : '') };
+            maxWin = { amt: myDelta, detail: whenStr+'・'+winWhat + (winBreakdown ? '<br>'+winBreakdown : ''), gameId: g.id };
           }
         }else{
           if(h.method === "discard" && h.loserName === targetName){
             gotDiscardedCount++; gotDiscardedAmt+=myDelta;
             if(!maxDealIn || myDelta < maxDealIn.amt){
               var dealInBreakdown = handTaiBreakdownText(h);
-              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) + (dealInBreakdown ? '<br>'+dealInBreakdown : '') };
+              maxDealIn = { amt: myDelta, detail: whenStr+'・放槍給'+escapeHtml(h.winnerName) + (dealInBreakdown ? '<br>'+dealInBreakdown : ''), gameId: g.id };
             }
           }
           else if(h.method === "self"){ paidSelfDrawCount++; paidSelfDrawAmt+=myDelta; }
@@ -6619,8 +6622,10 @@
       }
       var cls = item.amt>0?"win":(item.amt<0?"lose":"zero");
       var sign = item.amt>0?"+":"";
-      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
-        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div><div class="stat-mid">'+item.detail+'</div></div>';
+      // 點這張卡直接跳到那一場的完整紀錄（歷史牌局），data-jump-game交給
+      // 外層委派的click監聽器處理，見jumpToGameRecord。
+      return '<div class="stat-row2 jump-row" data-jump-game="'+escapeHtml(item.gameId)+'"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
+        '<div class="stat-amt '+cls+'">'+sign+item.amt+'</div></div><div class="stat-mid">'+item.detail+' <span class="jump-hint">›</span></div></div>';
     }
     var overallRows = rateCard("胡牌率", totalHands+' 手中 '+winCount+' 手', pct(winCount, totalHands)) +
                        rateCard("放槍率", totalHands+' 手中 '+gotDiscardedCount+' 手', pct(gotDiscardedCount, totalHands)) +
@@ -6763,14 +6768,14 @@
   function makeSingleGameTracker(){ return { value: null, entries: [] }; }
   // opts.lowest 用在「金額越小（輸越多）越好」的稱號，例如單場苦主；
   // 其他次數類稱號預設找最大值，而且排除0次/null（沒發生過不用列進來）。
-  function considerSingleGame(tracker, value, name, gameLabel, opts){
+  function considerSingleGame(tracker, value, name, gameLabel, gameId, opts){
     opts = opts || {};
     if(value === null || value === undefined) return;
     if(opts.lowest){ if(value >= 0) return; } else if(value <= 0) return;
     if(tracker.value === null || (opts.lowest ? value < tracker.value : value > tracker.value)){
-      tracker.value = value; tracker.entries = [{ name: name, game: gameLabel }];
+      tracker.value = value; tracker.entries = [{ name: name, game: gameLabel, gameId: gameId }];
     }else if(value === tracker.value){
-      tracker.entries.push({ name: name, game: gameLabel });
+      tracker.entries.push({ name: name, game: gameLabel, gameId: gameId });
     }
   }
   function computeArenaStats(endedGames, names){
@@ -6840,6 +6845,7 @@
           if(h.streak > stats[h.dealerName].maxStreak){
             stats[h.dealerName].maxStreak = h.streak;
             stats[h.dealerName].maxStreakGame = gameLabel;
+            stats[h.dealerName].maxStreakGameId = g.id;
           }
           if(h.method === "draw"){
             stats[h.dealerName].drawsAsDealer++;
@@ -6871,7 +6877,7 @@
           var winWhat = h.method === "self" ? "自摸" : "放槍（"+escapeHtml(h.loserName)+"）";
           var winDetail = gameLabel+'・'+winWhat+(breakdown ? '<br>'+breakdown : '');
           if(!s.maxWin || myDelta > s.maxWin.amt) s.maxWin = { amt: myDelta, detail: winDetail };
-          if(!overallMaxWin || myDelta > overallMaxWin.amt) overallMaxWin = { name: h.winnerName, amt: myDelta, detail: winDetail };
+          if(!overallMaxWin || myDelta > overallMaxWin.amt) overallMaxWin = { name: h.winnerName, amt: myDelta, detail: winDetail, gameId: g.id };
           // 攔胡：這手記錄了「本來也胡得到、但被這位贏家攔下」的人，算這位
           // 贏家攔到別人一次（不是算被攔的人幾次，那個是被攔的次數，不是
           // 攔胡王）。一炮多響時每個贏家各自一筆手紀錄、各自的 winnerName
@@ -6901,7 +6907,7 @@
           var loseDelta = h.deltas[h.loserName] || 0;
           var dealDetail = gameLabel+'・放槍給'+escapeHtml(h.winnerName)+(breakdown ? '<br>'+breakdown : '');
           if(!s2.maxDealIn || loseDelta < s2.maxDealIn.amt) s2.maxDealIn = { amt: loseDelta, detail: dealDetail };
-          if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail };
+          if(!overallMaxDealIn || loseDelta < overallMaxDealIn.amt) overallMaxDealIn = { name: h.loserName, amt: loseDelta, detail: dealDetail, gameId: g.id };
           // 一炮多響體質（放槍者角度）：這手是不是一炮多響其中一組。一炮
           // 多響一組事件會拆成好幾筆各自的手紀錄（每位胡牌者一筆），全部
           // 共用同一份 multiWinMates，只在 winnerName 是這組第一位時才算
@@ -6935,27 +6941,27 @@
       });
       Object.keys(gameCounters).forEach(function(n){
         var gc = gameCounters[n];
-        considerSingleGame(singleGame.selfWin, gc.selfWins, n, gameLabel);
-        considerSingleGame(singleGame.win, gc.wins, n, gameLabel);
-        considerSingleGame(singleGame.dealIn, gc.dealIns, n, gameLabel);
-        considerSingleGame(singleGame.drawAsDealer, gc.drawsAsDealer, n, gameLabel);
-        considerSingleGame(singleGame.intercept, gc.interceptCount, n, gameLabel);
-        considerSingleGame(singleGame.gotIntercepted, gc.gotInterceptedCount, n, gameLabel);
-        considerSingleGame(singleGame.dealerNet, gc.dealerNet, n, gameLabel);
-        considerSingleGame(singleGame.hands, gc.hands, n, gameLabel);
-        considerSingleGame(singleGame.leopardWin, gc.leopardWins, n, gameLabel);
-        considerSingleGame(singleGame.baxian, gc.baxianCount, n, gameLabel);
-        considerSingleGame(singleGame.netWin, totals[n] || 0, n, gameLabel);
-        considerSingleGame(singleGame.netLose, totals[n] || 0, n, gameLabel, { lowest: true });
-        if(gc.dealIns === 0 && gc.hands > 0) considerSingleGame(singleGame.zeroDealInHands, gc.hands, n, gameLabel);
-        considerSingleGame(singleGame.tianDiHu, gc.tianDiHu, n, gameLabel);
-        considerSingleGame(singleGame.multiHit, gc.multiHit, n, gameLabel);
+        considerSingleGame(singleGame.selfWin, gc.selfWins, n, gameLabel, g.id);
+        considerSingleGame(singleGame.win, gc.wins, n, gameLabel, g.id);
+        considerSingleGame(singleGame.dealIn, gc.dealIns, n, gameLabel, g.id);
+        considerSingleGame(singleGame.drawAsDealer, gc.drawsAsDealer, n, gameLabel, g.id);
+        considerSingleGame(singleGame.intercept, gc.interceptCount, n, gameLabel, g.id);
+        considerSingleGame(singleGame.gotIntercepted, gc.gotInterceptedCount, n, gameLabel, g.id);
+        considerSingleGame(singleGame.dealerNet, gc.dealerNet, n, gameLabel, g.id);
+        considerSingleGame(singleGame.hands, gc.hands, n, gameLabel, g.id);
+        considerSingleGame(singleGame.leopardWin, gc.leopardWins, n, gameLabel, g.id);
+        considerSingleGame(singleGame.baxian, gc.baxianCount, n, gameLabel, g.id);
+        considerSingleGame(singleGame.netWin, totals[n] || 0, n, gameLabel, g.id);
+        considerSingleGame(singleGame.netLose, totals[n] || 0, n, gameLabel, g.id, { lowest: true });
+        if(gc.dealIns === 0 && gc.hands > 0) considerSingleGame(singleGame.zeroDealInHands, gc.hands, n, gameLabel, g.id);
+        considerSingleGame(singleGame.tianDiHu, gc.tianDiHu, n, gameLabel, g.id);
+        considerSingleGame(singleGame.multiHit, gc.multiHit, n, gameLabel, g.id);
       });
       // 單場提款機排行：這場自己的轉帳淨算一次（跟總計那份累加所有場次
       // 不一樣），每一筆都附上是哪一場，最後全部場次的淨轉帳混在一起，
       // 照金額排序取前幾名顯示。
       netPairsForPairwise(gamePairwise, g.players).forEach(function(p){
-        singleGamePairEntries.push({ from: p.from, to: p.to, amt: p.amt, game: gameLabel });
+        singleGamePairEntries.push({ from: p.from, to: p.to, amt: p.amt, game: gameLabel, gameId: g.id });
       });
     });
     return {
@@ -7041,7 +7047,11 @@
         return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
           '<div class="stat-amt zero">尚無紀錄</div></div></div>';
       }
-      var detail = tracker.entries.map(function(e){ return escapeHtml(e.name)+'（'+e.game+'）'; }).join('、');
+      // 並列的每筆紀錄可能各自屬於不同場牌局，各自包成一個可點的span，
+      // 點了只跳到自己那一筆對應的場次，不是整排共用同一個gameId。
+      var detail = tracker.entries.map(function(e){
+        return '<span class="jump-row" data-jump-game="'+escapeHtml(e.gameId)+'">'+escapeHtml(e.name)+'（'+e.game+'）</span>';
+      }).join('、');
       return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
         '<div class="stat-amt">'+fmt(tracker.value)+'</div></div><div class="stat-mid">'+detail+'</div></div>';
     }
@@ -7058,7 +7068,11 @@
         return '<div class="stat-row"><div class="stat-name">'+emoji+' '+label+'</div>' +
           '<div class="stat-mid">'+result.winners.map(escapeHtml).join('、')+'</div><div class="stat-amt">'+fmt(result.value)+'</div></div>';
       }
-      var detail = result.winners.map(function(n){ return escapeHtml(n)+'（'+(gameLookup(n)||'－')+'）'; }).join('、');
+      var detail = result.winners.map(function(n){
+        var g = gameLookup(n) || {};
+        var inner = escapeHtml(n)+'（'+(g.label||'－')+'）';
+        return g.id ? ('<span class="jump-row" data-jump-game="'+escapeHtml(g.id)+'">'+inner+'</span>') : inner;
+      }).join('、');
       return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+emoji+' '+label+'</div>' +
         '<div class="stat-amt">'+fmt(result.value)+'</div></div><div class="stat-mid">'+detail+'</div></div>';
     }
@@ -7078,7 +7092,7 @@
       titleRow('🥶','最衰被攔胡（本來也胡得到、卻被攔次數最多）', topBy(function(s){ return s.gotInterceptedCount; }, {excludeZero:true}), function(v){ return v+'次'; }) +
       titleRow('💰','贏最多錢', topBy(function(s){ return s.netAmt; }, {excludeZero:true}), fmtAmt) +
       titleRow('😭','苦主（輸最多錢）', topBy(function(s){ return s.netAmt; }, {lowest:true, excludeZero:true}), fmtAmt) +
-      titleRowWithGame('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(n){ return stats[n].maxStreakGame; }, function(v){ return '連莊'+v+'次'; }) +
+      titleRowWithGame('👑','連莊最久紀錄', topBy(function(s){ return s.maxStreak; }, {excludeZero:true}), function(n){ return { label: stats[n].maxStreakGame, id: stats[n].maxStreakGameId }; }, function(v){ return '連莊'+v+'次'; }) +
       titleRow('🏯','當莊最賺', topBy(function(s){ return s.dealerHands ? s.dealerNet : null; }), fmtAmt) +
       titleRow('🎲','陪打最多手', topBy(function(s){ return s.hands; }, {excludeZero:true}), function(v){ return v+'手'; }) +
       titleRow('🤖','零放槍紀錄（手數夠多、卻從沒放過槍）', topBy(function(s){ return s.dealIns === 0 ? s.hands : null; }, {minHands:MIN_RATE_HANDS}), function(v){ return v+'手'; }) +
@@ -7119,8 +7133,8 @@
         return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'</div>' +
           '<div class="stat-amt zero">－</div></div><div class="stat-mid">尚無紀錄</div></div>';
       }
-      return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+label+'（'+escapeHtml(item.name)+'）</div>' +
-        '<div class="stat-amt '+amtCls(item.amt)+'">'+fmtAmt(item.amt)+'</div></div><div class="stat-mid">'+item.detail+'</div></div>';
+      return '<div class="stat-row2 jump-row" data-jump-game="'+escapeHtml(item.gameId)+'"><div class="stat-row2-top"><div class="stat-name">'+label+'（'+escapeHtml(item.name)+'）</div>' +
+        '<div class="stat-amt '+amtCls(item.amt)+'">'+fmtAmt(item.amt)+'</div></div><div class="stat-mid">'+item.detail+' <span class="jump-hint">›</span></div></div>';
     }
     // 單手紀錄本身就是史上單一一次的紀錄（不是累計次數），放在「總計」
     // 多場彙總的畫面裡沒有意義；改成只在「單場紀錄」顯示，detail 裡本來
@@ -7154,7 +7168,7 @@
     if(effectiveTitleView === "single"){
       var singlePairs = arena.singleGamePairEntries.slice().sort(function(x,y){ return y.amt - x.amt; });
       var singlePairRows = singlePairs.slice(0, 8).map(function(p){
-        return '<div class="stat-row2"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div>' +
+        return '<div class="stat-row2 jump-row" data-jump-game="'+escapeHtml(p.gameId)+'"><div class="stat-row2-top"><div class="stat-name">'+escapeHtml(p.from)+' → '+escapeHtml(p.to)+'</div>' +
           '<div class="stat-amt lose">－'+p.amt+'</div></div><div class="stat-mid">'+p.game+'</div></div>';
       }).join('');
       pairSection = singlePairs.length ?
@@ -7695,6 +7709,25 @@
     else if(ui.statsSub === "games"){ content.innerHTML = ""; renderGamesListInto(content, filteredGames); }
     else if(ui.statsSub === "analysis") content.innerHTML = renderAnalysisHtml(filteredGames, currentStatsTarget());
     else if(ui.statsSub === "kings") content.innerHTML = renderKingsHtml(filteredGames);
+  }
+
+  // 分析／擂台兩個分頁裡，很多稱號都附帶標出「哪一場」（單手最大胡牌、
+  // 單場胡牌王、連莊最久紀錄、史上最大胡牌/放槍…），這些元素都包了
+  // data-jump-game屬性，點了直接切到歷史牌局分頁、篩選並展開那一場的
+  // 完整紀錄。用委派的方式在#statsContent上監聽一次，不用每次重新渲染
+  // （innerHTML整個換掉）後都重新綁定。
+  document.getElementById("statsContent").addEventListener("click", function(e){
+    var el = e.target.closest("[data-jump-game]");
+    if(!el) return;
+    jumpToGameRecord(el.getAttribute("data-jump-game"));
+  });
+  function jumpToGameRecord(gameId){
+    if(!gameId || !state.games.some(function(g){ return g.id === gameId; })) return;
+    ui.statsGameFilter = "g:" + gameId;
+    ui.statsMultiGameIds = [];
+    ui.statsSub = "games";
+    ui.expandedHistoryGameId = gameId;
+    renderStatsTab();
   }
 
   // ================= 月曆 =================
