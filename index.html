@@ -972,7 +972,7 @@
      花牌加減，不碰台數/贈家/放槍者，確認之後台數跟金額都不會變。 -->
 <div id="editTagsModalOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box">
-    <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🏷️ 改這一手的台型</div>
+    <div class="modal-message" style="font-weight:700; color:var(--ink); margin-bottom:10px;">🏷️ 改這一手的台型／豹子</div>
     <p class="hint-text" id="editTagsHint" style="margin:0 0 10px;"></p>
     <div id="editTagsGroups"></div>
     <div class="stepper-row">
@@ -982,6 +982,15 @@
         <button type="button" id="editTagsHuaPlus">＋</button>
       </div>
     </div>
+    <button type="button" class="btn btn-outline btn-block" id="editTagsLeopardBtn" style="margin-top:10px;">🐆 豹子</button>
+    <div class="stepper-row" id="editTagsLeopardInputs" style="display:none; margin-top:8px;">
+      <div class="stepper">
+        <button type="button" id="editTagsLeopardMultMinus">－</button>
+        <div class="val" id="editTagsLeopardMultVal">2<small>倍數</small></div>
+        <button type="button" id="editTagsLeopardMultPlus">＋</button>
+      </div>
+    </div>
+    <p class="hint-text" id="editTagsLeopardHint" style="display:none;">補記這手其實是豹子（例如以前還沒有豹子功能、是用「其他台」湊出等效金額）用的——這裡開關／調倍數不會重新計算金額，金額已經是當時記錄時算好的，不會因為這裡改豹子標記而變動。</p>
     <div class="modal-actions" style="margin-top:14px;">
       <button type="button" class="btn btn-outline" id="editTagsCancelBtn">取消</button>
       <button type="button" class="btn btn-primary" id="editTagsConfirmBtn">確認更新</button>
@@ -4695,7 +4704,14 @@
     if(h.method !== "self" && h.method !== "discard"){ showToast("這一手沒有台型可以改。"); return; }
     if(h.multiWinMates && h.multiWinMates.length > 1){ showToast("一炮多響這組目前不能改台型。"); return; }
     var reversed = reverseHandTagsToKeys(h.tags);
-    ui.tagEditTarget = { gameId: gameId, setId: setId, handIdx: handIdx, keys: reversed.taiTags, huaCount: reversed.huaCount };
+    ui.tagEditTarget = {
+      gameId: gameId, setId: setId, handIdx: handIdx, keys: reversed.taiTags, huaCount: reversed.huaCount,
+      // 補記「這手其實是豹子」用：以前還沒有豹子功能的時候，有些人是用
+      // 「其他台」手動湊出等效金額來模擬豹子加倍，h.leopard單純是顯示／
+      // 統計用的標記（豹子愛用王之類），不影響h.deltas怎麼算出來，所以
+      // 開關／改倍數一樣安全，不會動到這手已經記好的金額。
+      leopard: h.leopard ? { enabled: true, multiplier: h.leopard.multiplier } : { enabled: false, multiplier: 2 }
+    };
     renderTagEditModal();
   }
   function renderTagEditModal(){
@@ -4712,7 +4728,7 @@
     }
     overlay.style.display = "flex";
     document.getElementById("editTagsHint").textContent =
-      "目前這手共 "+h.tai+" 台，確認後台數跟金額都不會變，只是調整下面這些台型標籤要不要顯示。";
+      "目前這手共 "+h.tai+" 台，確認後台數跟金額都不會變，只是調整下面這些台型標籤（跟豹子標記）要不要顯示。";
     var container = document.getElementById("editTagsGroups");
     container.innerHTML = "";
     var tags = TAI_TAGS.filter(function(t){ return t.key !== "huapai"; });
@@ -4768,7 +4784,30 @@
     document.getElementById("editTagsHuaPlus").disabled = pinghuOn;
     var huaLabel = huaTagLabelForHand(h);
     document.getElementById("editTagsHuaVal").innerHTML = target.huaCount + "<small>"+escapeHtml(huaLabel)+"</small>";
+
+    var leopard = target.leopard;
+    var leopardBtn = document.getElementById("editTagsLeopardBtn");
+    leopardBtn.classList.toggle("selected", leopard.enabled);
+    leopardBtn.textContent = "🐆 豹子 " + (leopard.enabled ? "✓" : "✕");
+    document.getElementById("editTagsLeopardInputs").style.display = leopard.enabled ? "flex" : "none";
+    document.getElementById("editTagsLeopardHint").style.display = leopard.enabled ? "block" : "none";
+    document.getElementById("editTagsLeopardMultVal").innerHTML = leopard.multiplier + "<small>倍數</small>";
   }
+  document.getElementById("editTagsLeopardBtn").addEventListener("click", function(){
+    if(!ui.tagEditTarget) return;
+    ui.tagEditTarget.leopard.enabled = !ui.tagEditTarget.leopard.enabled;
+    renderTagEditModal();
+  });
+  document.getElementById("editTagsLeopardMultMinus").addEventListener("click", function(){
+    if(!ui.tagEditTarget) return;
+    ui.tagEditTarget.leopard.multiplier = Math.max(1, ui.tagEditTarget.leopard.multiplier - 1);
+    renderTagEditModal();
+  });
+  document.getElementById("editTagsLeopardMultPlus").addEventListener("click", function(){
+    if(!ui.tagEditTarget) return;
+    ui.tagEditTarget.leopard.multiplier = Math.min(20, ui.tagEditTarget.leopard.multiplier + 1);
+    renderTagEditModal();
+  });
   document.getElementById("editTagsHuaMinus").addEventListener("click", function(){
     if(!ui.tagEditTarget) return;
     ui.tagEditTarget.huaCount = Math.max(0, ui.tagEditTarget.huaCount - 1);
@@ -4803,10 +4842,15 @@
     var huaLabel = huaTagLabelForHand(h);
     for(var i=0;i<target.huaCount;i++) labels.push(huaLabel);
     h.tags = labels;
+    // 底換算成台數的公式跟renderLeopardUi/buildHandRecord一樣（底÷每台），
+    // 只是補標記用，不會拿這個重新算h.deltas。
+    h.leopard = target.leopard.enabled
+      ? { multiplier: target.leopard.multiplier, baseTai: Math.round((g.base / g.tai) * 100) / 100 }
+      : null;
     ui.tagEditTarget = null;
     commitState(newState);
     renderTagEditModal();
-    showToast("已經更新這一手的台型標籤，台數跟金額都沒有變。");
+    showToast("已經更新這一手的台型標籤/豹子標記，台數跟金額都沒有變。");
   });
 
   // 32種台型攤平成一排很難找，所以依 TAI_TAGS 上的 category 分組顯示，
