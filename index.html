@@ -2041,8 +2041,11 @@
     ui.diceLeopardHit = !!snap.diceLeopardHit;
     ui.editingHandIdx = (typeof snap.editingHandIdx === "number") ? snap.editingHandIdx : null;
     // 別人那邊可能已經展開「記錄胡的牌」在選牌，這邊也跟著展開，不然
-    // 看起來像這手憑空多了選好的牌、卻找不到是在哪裡選的。
-    ui.tilesPickerOpen = true;
+    // 看起來像這手憑空多了選好的牌、卻找不到是在哪裡選的。詐胡不是真的
+    // 胡牌，本來就沒有「記錄胡的牌」這塊（整個按鈕都被renderFalseWinModeUi
+    // 收起來），這裡如果還是強制展開，會變成唯讀跟播的裝置多桌/多裝置
+    // 同開一桌時，看到詐胡的本手預覽卻莫名其妙多跳出一塊選牌的面板。
+    ui.tilesPickerOpen = (snap.pendingHand && snap.pendingHand.method === "falsewin") ? false : true;
   }
   function pushPendingSnapshotToCloud(gameId, setId){
     var newState = deepClone(state);
