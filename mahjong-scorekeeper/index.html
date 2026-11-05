@@ -193,8 +193,10 @@
   .hand-edit-btn{ padding:2px 5px; font-size:.9rem; line-height:1; }
   .log-result-row{ font-size:.95rem; font-weight:700; color: var(--ink); margin-bottom:4px; }
   .log-result-row.log-result-draw{ font-weight:600; color: var(--ink-soft); }
+  .log-result-row.log-result-falsewin{ font-weight:600; color: #a3690a; }
   .log-result-row .win-name{ color: var(--win); }
   .log-result-row .lose-name{ color: var(--lose); }
+  .log-result-row .falsewin-name{ color: #a3690a; }
   .log-tags-row{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
   .tag-chip{
     font-size:.72rem; font-weight:600; color: var(--ink-soft); background: var(--accent-soft);
@@ -397,10 +399,13 @@
   .gesture-card.drop-hover{ background: var(--accent-soft); border-color: var(--accent); }
   .gesture-card.flash-win{ animation: flashwin .5s ease; }
   .gesture-card.flash-lose{ animation: flashlose .5s ease; }
+  .gesture-card.flash-falsewin{ animation: flashfalsewin .5s ease; }
   @keyframes flashwin{ 0%{ background: var(--win); } 100%{ background: var(--bg); } }
   @keyframes flashlose{ 0%{ background: var(--lose); } 100%{ background: var(--bg); } }
+  @keyframes flashfalsewin{ 0%{ background: #a3690a; } 100%{ background: var(--bg); } }
   .gesture-card.pending-winner{ border-color: var(--win); border-width:2px; box-shadow: 0 0 0 2px rgba(58,125,92,.18); }
   .gesture-card.pending-loser{ border-color: var(--lose); border-width:2px; box-shadow: 0 0 0 2px rgba(177,80,62,.18); }
+  .gesture-card.pending-falsewin{ border-color:#a3690a; border-width:2px; box-shadow: 0 0 0 2px rgba(163,105,10,.18); }
 
   .pending-preview{
     margin-top:12px; padding:12px; border:1px dashed var(--border); border-radius:14px; background: var(--accent-soft);
@@ -643,13 +648,14 @@
         <div id="tapInputRow" class="toggle-row" style="display:none; margin-bottom:10px;">
           <button type="button" class="btn btn-outline" id="tapSelfBtn">🎯 自摸</button>
           <button type="button" class="btn btn-outline" id="tapDiscardBtn">💥 放槍</button>
+          <button type="button" class="btn btn-outline" id="tapFalseWinBtn">🙅 詐胡</button>
         </div>
         <p class="hint-text" id="tapInputHint" style="display:none;"></p>
         <div class="gesture-grid" id="gestureGrid"></div>
 
         <!-- 「記錄胡的牌」放在豹子／台數上面，引導先記牌面再算台數，但
              不強制——這塊收起來（或根本不選）一樣能正常確認記錄。 -->
-        <div class="toggle-row" style="margin-top:14px;">
+        <div class="toggle-row" id="tilesToggleRow" style="margin-top:14px;">
           <button type="button" class="btn btn-outline" id="tilesToggleBtn">🀄 記錄胡的牌</button>
         </div>
         <div id="tilesPickerBlock" style="display:none; margin-top:8px;">
@@ -659,7 +665,7 @@
           <p class="hint-text">胡牌的牌只會有一張，點一張牌記錄，點別的牌會換成那張；要取消選取請按上面的「清空」，點同一張不會取消（避免多裝置同時點到同一張時互相取消對方選好的牌）。這只是記錄用，不會影響台數或金額計算。</p>
         </div>
 
-        <div class="toggle-row" style="margin-top:10px;">
+        <div class="toggle-row" id="leopardToggleRow" style="margin-top:10px;">
           <button type="button" class="btn btn-outline" id="leopardBtn">🐆 豹子</button>
         </div>
         <div class="stepper-row" id="leopardInputs" style="display:none; margin-top:8px;">
@@ -693,22 +699,25 @@
         <!-- 台數選擇放在豹子／流局／記錄胡的牌下面，這樣點台型標籤讓這
              區塊變高（選到長名字的台型換行、或選了很多種）時，不會把
              上面那幾顆常用按鈕的位置往下擠，點起來比較穩定。 -->
-        <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
-        <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。台型分成「常用／字牌／牌型結構／聽牌／特殊」幾組方便找，也可以直接打字篩選。</p>
-        <input type="text" id="taiFilterInput" placeholder="🔍 搜尋台型（例如：清一色）" style="margin-bottom:8px;">
-        <div id="taiTagGroups"></div>
+        <div id="taiTagSection">
+          <div class="section-label" style="margin-top:14px;">台數・共 <b id="taiTotalText">0</b> 台 <button type="button" class="link-btn" id="taiSortToggleBtn" style="margin-left:auto;">排序：台數小到大</button></div>
+          <p class="hint-text">點選台型會自動加總，也可以用下面的「其他台」手動加減沒列出來的台數。中、發、白跟自風、圈風都分開列成單獨的台型，同一手中好幾種就分別點選，會自動加總不會漏算。台型分成「常用／字牌／牌型結構／聽牌／特殊」幾組方便找，也可以直接打字篩選。</p>
+          <input type="text" id="taiFilterInput" placeholder="🔍 搜尋台型（例如：清一色）" style="margin-bottom:8px;">
+          <div id="taiTagGroups"></div>
+        </div>
         <div class="stepper-row">
           <div class="stepper">
             <button type="button" id="taiMinus">－</button>
             <div class="val" id="taiVal">0<small>其他台</small></div>
             <button type="button" id="taiPlus">＋</button>
           </div>
-          <div class="stepper">
+          <div class="stepper" id="huaStepperWrap">
             <button type="button" id="huaMinus">－</button>
             <div class="val" id="huaVal">0<small>花牌</small></div>
             <button type="button" id="huaPlus">＋</button>
           </div>
         </div>
+        <p class="hint-text" id="falseWinHint" style="display:none;">🙅 詐胡＝明明沒真的胡牌卻喊「胡」，不算贏牌，不計入胡牌／自摸／放槍次數統計。這裡的「詐胡罰台」純粹決定要賠多少錢，金額照正常公式算（底+罰台×每台），確認記錄之後詐胡的人要直接賠這個金額給其他三家；莊家自己詐胡要直接下莊換人，不是莊家詐胡的話莊家繼續連莊。</p>
 
         <div id="pendingPreview" class="pending-preview" style="display:none;">
           <div class="section-label" style="margin-top:0;">👆 本手預覽（還沒記上，確認後才算）</div>
@@ -1063,12 +1072,13 @@
       <li><b>覺得手勢不好操作？</b>本局卡片上方「🖱️ 改用點選」可以切成點選模式：自摸就按「🎯 自摸」再點那個人；放槍按「💥 放槍」，先點誰胡牌、再點誰放槍（點到同一個人可以取消重選）。兩種輸入方式都在，手勢（長按拖曳、連點三下）隨時都還能用，點選只是另一種按法；選用哪種記在這台裝置上，不用每次重開都重選。</li>
       <li><b>換莊家</b>：點卡片上的門風文字（東南西北），可以直接手動改成該局莊家，通常用在點錯要更正的時候。</li>
       <li><b>流局</b>：沒人胡牌時按「流局」，莊家直接連莊，不用手動調台數，按下去會有提示確認已經記上；如果這手結束前已經先按好骰規、豹子之類的台型準備要記，流局的時候會一起清掉，不會留到下一手。</li>
+      <li><b>詐胡</b>：明明沒真的胡牌卻喊「胡」，不算真的贏牌，要賠三家，不計入胡牌／自摸／放槍次數統計。觸發方式跟自摸一樣在卡片上做手勢，但改成長按（不是連點三下），避免跟自摸搞混；點選模式則是按「🙅 詐胡」再點那個人。觸發之後，原本「其他台」會變成「詐胡罰台」，輸入要罰幾台，金額照正常公式算（底+罰台×每台），確認記錄之後詐胡的人要直接賠這個金額給其他三家。莊家自己詐胡要直接下莊換人；不是莊家詐胡的話莊家繼續連莊。這手一樣要按「確認記錄」才會真的記上，不想記可以按「取消」。</li>
       <li><b>八仙過海（花胡）</b>：拿滿8張花牌的額外結算，固定8台，跟底無關。按「🎐 八仙過海」選是誰拿滿花、再選「自摸式」（其他三家都付）或「點胡式」（指定一人付），確認後這手照常繼續摸，不算一手、不影響莊家／連莊；之後誰真的胡牌還是要另外記一手。</li>
       <li>選好放槍還是自摸之後不會馬上記上，會先顯示「本手預覽」讓你調整台數（點台型 chip 自動加總，或用「其他台」±手動加減），按「確認記錄」才會真的存進去；按「取消」可以放棄這手重選，已經點好的台型、記錄胡的牌、花牌、豹子都會一起清掉，不會帶到下一手。這手還沒確認記錄前的狀態（骰出來的點數、點了哪些台型、花牌、記錄的牌）會即時同步到雲端，不同裝置打開同一桌都會看到一模一樣的畫面、也都能接著點，不用等按下「確認記錄」才看得到變化；確認或取消之後，這份暫存狀態也會跟著清掉。</li>
       <li>「自摸莊家台」開關：開著的話，自摸會自動算莊家台／拉莊台，這時候「莊家」「連莊」台型會反灰鎖住（避免手動又點一次重複算）。莊家自己自摸贏，這是贏家多贏的台數，三家一起多付；換成別人自摸打斷莊家連莊，這其實是莊家單獨要多付的錢，不會算進贏家的台數裡，畫面上會分開寫「含拉莊台」跟「莊家多付拉莊台」。放槍的話沒有這個開關，但如果胡牌的人、或是放槍的人剛好是莊家，「莊家」「連莊」台型會自動先幫忙勾好（連莊的話兩個都勾），不用自己再手動點；不想算的話可以自己點掉取消。</li>
       <li>中、發、白跟自風、圈風都拆成各自獨立的台型，同一手如果中了不只一種（例如中跟發都碰到、或自風跟圈風剛好都命中），把對應的每個都點下去就會自動加總，不用擔心只能算一種。自風、圈風這兩個按鈕會直接顯示實際是哪個風（例如「自風(南)」「圈風(東)」），不用自己換算；圈風預設東風圈，而且會自動輪：莊家真的輪完一圈（不算連莊）、繞回這將一開始的第一位莊家時，圈風會自動跳下一個（東→南→西→北→中→發→白，跳到白之後不會再自動跳，固定住）；想自己手動改，可以到「本局」畫面點「🀄 圈風」直接選，手動改只會改這個標籤，不會影響莊家或連莊，莊家還是照原本的輪替繼續，之後輪完一圈也還是會接著從手動改的那個風繼續自動跳下去；按「再開一將」（就算延續座位）則是重新開始一圈，莊家跟圈風都會重設回東家、東風，不會把上一將結束時已經跳到的圈風帶過來。花牌則因為同一手可能不只一張（最多2張），改用專門的「花牌」加減鈕記錄實際張數，張數要自己點+/-記，不會自動幫你帶入；加減鈕旁邊會順便顯示這手自風對應的號碼（自風東=1花、南=2花、西=3花、北=4花）純粹給你對照用。記上去之後，台型會顯示成「4花+2」這種「自風對應號碼花+對應台數」的寫法——前面的號碼是這手自風算出來的，不是張數；後面的台數才是照張數算出來的（2張就是+2）。</li>
       <li><b>自風怎麼算</b>：自風不是看座位固定的門風，是照「開門」算的——骰骰子（或自己輸入點數）骰出來的點數，從莊家開始、逆時針數到第幾個人就是開門，開門那位這手就變成「虛擬東」，自風照這個重新算（開門自己是自風東，往下接著南西北）。骰的結果只對「這一手」有效，畫面會順便顯示「開門：某某」；這手一記上去（或流局、換莊家、開新的一將）就會失效，下一手要重新骰過才有新的開門，不然自風會先退回用固定座位當預設。圈風不受開門影響，照本局設定的圈風算，兩者沒關係。</li>
-      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手；如果是台型/贏家/放槍者/記錄的牌點錯，按「✏️ 編輯上一筆」（或單場紀錄裡每一手下面的「✏️ 編輯這一手」，任何一手都可以點，不限最新那手）更快——會把原本點好的內容（贏家、方法、台數、台型標籤、記錄的牌、骰過的點數跟開門）重新載回記錄表單，不用重新骰骰子，調整好直接按「確認記錄」就會改回去，不用整手重點（骰過的點數也會記在這手的紀錄上，單場紀錄裡每一手下面都會看到「🎲 共X點・開門：Y」）。中間其他手也能編輯，但限制是：改完之後「連莊／換莊」的結果要跟原來一樣（例如原本是莊家自摸連莊，改完還是要是連莊；原本是換莊，改完還是要換莊），不能因為這次編輯讓後面每一手的莊家輪替跟著變——這種情況按確認記錄會被擋下來並提示原因，真的要改成這樣的話，請改用「刪除上一筆」一路刪回那一手、調整好之後重新往後補記。補記的總輸贏、流局、一炮多響那組目前還沒有結構化資料可以編輯，點了會提示改用「刪除上一筆」。</li>
+      <li>記錯了可以按「刪除上一筆」，只會刪掉最新那一手；如果是台型/贏家/放槍者/記錄的牌點錯，按「✏️ 編輯上一筆」（或單場紀錄裡每一手下面的「✏️ 編輯這一手」，任何一手都可以點，不限最新那手）更快——會把原本點好的內容（贏家、方法、台數、台型標籤、記錄的牌、骰過的點數跟開門）重新載回記錄表單，不用重新骰骰子，調整好直接按「確認記錄」就會改回去，不用整手重點（骰過的點數也會記在這手的紀錄上，單場紀錄裡每一手下面都會看到「🎲 共X點・開門：Y」）。中間其他手也能編輯，但限制是：改完之後「連莊／換莊」的結果要跟原來一樣（例如原本是莊家自摸連莊，改完還是要是連莊；原本是換莊，改完還是要換莊），不能因為這次編輯讓後面每一手的莊家輪替跟著變——這種情況按確認記錄會被擋下來並提示原因，真的要改成這樣的話，請改用「刪除上一筆」一路刪回那一手、調整好之後重新往後補記。補記的總輸贏、流局、詐胡、一炮多響那組目前還沒有結構化資料可以編輯，點了會提示改用「刪除上一筆」。</li>
       <li><b>🎲 骰骰子</b>：按「骰骰子」會用網站隨機骰三顆給你看，含豹子判斷（三顆一樣）。如果是拿真的骰子骰、只是想把點數記下來，下面預設就會顯示3~10、11~18兩排數字按鈕（也可以按旁邊的「✏️ 自己輸入」收起/展開），點一個就直接套用那個總點數，不用打字；因為只知道總點數沒辦法判斷是不是豹子，這個入口就只顯示總點數。兩種按法骰出來的總點數都會拿去算這手的開門（見下面自風說明）。</li>
       <li><b>🀄 記錄胡的牌</b>：展開之後的牌，照萬／筒／條／字牌分組分行列出來，不會被螢幕寬度打亂、同一門花色拆到兩行，找牌比較快。</li>
     </ul>
@@ -1538,8 +1548,14 @@
       return;
     }
     var last = set.hands[set.hands.length-1];
-    // 流局（no winner）: dealer always stays and 連莊 continues, same as a dealer win
-    if(last.method === "draw" || last.winnerName === last.dealerName){
+    // 流局（no winner）: dealer always stays and 連莊 continues, same as a dealer win.
+    // 詐胡不是真的胡牌，連莊/換莊照詐胡的人是不是莊家本人判斷：詐胡的人
+    // 不是莊家，莊家繼續連莊（跟流局一樣）；莊家自己詐胡，直接下莊換人
+    // （跟莊家自己沒贏、閒家贏走一樣要換莊）。
+    var dealerContinues = last.method === "falsewin"
+      ? last.falseWinnerName !== last.dealerName
+      : (last.method === "draw" || last.winnerName === last.dealerName);
+    if(dealerContinues){
       var di = set.seatOrder.indexOf(last.dealerName);
       set.dealerIndex = di===-1?0:di;
       set.streak = last.streak + 1;
@@ -3889,6 +3905,57 @@
     };
   }
 
+  // 詐胡：明明沒真的胡牌卻喊「胡」，不是真的贏牌，純粹是賠錢的罰則——
+  // declarerName（喊詐胡的那位）要賠給其他三家，不是贏錢。沒有莊家台／
+  // 拉莊台／豹子這些加成（那些都是「真的胡牌」才有的加成），單純照
+  // 輸入的罰台數算：金額＝底＋罰台×每台，跟自摸的金額公式一樣，只是
+  // 方向反過來（declarerName 付錢，其他三家收錢）。
+  function buildFalseWinRecord(game, set, declarerName, taiInput){
+    var dealerName = effectiveDealerNameFor(set);
+    var amount = game.base + taiInput * game.tai;
+    var deltas = {};
+    set.seatOrder.forEach(function(n){ deltas[n] = 0; });
+    var others = set.seatOrder.filter(function(n){ return n !== declarerName; });
+    others.forEach(function(n){ deltas[n] += amount; });
+    deltas[declarerName] = -amount * others.length;
+    return {
+      dealerName: dealerName, streak: effectiveStreakFor(set),
+      winnerName: null, method: "falsewin", loserName: null,
+      falseWinnerName: declarerName,
+      tai: taiInput, dealerBonusTai: 0, effectiveTai: taiInput,
+      leopard: null, amount: amount, deltas: deltas, tags: [],
+      seatOrderAtHand: set.seatOrder.slice(),
+      roundWind: effectiveRoundWindFor(game, set),
+      ts: Date.now()
+    };
+  }
+  // 詐胡不像自摸/放槍需要骰出來的開門算自風（沒有任何台型用得到），跟
+  // 流局/八仙過海一樣不要求先骰骰子——卡在那邊反而讓長按/點選的詐胡
+  // 手勢沒辦法馬上用。
+  function commitFalseWin(declarerName, taiInput){
+    var game = activeGame(); if(!game) return;
+    var set = activeSet(game); if(!set) return;
+    if(blockIfLockedByOther(game)) return;
+    var record = buildFalseWinRecord(game, set, declarerName, taiInput);
+    function applyRecord(ns, ng){
+      ns.hands.push(record);
+      syncDealerFromHands(ns, ng);
+      ns.pending = null;
+    }
+    var newState = deepClone(state);
+    var ng = newState.games.filter(function(g){ return g.id === game.id; })[0];
+    var ns = ng.sets.filter(function(s){ return s.id === set.id; })[0];
+    applyRecord(ns, ng);
+    cancelPendingSyncTimer();
+    lastPendingSyncJSON = JSON.stringify(null);
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.pendingHand = null; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    resetDoorSeat();
+    applyLocally(newState);
+    commitHandRecordTransaction(game.id, set.id, applyRecord);
+    showToast("✅ 已記錄詐胡！"+(declarerName === record.dealerName ? "莊家下莊，換下一位。" : "莊家繼續連莊。"));
+    scrollToDiceRow();
+  }
+
   function commitDraw(){
     var game = activeGame(); if(!game) return;
     var set = activeSet(game); if(!set) return;
@@ -3943,6 +4010,10 @@
   });
   document.getElementById("tapDiscardBtn").addEventListener("click", function(){
     ui.tapPending = { type: "discard", winner: null };
+    renderGameTab();
+  });
+  document.getElementById("tapFalseWinBtn").addEventListener("click", function(){
+    ui.tapPending = { type: "falsewin" };
     renderGameTab();
   });
 
@@ -4123,6 +4194,19 @@
     ensureTilesPickerVisible();
     flashCard(name, "flash-win");
   }
+  // 詐胡：長按（或點選模式按「🙅 詐胡」）某張卡片，把那位標成「喊詐胡
+  // 的人」。不是真的胡牌，不用先骰骰子（沒有自風相關的台型用得到），
+  // 也不帶任何台型／花牌／豹子——借用畫面上原本「其他台」那顆加減鈕
+  // 當作「詐胡罰台」輸入（見 isFalseWinPending/renderTaiVal），確認記錄
+  // 時才照這個罰台數算金額（buildFalseWinRecord）。
+  function recordFalseWinGesture(name){
+    if(blockIfLockedByOther(activeGame())) return;
+    ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.leopard = { enabled: false, multiplier: 2 }; ui.tilesPickerOpen = false; ui.winningTiles = {};
+    ui.pendingHand = { method: "falsewin", declarerName: name };
+    renderGameTab();
+    scrollToTaiTagSection(); // 借用「其他台」的位置輸入詐胡罰台，一樣捲過去看得到
+    flashCard(name, "flash-falsewin");
+  }
   // 一炮多響：放槍手勢先跟原本一樣只記一位胡牌者，之後可以在預覽畫面
   // 點其他人的卡片加入更多胡牌者（見 addWinnerToPendingHand）。每位
   // 胡牌者自己的台數/標籤/花牌/豹子/記錄的牌都各自存放在 winners[] 裡，
@@ -4221,8 +4305,9 @@
     if(blockIfSuitsMissing(game)) return;
     // 自風要靠這手骰出來的開門算，沒骰過（doorSeat是null）就擋下來不能
     // 確認記錄，不然自風只能先用固定座位頂著、容易記錯。順便捲動到骰
-    // 骰子的地方，讓人一眼看到要去哪裡輸入，不用自己到處找。
-    if(!ui.doorSeat){
+    // 骰子的地方，讓人一眼看到要去哪裡輸入，不用自己到處找。詐胡不是
+    // 真的胡牌，沒有任何台型用得到自風，不用先骰過骰子。
+    if(p.method !== "falsewin" && !ui.doorSeat){
       showToast("這手還沒骰骰子，請先骰骰子或輸入點數才能確認記錄。");
       var diceRow = document.querySelector(".dice-row");
       if(diceRow) diceRow.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -4244,6 +4329,10 @@
       var loserName = p.loserName, winners = p.winners, intercepted = p.intercepted;
       ui.pendingHand = null;
       commitMultiWinnerHand(loserName, winners, intercepted);
+    }else if(p.method === "falsewin"){
+      var declarerName = p.declarerName, falseWinTai = ui.tai;
+      ui.pendingHand = null;
+      commitFalseWin(declarerName, falseWinTai);
     }else{
       ui.pendingHand = null;
       commitHand(p.winnerName, p.method, p.loserName);
@@ -4320,6 +4409,11 @@
     if(p.type === "self"){
       ui.tapPending = null;
       recordSelfDrawGesture(name);
+      return;
+    }
+    if(p.type === "falsewin"){
+      ui.tapPending = null;
+      recordFalseWinGesture(name);
       return;
     }
     if(!p.winner){
@@ -4401,12 +4495,29 @@
   var DRAG_THRESHOLD = 24;
   var TAP_WINDOW = 700;
   var tapState = {}; // name -> [timestamps]
+  // 長按＝詐胡，跟拖曳放槍／連點三下自摸共用同一次按壓，所以用計時器
+  // 判斷：按著不放超過這個時間、而且沒有移動（沒有在拖）就算長按。
+  var LONG_PRESS_MS = 550;
 
   function attachCardGestures(cardEl, playerName){
     var drag = null;
+    var longPressTimer = null;
+    function clearLongPressTimer(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+    }
     cardEl.addEventListener("pointerdown", function(e){
-      drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId };
+      drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId, longPress: false };
       try{ cardEl.setPointerCapture(e.pointerId); }catch(err){}
+      // 點選模式改用「🙅 詐胡」按鈕武裝，不認長按；換位模式長按也不該
+      // 誤觸詐胡，維持單純點兩張卡片互換位置的操作。
+      if(ui.inputMode !== "tap" && !ui.swapMode){
+        longPressTimer = setTimeout(function(){
+          if(!drag || drag.pointerId !== e.pointerId || drag.moved) return;
+          if(ui.inputMode === "tap" || ui.swapMode) return;
+          drag.longPress = true;
+          recordFalseWinGesture(playerName);
+        }, LONG_PRESS_MS);
+      }
     });
     cardEl.addEventListener("pointermove", function(e){
       if(!drag || drag.pointerId !== e.pointerId) return;
@@ -4418,6 +4529,7 @@
       var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
       if(!drag.moved && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD){
         drag.moved = true;
+        clearLongPressTimer(); // 真的在拖曳了，不該再被長按判成詐胡
         cardEl.classList.add("dragging");
       }
       if(drag.moved){
@@ -4429,6 +4541,8 @@
     });
     cardEl.addEventListener("pointerup", function(e){
       if(!drag || drag.pointerId !== e.pointerId) return;
+      clearLongPressTimer();
+      if(drag.longPress){ drag = null; return; } // 長按已經先觸發詐胡了，放手這一下不用再當拖曳/點按處理
       var moved = drag.moved;
       var startClientX = e.clientX, startClientY = e.clientY;
       cardEl.classList.remove("dragging");
@@ -4461,6 +4575,7 @@
       }
     });
     cardEl.addEventListener("pointercancel", function(){
+      clearLongPressTimer();
       drag = null;
       cardEl.classList.remove("dragging");
       cardEl.style.transform = "";
@@ -4492,8 +4607,23 @@
     for(var i=0;i<els.length;i++){ els[i].classList.remove("drop-hover"); }
   }
 
+  // 詐胡沒有台型/花牌/豹子（不是真的胡牌，這些都不適用），借用畫面上
+  // 原本「其他台」那顆加減鈕當「詐胡罰台」輸入，順便把其他這些區塊都
+  // 收起來，不要讓畫面看起來好像詐胡也能選台型。
+  function isFalseWinPending(){
+    return !!(ui.pendingHand && ui.pendingHand.method === "falsewin");
+  }
+  function renderFalseWinModeUi(){
+    var fw = isFalseWinPending();
+    document.getElementById("tilesToggleRow").style.display = fw ? "none" : "flex";
+    document.getElementById("leopardToggleRow").style.display = fw ? "none" : "flex";
+    document.getElementById("taiTagSection").style.display = fw ? "none" : "block";
+    document.getElementById("huaStepperWrap").style.display = fw ? "none" : "flex";
+    document.getElementById("falseWinHint").style.display = fw ? "block" : "none";
+  }
   function renderTaiVal(){
-    document.getElementById("taiVal").innerHTML = ui.tai + "<small>其他台</small>";
+    var label = isFalseWinPending() ? "詐胡罰台" : "其他台";
+    document.getElementById("taiVal").innerHTML = ui.tai + "<small>"+label+"</small>";
     document.getElementById("taiTotalText").textContent = computeTotalTai();
   }
   function renderHuaVal(){
@@ -5082,6 +5212,7 @@
     var h = set.hands[idx];
     if(h.method === "manual"){ showToast("補記的總輸贏沒有結構化的台型可以編輯，用「刪除上一筆」重新補記就可以。"); return; }
     if(h.method === "draw"){ showToast("流局沒有可以編輯的內容，用「刪除上一筆」就能重記。"); return; }
+    if(h.method === "falsewin"){ showToast("詐胡沒有可以編輯的台型內容，用「刪除上一筆」就能重記。"); return; }
     if(h.multiWinMates && h.multiWinMates.length > 1){ showToast("一炮多響那組目前還不能直接編輯，請用「刪除上一筆」整組刪掉重記。"); return; }
     var isLast = (idx === set.hands.length - 1);
     var confirmMsg = isLast
@@ -5565,6 +5696,16 @@
       var resultRow = '<div class="log-result-row log-result-draw">流局（沒人胡牌）</div>';
       headLine = metaRow + resultRow;
       detail = '不換錢，莊家連莊。';
+    }else if(h.method === "falsewin"){
+      var metaRowF2 = '<div class="log-meta-row">'+editIconBtn+handBadge+dealerChip+'<span class="log-tai-chip">'+h.tai+'台</span></div>';
+      var resultRowF2 = '<div class="log-result-row log-result-falsewin"><span class="falsewin-name">'+escapeHtml(h.falseWinnerName)+'</span> 詐胡（不是真的胡牌）</div>';
+      headLine = metaRowF2 + resultRowF2;
+      var partsF2 = [];
+      Object.keys(h.deltas).forEach(function(n){
+        if(n === h.falseWinnerName) return;
+        partsF2.push(escapeHtml(n)+' <span class="plus">+'+h.deltas[n]+'</span>');
+      });
+      detail = escapeHtml(h.falseWinnerName) + ' <span class="minus">'+h.deltas[h.falseWinnerName]+'</span> → ' + partsF2.join('、');
     }else{
       if(h.method === "discard"){
         detail = escapeHtml(h.loserName) + ' <span class="minus">-'+h.amount+'</span> → ' +
@@ -5595,7 +5736,9 @@
     }
     var interceptedLine = (h.intercepted && h.intercepted.length) ?
       ('<div class="log-detail">🚫 攔胡（沒拿到錢）：'+h.intercepted.map(escapeHtml).join('、')+'</div>') : '';
-    return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine + interceptedLine;
+    var falsewinNoteLine = (h.method === "falsewin") ?
+      ('<div class="log-detail" style="opacity:.7;">詐胡不算真的胡牌，不列入胡牌/自摸/放槍統計；'+(h.falseWinnerName === h.dealerName ? '莊家詐胡，直接下莊換人。' : '莊家繼續連莊。')+'</div>') : '';
+    return '<div class="log-head">'+headLine+'</div><div class="log-detail">'+detail+'</div>' + tilesLine + interceptedLine + falsewinNoteLine;
   }
   // 八仙過海（花胡）是額外結算，不算一手、不編號，跟逐手紀錄用同一套
   // log-item 排版，但在「本手」清單裡用時間排序插進正確的位置，而不是
@@ -5971,6 +6114,23 @@
           '<div class="log-head">'+headLine+'</div>' + winnerLines + interceptedLine;
       }
       renderMultiWinnerBlock(p, game);
+    }else if(p.method === "falsewin"){
+      // 詐胡不是真的胡牌，沒有台型/台數加總可以拆解，單純顯示「喊詐胡的
+      // 人要賠多少給其他三家」，跟自摸的預覽排版同一套（只是方向反過來）。
+      var recordF = buildFalseWinRecord(game, set, p.declarerName, ui.tai);
+      var partsF = [];
+      set.seatOrder.forEach(function(n){
+        if(n === p.declarerName) return;
+        partsF.push(escapeHtml(n) + ' <span class="plus">+'+recordF.deltas[n]+'</span>');
+      });
+      var detailF = escapeHtml(p.declarerName) + ' <span class="minus">'+recordF.deltas[p.declarerName]+'</span> → ' + partsF.join('、');
+      var metaRowF = '<div class="log-meta-row"><span class="log-tai-chip">'+recordF.tai+'台</span></div>';
+      var headLineF = metaRowF + '<div class="log-result-row log-result-falsewin"><span class="falsewin-name">'+escapeHtml(p.declarerName)+'</span> 詐胡（不是真的胡牌，要賠三家）</div>';
+      var dealerNoteF = (p.declarerName === recordF.dealerName) ? '莊家詐胡，這手之後要下莊換人。' : '莊家繼續連莊。';
+      document.getElementById("pendingPreviewDetail").innerHTML =
+        '<div class="log-head">'+headLineF+'</div><div class="log-detail">'+detailF+'</div>' +
+        '<div class="log-detail" style="opacity:.7;">'+dealerNoteF+'</div>';
+      renderMultiWinnerBlock(null, game);
     }else{
       var record = buildHandRecord(game, set, p.winnerName, p.method, p.loserName, computeTotalTai(), taiTagLabels(p.winnerName), ui.leopard);
       var parts = [];
@@ -6048,6 +6208,7 @@
 
     renderDuties(game);
     renderSuits(game);
+    renderFalseWinModeUi();
     renderTaiVal();
     renderHuaVal();
     renderLeopardUi(game);
@@ -6076,10 +6237,15 @@
       var tp = ui.tapPending;
       var tapSelfBtnEl = document.getElementById("tapSelfBtn");
       var tapDiscardBtnEl = document.getElementById("tapDiscardBtn");
+      var tapFalseWinBtnEl = document.getElementById("tapFalseWinBtn");
       tapSelfBtnEl.classList.toggle("selected", !!(tp && tp.type === "self"));
       tapDiscardBtnEl.classList.toggle("selected", !!(tp && tp.type === "discard"));
+      tapFalseWinBtnEl.classList.toggle("selected", !!(tp && tp.type === "falsewin"));
       if(tp && tp.type === "self"){
         tapHint.textContent = "點任何一位的卡片，記他自摸。";
+        tapHint.style.display = "block";
+      }else if(tp && tp.type === "falsewin"){
+        tapHint.textContent = "點任何一位的卡片，記他詐胡（不是真的胡牌，要賠三家）。";
         tapHint.style.display = "block";
       }else if(tp && tp.type === "discard" && !tp.winner){
         tapHint.textContent = "先點誰胡牌。";
@@ -6106,11 +6272,15 @@
       var card = document.createElement("div");
       var cardCls = "gesture-card " + slotOf[name] + (ui.swapMode && ui.swapSelected===name ? " seat-row-selected" : "");
       if(pending){
-        var isPendingWinner = pending.method === "discard"
-          ? pending.winners.some(function(w){ return w.name === name; })
-          : pending.winnerName === name;
-        if(isPendingWinner) cardCls += " pending-winner";
-        if(pending.loserName === name) cardCls += " pending-loser";
+        if(pending.method === "falsewin"){
+          if(pending.declarerName === name) cardCls += " pending-falsewin";
+        }else{
+          var isPendingWinner = pending.method === "discard"
+            ? pending.winners.some(function(w){ return w.name === name; })
+            : pending.winnerName === name;
+          if(isPendingWinner) cardCls += " pending-winner";
+          if(pending.loserName === name) cardCls += " pending-loser";
+        }
       }
       if(ui.inputMode === "tap" && ui.tapPending && ui.tapPending.type === "discard" && ui.tapPending.winner === name){
         cardCls += " pending-winner";
@@ -6935,6 +7105,9 @@
         if(h.dealerName === targetName){ dealerNet+=myDelta; dealerHands++; }
         else{ nonDealerNet+=myDelta; nonDealerHands++; }
         if(h.method === "draw"){ drawCount++; return; }
+        // 詐胡不是真的胡牌，金額/手數已經在上面算過了，這裡不列入胡牌率／
+        // 放槍率／流局率等等的分子，也不會跑進下面自摸/放槍的細節統計。
+        if(h.method === "falsewin") return;
         if(h.intercepted && h.intercepted.indexOf(targetName) !== -1) gotInterceptedCount++;
         if(h.winnerName === targetName){
           if(h.method === "self"){ selfWinCount++; selfWinAmt+=myDelta; }
@@ -7220,6 +7393,9 @@
           }
         }
         if(h.method === "draw") return;
+        // 詐胡不是真的胡牌，netAmt/hands/dealerHands已經在上面算過了，
+        // 不要再往下跑進自摸/放槍/攔胡/天胡地胡這些只有真胡牌才有的統計。
+        if(h.method === "falsewin") return;
         var breakdown = handTaiBreakdownText(h);
         if(h.method === "discard"){
           addPair(h.loserName, h.winnerName, h.amount, gamePairwise);
