@@ -5558,7 +5558,12 @@
     renderTaiTags();
     renderHuaVal();
     renderLeopardUi(game);
-    scrollToGestureGrid();
+    // 這裡故意不自動捲到選贏家的手勢區：真的骰骰子（網站隨機骰）的話，
+    // 使用者要先看清楚畫面上骰出來的點數是多少，捲走反而讓人找不到剛
+    // 骰出來的結果；手動輸入點數的情境，人是真的拿著實體骰子骰，點數
+    // 早就知道了（畫面上的數字只是順便記錄，不是靠這個才知道骰出
+    // 什麼），捲到記錄一手不會有問題，那段捲動留在addManualDiceValue
+    // 自己的呼叫端做，不要兩個入口共用這裡統一捲。
   }
   document.getElementById("diceRollBtn").addEventListener("click", function(){
     if(diceRolling) return;
@@ -5627,6 +5632,11 @@
       // 情境；手動輸入完直接收起來反而不方便——可能想繼續用手動輸入記
       // 下一手、或是想確認一下剛剛點的三顆點數對不對，收起來還要重新點
       // 「自己輸入」才能再打開。
+      // 手動輸入點完三顆才捲到選贏家的手勢區：這是真的拿實體骰子骰的
+      // 情境，點數早就知道了，不用靠畫面上顯示的數字，捲過去直接接著
+      // 記這一手沒問題——跟網站隨機骰（diceRollBtn那邊）不一樣，那邊
+      // 要留在原地讓人看清楚剛骰出來的點數，不會自動捲走。
+      scrollToGestureGrid();
       return;
     }
     renderManualDiceInputUi();
