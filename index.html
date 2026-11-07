@@ -4783,12 +4783,15 @@
     if(tag.key === "shaigui" && !ui.diceSequential){
       return "骰子沒有骰到順子（連續三個點數），不能選這個台型。";
     }
+    // 平胡本身跟「莊家/連莊」一樣，骰規（骰到順子）也不算進「其他台型」
+    // 裡——骰規是骰出來的，不是胡牌內容本身的加成，跟平胡（沒有任何台型
+    // 加成的胡法）不衝突，所以兩邊判斷都要排除shaigui。
     var pinghuOn = pinghuSelected();
-    if(pinghuOn && tag.key !== "pinghu" && !isDealerTagKey(tag.key)){
-      return "平胡本身是沒有任何台型加成的胡法（莊家/連莊台不算），不能跟其他台型一起選；要選別的台型，請先取消「平胡」。";
+    if(pinghuOn && tag.key !== "pinghu" && tag.key !== "shaigui" && !isDealerTagKey(tag.key)){
+      return "平胡本身是沒有任何台型加成的胡法（莊家/連莊台、骰規不算），不能跟其他台型一起選；要選別的台型，請先取消「平胡」。";
     }
     if(!pinghuOn && tag.key === "pinghu"){
-      var hasOtherContent = ui.huaCount > 0 || ui.taiTags.some(function(k){ return !isDealerTagKey(k); });
+      var hasOtherContent = ui.huaCount > 0 || ui.taiTags.some(function(k){ return !isDealerTagKey(k) && k !== "shaigui"; });
       if(hasOtherContent) return "已經選了其他台型或花牌，不是平胡了；要選平胡的話，請先取消其他台型跟花牌。";
     }
     return null;
@@ -4865,11 +4868,11 @@
       return "這手骰子沒有骰到順子（連續三個點數），不能選這個台型。";
     }
     var pinghuOn = selectedKeys.indexOf("pinghu") !== -1;
-    if(pinghuOn && tag.key !== "pinghu" && !isDealerTagKey(tag.key)){
-      return "平胡本身是沒有任何台型加成的胡法（莊家/連莊台不算），不能跟其他台型一起選；要選別的台型，請先取消「平胡」。";
+    if(pinghuOn && tag.key !== "pinghu" && tag.key !== "shaigui" && !isDealerTagKey(tag.key)){
+      return "平胡本身是沒有任何台型加成的胡法（莊家/連莊台、骰規不算），不能跟其他台型一起選；要選別的台型，請先取消「平胡」。";
     }
     if(!pinghuOn && tag.key === "pinghu"){
-      var hasOtherContent = huaCount > 0 || selectedKeys.some(function(k){ return !isDealerTagKey(k); });
+      var hasOtherContent = huaCount > 0 || selectedKeys.some(function(k){ return !isDealerTagKey(k) && k !== "shaigui"; });
       if(hasOtherContent) return "已經選了其他台型或花牌，不是平胡了；要選平胡的話，請先取消其他台型跟花牌。";
     }
     return null;
@@ -5503,14 +5506,16 @@
   // 自動幫忙勾上「骰規」台型——跟莊家/連莊自動加一樣，使用者還是可以
   // 自己點掉取消。自己輸入點數現在也改成一樣要點三顆各自的點數（見
   // diceInputPanel），不再只填總點數，所以這裡的判斷兩種入口都適用。
-  // 平胡已經選的話不自動加——平胡不能跟其他台型一起選，見tagDisableReason。
+  // 骰規是骰出來的（不是胡牌內容本身的加成），跟平胡（沒有任何台型
+  // 加成的胡法）不衝突，平胡已經選的話一樣要自動加骰規，見tagDisableReason
+  // 裡骰規排除在「其他台型」之外的判斷。
   // ui.diceSequential 記這次骰的是不是順子，不是順子的話「骰規」要反灰
   // 選不起來（見tagDisableReason），不是只有不自動加而已。
   function autoApplyShaiguiIfSequential(values){
     var sorted = values.slice().sort(function(a,b){ return a-b; });
     var isSequential = (sorted[1] === sorted[0]+1) && (sorted[2] === sorted[1]+1);
     ui.diceSequential = isSequential;
-    if(isSequential && !pinghuSelected() && ui.taiTags.indexOf("shaigui") === -1){
+    if(isSequential && ui.taiTags.indexOf("shaigui") === -1){
       ui.taiTags.push("shaigui");
     }
     if(!isSequential){
