@@ -1058,7 +1058,7 @@
 
     <h3>🎬 今天的分工</h3>
     <ul>
-      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄、拍照都照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。記錄跟播音樂都要用手機，如果這場自動算出來的記錄人選剛好跟播音樂的人是同一位（撞期），記錄會自動改指派給榕——榕不在播音樂的輪值名單裡，一定不會撞。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 記錄／拍照／播音樂輪值校正」直接指定下一次該輪到誰。開局前在表單上手動改指派、或是本局中途用「今天的分工」改掉，輪值的「下一位」都會跟著同步成接在實際指派的人後面（撞期改給榕那一輪也一樣，下次直接接榕之後繼續），不會因為手動改過就跟下一場的自動建議對不起來。</li>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄、拍照都照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。記錄跟播音樂都要用手機，如果這場自動算出來的記錄人選剛好跟播音樂的人是同一位（撞期），記錄會自動改指派給榕——榕不在播音樂的輪值名單裡，一定不會撞。撞期這一輪只是暫時找榕頂替，原本排到的那位沒有被跳過：記錄輪值的「下一位」指標維持不動，下一次還是接著輪到他，不會因為這次撞期就少排一次。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 記錄／拍照／播音樂輪值校正」直接指定下一次該輪到誰。開局前在表單上手動改指派、或是本局中途用「今天的分工」改掉，輪值的「下一位」都會跟著同步成接在實際指派的人後面，不會因為手動改過就跟下一場的自動建議對不起來。</li>
       <li>記錄、拍照、播音樂的輪值都只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派記錄、拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。點「收起」可以把這塊收起來省畫面空間，收起的狀態會記在這台裝置上，重新整理或重開都還是收著，不用每次都要再收一次。</li>
       <li>播音樂、拍照算整個空間共用的工作，候選名單會列出所有進行中牌桌的人：但只有最早開的那桌（桌1）能實際點選指派，其他桌只能跟著顯示桌1目前選的人、按鈕反灰點不動，避免兩支手機同時搶著改同一個欄位互相蓋過去。記錄則是每桌各自獨立，只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
@@ -3207,7 +3207,8 @@
       // 的輪值往下排。如果算出來的記錄候選人剛好跟這場實際的播音樂是
       // 同一個人（兩邊都要用手機，會撞），直接改指派給榕——榕不在播
       // 音樂輪值名單（MUSIC_ROTATION_NAMES）裡，一定不會跟音樂撞期。
-      var autoRecord = isRotationCore ? ((recordCandidate === effectiveMusic) ? "榕" : recordCandidate) : null;
+      var recordCollides = isRotationCore && recordCandidate === effectiveMusic;
+      var autoRecord = isRotationCore ? (recordCollides ? "榕" : recordCandidate) : null;
       var finalDuties = {
         record: dutyOverrideSnapshot.hasOwnProperty("record") ? dutyOverrideSnapshot.record : autoRecord,
         // primaryActiveDuties 是桌1原始、沒整理過的雲端資料——Firebase 不會
@@ -3225,20 +3226,22 @@
       // 分配的人」繼續輪，不會因為這次手動蓋過就跟實際情況脫節。只有蓋過
       // 的值剛好是輪值名單上的人才會推進；蓋成「不指派」或蓋成輪值名單
       // 外的人，維持原本指標不變（跟代打的人不推進輪值是同一個道理）。
-      // 記錄的指標不受「桌1鏡射」那套影響（每桌各自獨立輪），這裡先不
-      // 推進，底下直接用 advanceDutyRotationTo(finalDuties.record) 一次
-      // 到位——不管這次是正常輪到、撞期改給榕、還是使用者手動蓋過，一律
-      // 同步成「接在實際指派的人後面」，跟撞期給榕那一輪一樣，下一次
-      // 自動建議會從榕之後繼續接，原本排到的那位這輪就直接跳過。
+      // 記錄的指標不受「桌1鏡射」那套影響（每桌各自獨立輪）。撞期改給榕
+      // 的這一輪故意不往前推進——原本排到的那位只是暫時被榕頂替，不是
+      // 真的被跳過，指標留在原地，下一次自動建議還是接著輪到他，不會
+      // 因為這次撞期就被跳過、少排一次（跟代打不推進輪值是同一個道理）。
       var autoRotation = primaryActiveDuties ? rotation : {
         photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
         musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx,
-        recordIdx: rotation.recordIdx
+        recordIdx: (isRotationCore && !recordCollides) ? (rotation.recordIdx + 1) % RECORD_ROTATION_NAMES.length : rotation.recordIdx
       };
       var finalRotation = autoRotation;
       if(dutyOverrideSnapshot.hasOwnProperty("photo")) finalRotation = advanceDutyRotationTo(finalRotation, "photo", dutyOverrideSnapshot.photo);
       if(dutyOverrideSnapshot.hasOwnProperty("music")) finalRotation = advanceDutyRotationTo(finalRotation, "music", dutyOverrideSnapshot.music);
-      finalRotation = advanceDutyRotationTo(finalRotation, "record", finalDuties.record);
+      // 只有使用者真的手動蓋過記錄時才用這個「同步到蓋過的人後面」；
+      // 撞期自動改給榕不算手動蓋過，指標已經在上面決定好了（維持不動），
+      // 不要在這裡又用榕的位置把指標蓋掉。
+      if(dutyOverrideSnapshot.hasOwnProperty("record")) finalRotation = advanceDutyRotationTo(finalRotation, "record", dutyOverrideSnapshot.record);
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
