@@ -888,8 +888,10 @@
       <button class="btn btn-primary btn-block apply-btn" id="applyDefaultsBtn">💾 儲存預設值</button>
     </div>
     <div class="card">
-      <h2>🎬 拍照／播音樂輪值校正</h2>
-      <p class="hint-text">固定順序：拍照 彗→綺→儒→榕→彗…；音樂 綺→儒→彗→綺…（榕不會輪到）。如果實際指派到的人跟這個順序對不起來（例如之前有誤判代打也往前推的情況），可以直接在這裡指定「下一次開局」拍照／音樂該輪到誰，之後就會從指定的這位繼續往下接。</p>
+      <h2>🎬 記錄／拍照／播音樂輪值校正</h2>
+      <p class="hint-text">固定順序：記錄、拍照都是 彗→綺→儒→榕→彗…；音樂是 綺→儒→彗→綺…（榕不會輪到）。記錄如果剛好跟當場播音樂撞期（算出來是同一個人），會自動改指派給榕。如果實際指派到的人跟這個順序對不起來（例如之前有誤判代打也往前推的情況），可以直接在這裡指定「下一次開局」記錄／拍照／音樂該輪到誰，之後就會從指定的這位繼續往下接。</p>
+      <div class="section-label">記錄下一位</div>
+      <div class="chip-row" id="recordRotationChips"></div>
       <div class="section-label">拍照下一位</div>
       <div class="chip-row" id="photoRotationChips"></div>
       <div class="section-label">音樂下一位</div>
@@ -1056,8 +1058,8 @@
 
     <h3>🎬 今天的分工</h3>
     <ul>
-      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄固定都是彗；拍照照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 拍照／播音樂輪值校正」直接指定下一次該輪到誰。開局前在表單上手動改指派、或是本局中途用「今天的分工」改掉，輪值的「下一位」都會跟著同步成接在實際指派的人後面，不會因為手動改過就跟下一場的自動建議對不起來。</li>
-      <li>拍照、播音樂的輪值只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
+      <li>每次按「開局」都會自動指派這場的記錄、播音樂、拍照負責人：記錄、拍照都照固定順序輪流（彗→綺→儒→榕→彗…）；播音樂也照固定順序輪流（綺→儒→彗→綺…，榕不會輪到）。記錄跟播音樂都要用手機，如果這場自動算出來的記錄人選剛好跟播音樂的人是同一位（撞期），記錄會自動改指派給榕——榕不在播音樂的輪值名單裡，一定不會撞。如果實際指派到的人跟這個順序對不起來，可以到「設定」分頁的「🎬 記錄／拍照／播音樂輪值校正」直接指定下一次該輪到誰。開局前在表單上手動改指派、或是本局中途用「今天的分工」改掉，輪值的「下一位」都會跟著同步成接在實際指派的人後面（撞期改給榕那一輪也一樣，下次直接接榕之後繼續），不會因為手動改過就跟下一場的自動建議對不起來。</li>
+      <li>記錄、拍照、播音樂的輪值都只認「彗、綺、儒、榕」這固定四人班底：這場的4位玩家剛好就是這四人（不管誰坐哪、不管順序）才會自動指派、順序才會往前推一格；只要有任何一位換成別人（代打的客人），這場就整個不自動指派記錄、拍照跟播音樂、順序也完全不動，等下次真的是這四人原班再繼續接著輪，不會因為中間混了代打就被打亂或跳過。</li>
       <li>本局卡片下面的「🎬 今天的分工」可以展開手動改指派，點名字指定、再點一次取消。手動改只會影響這一場，不會影響下次開局該輪到誰。點「收起」可以把這塊收起來省畫面空間，收起的狀態會記在這台裝置上，重新整理或重開都還是收著，不用每次都要再收一次。</li>
       <li>播音樂、拍照算整個空間共用的工作，候選名單會列出所有進行中牌桌的人：但只有最早開的那桌（桌1）能實際點選指派，其他桌只能跟著顯示桌1目前選的人、按鈕反灰點不動，避免兩支手機同時搶著改同一個欄位互相蓋過去。記錄則是每桌各自獨立，只能從這桌4人裡面選，畢竟記的是這桌自己的牌。</li>
       <li>如果這場是誤按「開局」或只是測試，用「🗑️ 取消牌局」整場刪掉的話，輪值也會自動退回去，下次開局照樣接著原本該輪到的人，不會多跳一位。</li>
@@ -1153,16 +1155,16 @@
   // 從 Claude Artifact 版本搬過來時的既有牌局資料，只有在 Firebase 資料庫
   // 完全還是空的（專案剛建立、第一次真的有人打開）時才會寫進去當起始值，
   // 之後 Firebase 裡的資料就是唯一真相，不會再用到這份種子。
-  var SEED_STATE = {"roster":[{"id":"r0","name":"彗","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0}};
+  var SEED_STATE = {"roster":[{"id":"r0","name":"彗","favorite":true,"isMe":true},{"id":"r1","name":"綺","favorite":true,"isMe":false},{"id":"r2","name":"儒","favorite":true,"isMe":false},{"id":"r3","name":"榕","favorite":true,"isMe":false}],"venues":["摩羯座","水瓶座","雙魚座","牡羊座","金牛座","雙子座","巨蟹座","獅子座","處女座","天秤座","天蠍座","射手座"],"games":[{"id":"gmthzjsuc84rbu","date":"2026-08-22","time":"10:08","venue":"天秤座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzjsuczykml","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":1130,"綺":-590,"儒":-550,"榕":10},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225933252}],"status":"ended","createdAt":1788225933252,"endedAt":1788225933252}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225933252,"endedAt":1788225933252},{"id":"gmthzl47gjlb7v","date":"2026-08-22","time":"19:27","venue":"獅子座","players":["彗","綺","儒","榕"],"base":0,"tai":0,"selfDrawMode":"full","status":"ended","sets":[{"id":"smthzl47gnyf4j","seatOrder":["彗","綺","儒","榕"],"dealerIndex":0,"streak":0,"hands":[{"dealerName":"彗","streak":0,"winnerName":null,"method":"manual","loserName":null,"tai":0,"dealerBonusTai":0,"effectiveTai":0,"amount":0,"deltas":{"彗":60,"綺":-210,"儒":50,"榕":100},"tags":[],"seatOrderAtHand":["彗","綺","儒","榕"],"ts":1788225994636}],"status":"ended","createdAt":1788225994636,"endedAt":1788225994636}],"duties":{"record":null,"music":null,"photo":null},"manualSetsCount":3,"createdAt":1788225994636,"endedAt":1788225994636}],"activeGameId":null,"defaultBase":30,"defaultTai":10,"dutyRotation":{"photoIdx":0,"musicIdx":0,"recordIdx":0}};
 
   var STORAGE_KEY = "twmj_scorekeeper_v3";
   var DEFAULT_NAMES = ["東","南","西","北"];
-  // 分工預設輪流順序：拍照跟播音樂每次開局都自動指派下一位，記錄固定
-  // 都是彗。仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次
-  // 開局的輪流順序（順序只在按下「開局」的當下才往前推進一格）。
+  // 分工預設輪流順序：記錄、拍照、播音樂每次開局都自動指派下一位。
+  // 仍然可以在「今天的分工」裡手動改，只是改動不會影響下一次開局的
+  // 輪流順序（順序只在按下「開局」的當下才往前推進一格）。
   var PHOTO_ROTATION_NAMES = ["彗","綺","儒","榕"];
   var MUSIC_ROTATION_NAMES = ["綺","儒","彗"];
-  var DEFAULT_RECORD_NAME = "彗";
+  var RECORD_ROTATION_NAMES = ["彗","綺","儒","榕"];
   // 拍照／播音樂的輪值只在固定這四人班底時才有意義——這場的4人如果不是
   // 剛好「彗、綺、儒、榕」這組人（不管順序），就整個不碰輪值：不指派、
   // 順序也不往前推進，等下次真的是這四人原班再繼續接著輪，不會因為中間
@@ -1471,7 +1473,7 @@
       activeGameId: null,
       defaultBase: 100,
       defaultTai: 20,
-      dutyRotation: { photoIdx: 0, musicIdx: 0 },
+      dutyRotation: { photoIdx: 0, musicIdx: 0, recordIdx: 0 },
       drinkPaid: {},
       newGameDraft: null
     };
@@ -1799,7 +1801,8 @@
     var rawRotation = (parsed.dutyRotation && typeof parsed.dutyRotation === "object") ? parsed.dutyRotation : {};
     s.dutyRotation = {
       photoIdx: typeof rawRotation.photoIdx === "number" ? rawRotation.photoIdx : 0,
-      musicIdx: typeof rawRotation.musicIdx === "number" ? rawRotation.musicIdx : 0
+      musicIdx: typeof rawRotation.musicIdx === "number" ? rawRotation.musicIdx : 0,
+      recordIdx: typeof rawRotation.recordIdx === "number" ? rawRotation.recordIdx : 0
     };
     s.drinkPaid = {};
     if(parsed.drinkPaid && typeof parsed.drinkPaid === "object"){
@@ -3149,9 +3152,10 @@
       // 如果輪到的那個人這場沒有來打（來的是代打的客人），這場就不指派、
       // 輪值也不往前推進，這樣他下次真的有來打的時候，還是輪到他，不會
       // 因為這次代打就被跳過、把順序洗掉。
-      var rotation = baseState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      var rotation = baseState.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
       var photoCandidate = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
       var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+      var recordCandidate = RECORD_ROTATION_NAMES[rotation.recordIdx % RECORD_ROTATION_NAMES.length];
       // 只有這場正好是彗/綺/儒/榕四人原班才繼續用輪值——是的話候選人必定
       // 就在這4人裡面（輪值名單本來就只有這四人），不是的話整場都不碰。
       var isRotationCore = isDutyRotationCore(players);
@@ -3192,14 +3196,25 @@
       // 注意輪值本身（下面 ns.dutyRotation 要不要往前推進）完全不受使用者
       // 這裡手動蓋過的影響，還是照「這場正不正好輪到」來推進，不然以後
       // 的自動指派會被這次手動選擇打亂。
+      // 播音樂/拍照是整個空間共用的，先算出這場實際會套用的播音樂人選
+      // （鏡射桌1、或自己輪值算出來的候選人），記錄要用這個「實際」的
+      // 播音樂人選去判斷撞期，不能只看輪值表面上算出來的候選人——鏡射
+      // 桌1的情況，表面候選人跟實際指派的人本來就可能不一樣。
+      var effectiveMusic = dutyOverrideSnapshot.hasOwnProperty("music") ? dutyOverrideSnapshot.music :
+        (primaryActiveDuties ? (primaryActiveDuties.music || null) : (musicPlaying ? musicCandidate : null));
+      // 記錄跟拍照/播音樂不一樣：每桌各自獨立輪（不像拍照/播音樂是整個
+      // 空間共用一位、要鏡射桌1），只要是這四人原班，每桌開局都照自己
+      // 的輪值往下排。如果算出來的記錄候選人剛好跟這場實際的播音樂是
+      // 同一個人（兩邊都要用手機，會撞），直接改指派給榕——榕不在播
+      // 音樂輪值名單（MUSIC_ROTATION_NAMES）裡，一定不會跟音樂撞期。
+      var autoRecord = isRotationCore ? ((recordCandidate === effectiveMusic) ? "榕" : recordCandidate) : null;
       var finalDuties = {
-        record: dutyOverrideSnapshot.hasOwnProperty("record") ? dutyOverrideSnapshot.record : DEFAULT_RECORD_NAME,
+        record: dutyOverrideSnapshot.hasOwnProperty("record") ? dutyOverrideSnapshot.record : autoRecord,
         // primaryActiveDuties 是桌1原始、沒整理過的雲端資料——Firebase 不會
         // 存 null 欄位，桌1的播音樂/拍照如果當時還沒指派人，這裡讀回來會
         // 直接是 undefined（不是 null）。Firebase transaction 不接受回傳的
         // 物件裡有 undefined，一定要轉成 null，不然整個開局會直接失敗。
-        music: dutyOverrideSnapshot.hasOwnProperty("music") ? dutyOverrideSnapshot.music :
-          (primaryActiveDuties ? (primaryActiveDuties.music || null) : (musicPlaying ? musicCandidate : null)),
+        music: effectiveMusic,
         photo: dutyOverrideSnapshot.hasOwnProperty("photo") ? dutyOverrideSnapshot.photo :
           (primaryActiveDuties ? (primaryActiveDuties.photo || null) : (photoPlaying ? photoCandidate : null))
       };
@@ -3210,13 +3225,20 @@
       // 分配的人」繼續輪，不會因為這次手動蓋過就跟實際情況脫節。只有蓋過
       // 的值剛好是輪值名單上的人才會推進；蓋成「不指派」或蓋成輪值名單
       // 外的人，維持原本指標不變（跟代打的人不推進輪值是同一個道理）。
+      // 記錄的指標不受「桌1鏡射」那套影響（每桌各自獨立輪），這裡先不
+      // 推進，底下直接用 advanceDutyRotationTo(finalDuties.record) 一次
+      // 到位——不管這次是正常輪到、撞期改給榕、還是使用者手動蓋過，一律
+      // 同步成「接在實際指派的人後面」，跟撞期給榕那一輪一樣，下一次
+      // 自動建議會從榕之後繼續接，原本排到的那位這輪就直接跳過。
       var autoRotation = primaryActiveDuties ? rotation : {
         photoIdx: photoPlaying ? (rotation.photoIdx + 1) % PHOTO_ROTATION_NAMES.length : rotation.photoIdx,
-        musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx
+        musicIdx: musicPlaying ? (rotation.musicIdx + 1) % MUSIC_ROTATION_NAMES.length : rotation.musicIdx,
+        recordIdx: rotation.recordIdx
       };
       var finalRotation = autoRotation;
       if(dutyOverrideSnapshot.hasOwnProperty("photo")) finalRotation = advanceDutyRotationTo(finalRotation, "photo", dutyOverrideSnapshot.photo);
       if(dutyOverrideSnapshot.hasOwnProperty("music")) finalRotation = advanceDutyRotationTo(finalRotation, "music", dutyOverrideSnapshot.music);
+      finalRotation = advanceDutyRotationTo(finalRotation, "record", finalDuties.record);
       var newGame = {
         id: genId("g"), date: date, time: time, venue: venue, players: players,
         base: baseVal, tai: taiVal, selfDrawMode: selfDrawMode, drinkEnabled: drinkEnabled,
@@ -3225,7 +3247,8 @@
         duties: finalDuties,
         dutyRotationAdvanced: {
           photo: finalRotation.photoIdx !== rotation.photoIdx,
-          music: finalRotation.musicIdx !== rotation.musicIdx
+          music: finalRotation.musicIdx !== rotation.musicIdx,
+          record: finalRotation.recordIdx !== rotation.recordIdx
         },
         createdAt: Date.now(), endedAt: null, suits: carrySuits, carryIn: carryIn,
         // 「今晚累計」顯不顯示，是看「今天有沒有多桌同開」這個即時狀態
@@ -5397,11 +5420,12 @@
       // 只退回這場實際有讓輪值前進的部分（代打那場本來就沒有前進，見
       // buildStartedState），不然客人代打那場如果被取消，會多退一格、
       // 順序又亂了。舊資料沒有這個欄位的話，維持原本「兩個都退」的行為。
-      var advanced = game.dutyRotationAdvanced || { photo: true, music: true };
-      var rot = newState.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      var advanced = game.dutyRotationAdvanced || { photo: true, music: true, record: true };
+      var rot = newState.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
       newState.dutyRotation = {
         photoIdx: advanced.photo ? (rot.photoIdx - 1 + PHOTO_ROTATION_NAMES.length) % PHOTO_ROTATION_NAMES.length : rot.photoIdx,
-        musicIdx: advanced.music ? (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length : rot.musicIdx
+        musicIdx: advanced.music ? (rot.musicIdx - 1 + MUSIC_ROTATION_NAMES.length) % MUSIC_ROTATION_NAMES.length : rot.musicIdx,
+        recordIdx: advanced.record ? (rot.recordIdx - 1 + RECORD_ROTATION_NAMES.length) % RECORD_ROTATION_NAMES.length : rot.recordIdx
       };
       ui.newGameFormReady = false; ui.endSetPanelOpen = false;
       ui.tai = 0; ui.taiTags = []; ui.huaCount = 0; ui.swapMode = false; ui.swapSelected = null; ui.swapSeatOrder = null;
@@ -5853,31 +5877,36 @@
   // 下次自動指派的建議又跳回舊的順序。name 不在輪值名單裡（含不指派的
   // null）就不動指標，原樣傳回去。
   function advanceDutyRotationTo(rotation, key, name){
-    var names = key === "photo" ? PHOTO_ROTATION_NAMES : MUSIC_ROTATION_NAMES;
+    var names = key === "photo" ? PHOTO_ROTATION_NAMES : (key === "record" ? RECORD_ROTATION_NAMES : MUSIC_ROTATION_NAMES);
     var idx = name ? names.indexOf(name) : -1;
     if(idx === -1) return rotation;
     var next = deepClone(rotation);
     if(key === "photo") next.photoIdx = (idx+1) % names.length;
+    else if(key === "record") next.recordIdx = (idx+1) % names.length;
     else next.musicIdx = (idx+1) % names.length;
     return next;
   }
   function previewDutyAssignment(players){
     if(!players || players.length !== 4) return null;
     var primary = primaryDutyGame();
-    var record = DEFAULT_RECORD_NAME;
+    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
+    var isCore = isDutyRotationCore(players);
     var music, photo;
     if(primary){
       var pd = primary.duties || {};
       music = pd.music || null;
       photo = pd.photo || null;
     }else{
-      var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
-      var isCore = isDutyRotationCore(players);
       var photoCandidate = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
       var musicCandidate = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
       photo = (isCore && players.indexOf(photoCandidate) !== -1) ? photoCandidate : null;
       music = (isCore && players.indexOf(musicCandidate) !== -1) ? musicCandidate : null;
     }
+    // 記錄每桌各自獨立輪（不像播音樂/拍照要鏡射桌1），只要是這四人原班
+    // 就照自己的輪值算；跟 buildStartedState 一樣，候選人剛好跟這場實際
+    // 的播音樂撞期就改給榕（榕不在播音樂輪值名單裡，不會撞）。
+    var recordCandidate = RECORD_ROTATION_NAMES[rotation.recordIdx % RECORD_ROTATION_NAMES.length];
+    var record = isCore ? ((recordCandidate === music) ? "榕" : recordCandidate) : null;
     return { record: record, music: music, photo: photo };
   }
   function assignDuty(gameId, key, name){
@@ -5900,8 +5929,12 @@
       // 指派才會接著「這次實際指派的人」繼續輪，不會因為中途在這裡改過
       // 就跟實際情況脫節（取消指派、或改成不在輪值名單裡的人，指標不動）。
       if(key === "photo" || key === "music"){
-        newState.dutyRotation = advanceDutyRotationTo(newState.dutyRotation || { photoIdx: 0, musicIdx: 0 }, key, newValue);
+        newState.dutyRotation = advanceDutyRotationTo(newState.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 }, key, newValue);
       }
+    }else if(key === "record"){
+      // 記錄是每桌自己的，不用像上面那樣鏡射給其他桌，但輪值指標一樣要
+      // 同步，道理跟播音樂/拍照一樣。
+      newState.dutyRotation = advanceDutyRotationTo(newState.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 }, key, ng.duties.record);
     }
     commitState(newState);
   }
@@ -6693,14 +6726,15 @@
   function renderSettingsTab(){
     document.getElementById("defBaseInput").value = state.defaultBase;
     document.getElementById("defTaiInput").value = state.defaultTai;
-    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+    var rotation = state.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
     var photoNext = PHOTO_ROTATION_NAMES[rotation.photoIdx % PHOTO_ROTATION_NAMES.length];
     var musicNext = MUSIC_ROTATION_NAMES[rotation.musicIdx % MUSIC_ROTATION_NAMES.length];
+    var recordNext = RECORD_ROTATION_NAMES[rotation.recordIdx % RECORD_ROTATION_NAMES.length];
     renderChipRow("photoRotationChips", PHOTO_ROTATION_NAMES, function(name){
       var idx = PHOTO_ROTATION_NAMES.indexOf(name);
       if(idx === -1) return;
       var ns = deepClone(state);
-      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
       ns.dutyRotation.photoIdx = idx;
       commitState(ns);
       showToast("已設定拍照下一位輪到「"+name+"」。");
@@ -6709,11 +6743,20 @@
       var idx = MUSIC_ROTATION_NAMES.indexOf(name);
       if(idx === -1) return;
       var ns = deepClone(state);
-      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0 };
+      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
       ns.dutyRotation.musicIdx = idx;
       commitState(ns);
       showToast("已設定音樂下一位輪到「"+name+"」。");
     }, musicNext);
+    renderChipRow("recordRotationChips", RECORD_ROTATION_NAMES, function(name){
+      var idx = RECORD_ROTATION_NAMES.indexOf(name);
+      if(idx === -1) return;
+      var ns = deepClone(state);
+      ns.dutyRotation = ns.dutyRotation || { photoIdx: 0, musicIdx: 0, recordIdx: 0 };
+      ns.dutyRotation.recordIdx = idx;
+      commitState(ns);
+      showToast("已設定記錄下一位輪到「"+name+"」。");
+    }, recordNext);
   }
   document.getElementById("applyDefaultsBtn").addEventListener("click", function(){
     var base = parseInt(document.getElementById("defBaseInput").value, 10);
